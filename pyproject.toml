@@ -1,0 +1,41 @@
+[project]
+name = "mirage"
+version = "0.1.0"
+description = "A physics-based synthetic-data engine for 3D perception: generate defect scenes, detect anomalies, measure the sim-to-real gap honestly. Edge-deployable."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "scipy",
+    "scikit-image",
+    "tifffile",     # MVTec 3D-AD xyz position maps (3-channel float TIFF)
+    "pillow",       # rgb / gt PNGs
+    "matplotlib",
+    "tqdm",
+    "open3d",       # point-cloud processing + the look-at-the-data viewer
+    "polars",       # data store + splits (mirror of systole's cardioseg/data)
+    "pydantic>=2",  # validated hyperparameter configs
+    "omegaconf",    # paths.yaml config loader (one-root data path)
+    # torch >=2.7 is required for NVIDIA Blackwell (sm_120, e.g. RTX 5090).
+    # Install the CUDA build from the PyTorch index, NOT plain PyPI (which is CPU):
+    #   pip install torch --index-url https://download.pytorch.org/whl/cu128
+    "torch>=2.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+export = ["onnxruntime"]   # ONNX export + parity check (train-vs-deploy skew, carried from acoustic)
+# models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
+#                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
+#                          # method is chosen, installed into THIS isolated env (never the shared one).
+all = ["onnxruntime", "pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["mirage*"]

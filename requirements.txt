@@ -1,0 +1,25 @@
+# Core runtime deps (mirror of pyproject [project].dependencies — pyproject is the source of truth).
+# Preferred install:  pip install -e .          (+ extras: .[export,dev]  or  .[all])
+#
+# Use a DEDICATED conda env (`mirage`), NOT a shared ML env — the 3D model libs (mmcv/spconv/
+# pointnet2 CUDA ops) pin torch+cuda tightly and would clobber a shared torch.
+#
+# torch: install the CUDA build from the PyTorch index FIRST, not plain PyPI (which is CPU-only):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128   # >=2.7 for Blackwell/RTX 5090
+torch>=2.7
+numpy
+scipy
+scikit-image
+tifffile
+pillow
+matplotlib
+tqdm
+open3d
+polars
+pydantic>=2
+omegaconf
+
+# Optional (pyproject extras; listed for reference):
+#   export: onnxruntime    # ONNX export + parity
+#   dev:    pytest
+#   models: M3DM / mmcv / spconv / pointnet2 — pinned only once a method is chosen (fragile; isolate)

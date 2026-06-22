@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "synthscape",
+  "project_id": "871c863a-ca55-4ca9-be21-8d7d05d77bfb"
+}

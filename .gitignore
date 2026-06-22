@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Data / weights / artifacts (never commit large or licensed data)
+data/raw/
+data/processed/
+datasets/
+*.bin
+*.pcd
+*.npy
+*.npz
+*.pth
+*.onnx
+*.engine
+runs/
+checkpoints/
+logs/
+wandb/
+mlruns/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

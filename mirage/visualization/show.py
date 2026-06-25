@@ -36,12 +36,30 @@ def load_sample(root, cat, split, defect, idx):
     return rgb, xyz, gt
 
 
-def to_point_cloud(rgb, xyz, gt=None):
-    """Drop background, return (points Nx3, colors Nx3 in [0,1])."""
-    valid = np.any(xyz != 0, axis=-1)          # background pixels are exactly (0,0,0)
+def load_processed(cat, split, defect, idx, size=None):
+    """Load one CLEANED sample from the processed store (rgb [0,1], xyz normalized,
+    valid + gt)."""
+    from mirage.data import store
+    from mirage.data import preprocess as pp
+    sid = f"{cat}_{split}_{defect}_{idx:03d}"
+    path = store.dataset_dir(size=size or pp.SIZE) / "data" / f"{sid}.npz"
+    if not path.exists():
+        raise FileNotFoundError(f"{path} not built — run: python -m mirage.data.store --cats {cat}")
+    a = store.load_arrays(path)
+    return a["rgb"], a["xyz"], a["gt"], a["valid"]
+
+
+def to_point_cloud(rgb, xyz, valid, gt=None):
+    """Drop background, return (points Nx3, colors Nx3 in [0,1]).
+
+    rgb may be uint8 (raw) or float [0,1] (processed) — normalized either way.
+    """
     pts = xyz[valid]
-    cols = rgb[valid].astype(np.float64) / 255.0
+    cols = rgb[valid].astype(np.float64)
+    if cols.size and cols.max() > 1.5:          # raw uint8 -> [0,1]
+        cols /= 255.0
     if gt is not None:                          # paint the labelled defect region red
+        cols = cols.copy()
         cols[gt[valid] > 0] = (1.0, 0.0, 0.0)
     return pts, cols
 
@@ -57,11 +75,17 @@ def main():
     ap.add_argument("--mask", action="store_true", help="paint the GT defect region red in 3D")
     ap.add_argument("--rgb", action="store_true", help="also show the flat RGB photo + GT mask (matplotlib)")
     ap.add_argument("--no-3d", action="store_true", help="skip the 3D window (use with --rgb for photo only)")
+    ap.add_argument("--processed", action="store_true",
+                    help="render the CLEANED processed sample (post background/outlier/normalize) instead of raw")
+    ap.add_argument("--size", type=int, default=None, help="processed param_key size (default: preprocess.SIZE)")
     args = ap.parse_args()
 
-    root = args.data_root or config.mvtec_root()
-    rgb, xyz, gt = load_sample(root, args.cat, args.split, args.defect, args.idx)
-    valid = np.any(xyz != 0, axis=-1)
+    if args.processed:
+        rgb, xyz, gt, valid = load_processed(args.cat, args.split, args.defect, args.idx, args.size)
+    else:
+        root = args.data_root or config.mvtec_root()
+        rgb, xyz, gt = load_sample(root, args.cat, args.split, args.defect, args.idx)
+        valid = np.any(xyz != 0, axis=-1)
     print(f"rgb {rgb.shape} {rgb.dtype} | xyz {xyz.shape} {xyz.dtype} | "
           f"gt {None if gt is None else gt.shape}")
     print(f"object pixels: {valid.sum():,} / {valid.size:,}  ({100 * valid.mean():.1f}%)")
@@ -91,7 +115,7 @@ def main():
 
     # 2) the colored 3D point cloud — same grid, now as geometry
     import open3d as o3d
-    pts, cols = to_point_cloud(rgb, xyz, gt if args.mask else None)
+    pts, cols = to_point_cloud(rgb, xyz, valid, gt if args.mask else None)
     pc = o3d.geometry.PointCloud()
     pc.points = o3d.utility.Vector3dVector(pts)
     pc.colors = o3d.utility.Vector3dVector(cols)

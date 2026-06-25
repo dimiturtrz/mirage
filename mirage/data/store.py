@@ -110,6 +110,7 @@ if __name__ == "__main__":
     ap.add_argument("--size", type=int, default=pp.SIZE)
     ap.add_argument("--rebuild", action="store_true")
     args = ap.parse_args()
+    build(size=args.size, cats=args.cats, rebuild=args.rebuild)  # process-if-missing + rewrite meta
     df = load(size=args.size, cats=args.cats)
     print(f"=== mvtec3d cloud: {len(df)} samples ===")
     print(df.group_by("split", "label").agg(pl.len().alias("n")).sort("split", "label"))

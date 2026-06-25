@@ -78,6 +78,9 @@ def main():
     ap.add_argument("--processed", action="store_true",
                     help="render the CLEANED processed sample (post background/outlier/normalize) instead of raw")
     ap.add_argument("--size", type=int, default=None, help="processed param_key size (default: preprocess.SIZE)")
+    ap.add_argument("--normals", action="store_true",
+                    help="estimate + show surface normals (arrows); color points by normal direction "
+                         "(unless --mask) — see L2 of learning/2026-06-25_fpfh-and-neighborhoods.md")
     args = ap.parse_args()
 
     if args.processed:
@@ -119,8 +122,21 @@ def main():
     pc = o3d.geometry.PointCloud()
     pc.points = o3d.utility.Vector3dVector(pts)
     pc.colors = o3d.utility.Vector3dVector(cols)
+
+    show_normals = False
+    if args.normals:
+        # normal = PCA smallest-eigenvector of the local neighborhood (L2). KNN search is
+        # scale-free (works on raw meters or normalized units); orient toward the scanner.
+        pc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(30))
+        pc.orient_normals_towards_camera_location((0.0, 0.0, 0.0))
+        if not args.mask:                       # color by normal direction: see the surface bend
+            n = np.asarray(pc.normals)
+            pc.colors = o3d.utility.Vector3dVector((n * 0.5 + 0.5).clip(0, 1))
+        show_normals = True
+
     print("3D: drag = rotate, scroll = zoom, q = quit")
-    o3d.visualization.draw_geometries([pc], window_name="MVTec 3D-AD sample")
+    o3d.visualization.draw_geometries([pc], window_name="MVTec 3D-AD sample",
+                                      point_show_normal=show_normals)
 
 
 if __name__ == "__main__":

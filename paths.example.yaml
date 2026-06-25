@@ -1,0 +1,6 @@
+# Copy this file to paths.yaml (gitignored) and set the single data root.
+# Under <data> the code expects raw/ (you drop downloads here) and creates processed/.
+#   <data>/raw/mvtec_3d_anomaly_detection/   <- the MVTec 3D-AD download
+#   <data>/processed/                        <- preprocess cache (auto-created)
+# Env override (CI): set MIRAGE_DATA instead of this file.
+data: /abs/path/to/3d-data    # e.g. D:/data/3d

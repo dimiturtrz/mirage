@@ -46,19 +46,23 @@ required; not redistributed here.
 ## Layout
 ```
 mirage/
-  scripts/     standalone tools (look_at_sample.py — view a scan as a 3D point cloud)
+  mirage/
+    config.py            data root from paths.yaml (-> raw/ + processed/)
+    visualization/show.py   view a scan as a colored 3D point cloud
   docs/        PLAN.md — the staged build plan
   pyproject.toml / requirements.txt   packaging + deps
+  paths.example.yaml     copy -> paths.yaml (gitignored), set your data root
 ```
-Pipeline / model / viewer directories are added only when they hold real code — no speculative folders.
+Pipeline / model / data directories are added only when they hold real code — no speculative folders.
 
 ## Quickstart
 ```bash
 conda create -n mirage python=3.11 -y && conda activate mirage
 pip install torch --index-url https://download.pytorch.org/whl/cu128   # CUDA build (Blackwell/RTX 5090)
 pip install -e .
-# look at one scan (needs the dataset under <root>/raw/mvtec_3d_anomaly_detection/):
-python scripts/look_at_sample.py --cat bagel --split test --defect hole --idx 0 --mask
+cp paths.example.yaml paths.yaml          # then set `data:` to your data root
+# look at one scan (needs the dataset under <data>/raw/mvtec_3d_anomaly_detection/):
+python -m mirage.visualization.show --cat bagel --split test --defect hole --idx 0 --mask
 ```
 
 ## How it's built

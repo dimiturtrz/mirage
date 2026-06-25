@@ -9,6 +9,9 @@ dist/
 venv/
 .env
 
+# Local machine config — the data root lives outside the repo
+paths.yaml
+
 # Data / weights / artifacts (never commit large or licensed data)
 data/raw/
 data/processed/

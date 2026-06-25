@@ -12,8 +12,10 @@ Run:
     python scripts/look_at_sample.py --cat bagel --split test --defect hole --idx 0 --mask
     python scripts/look_at_sample.py --cat bagel --split train --defect good --idx 0   # a normal one
 
-A matplotlib window opens first (photo + mask). Close it -> the Open3D 3D
-window opens (drag = rotate, scroll = zoom, press q to quit).
+Opens the Open3D 3D window straight away (drag = rotate, scroll = zoom,
+right-drag = pan, q = quit); the defect is painted red with --mask. Add
+--rgb to also pop the flat photo + mask first (matplotlib, blocks until
+closed). --no-3d with --rgb = photo only.
 """
 import argparse
 from pathlib import Path
@@ -51,7 +53,8 @@ def main():
     ap.add_argument("--defect", default="hole", help="good | crack | hole | contamination | combined | ...")
     ap.add_argument("--idx", type=int, default=0)
     ap.add_argument("--mask", action="store_true", help="paint the GT defect region red in 3D")
-    ap.add_argument("--no-3d", action="store_true", help="just show the photo, skip the 3D window")
+    ap.add_argument("--rgb", action="store_true", help="also show the flat RGB photo + GT mask (matplotlib)")
+    ap.add_argument("--no-3d", action="store_true", help="skip the 3D window (use with --rgb for photo only)")
     args = ap.parse_args()
 
     rgb, xyz, gt = load_sample(args.data_root, args.cat, args.split, args.defect, args.idx)
@@ -62,20 +65,23 @@ def main():
     if gt is not None:
         print(f"defect pixels: {(gt > 0).sum():,}  ({100 * (gt > 0).mean():.2f}% of frame)")
 
-    # 1) the photo (+ mask if present) — image-land, where you're comfortable
-    import matplotlib.pyplot as plt
-    cols_n = 1 if gt is None else 2
-    fig, axes = plt.subplots(1, cols_n, figsize=(5 * cols_n, 5))
-    axes = np.atleast_1d(axes)
-    axes[0].imshow(rgb)
-    axes[0].set_title(f"{args.cat}/{args.split}/{args.defect}/{args.idx:03d} — RGB")
-    axes[0].axis("off")
-    if gt is not None:
-        axes[1].imshow(gt, cmap="gray")
-        axes[1].set_title("GT defect mask")
-        axes[1].axis("off")
-    plt.tight_layout()
-    plt.show()
+    # 1) (optional) the flat photo + mask — image-land. Opt-in via --rgb; it blocks
+    #    until closed, so default is straight to the 3D cloud (which is already
+    #    RGB-colored, and --mask shows the defect there too).
+    if args.rgb:
+        import matplotlib.pyplot as plt
+        cols_n = 1 if gt is None else 2
+        fig, axes = plt.subplots(1, cols_n, figsize=(5 * cols_n, 5))
+        axes = np.atleast_1d(axes)
+        axes[0].imshow(rgb)
+        axes[0].set_title(f"{args.cat}/{args.split}/{args.defect}/{args.idx:03d} — RGB")
+        axes[0].axis("off")
+        if gt is not None:
+            axes[1].imshow(gt, cmap="gray")
+            axes[1].set_title("GT defect mask")
+            axes[1].axis("off")
+        plt.tight_layout()
+        plt.show()
 
     if args.no_3d:
         return

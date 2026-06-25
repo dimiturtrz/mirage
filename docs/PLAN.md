@@ -43,7 +43,7 @@ The acoustic engine adapts generation difficulty per epoch from the trainer's pr
 ---
 
 ## The ramp (real spine first, then the engine)
-1. **Stage 0 — Static, real data.** Start on **MVTec 3D-AD** (real industrial 3D anomaly). Stand up the anomaly model + the **eval harness** (rare-class metrics, calibration, per-condition diagnostics) on real data. Prove the spine before synthetic. **First commit = MVTec 3D-AD + eval harness.** = systole's Gate 1 (presentable) = **the public-flip trigger.**
+1. **Stage 0 — Static, real data.** Start on **MVTec 3D-AD** (real industrial 3D anomaly). Stand up the **reconstruction-VAE** anomaly model (rebuild normal → residual + latent distance = anomaly) + the **eval harness** (rare-class metrics, calibration, per-condition diagnostics) on real data. Prove the spine before synthetic. **First commit = MVTec 3D-AD + eval harness.** = systole's Gate 1 (presentable) = **the public-flip trigger.**
 2. **Stage 1 — Synthetic engine + sim-to-real (the differentiator, the center).** Render synthetic defects (Replicator/Isaac, or Blender/BlenderProc). Train synth → test real; **quantify the gap honestly.** Reproduce ONE known DA method and *measure* it — don't try to beat it. Then layer the **closed-loop curriculum** on top.
 3. **Stage 2 — Edge deploy.** ONNX → TensorRT + FPS/latency/memory benchmark (Jetson if available, else CPU/GPU; RPi/edge-accel experience carries). Target <1% mAP loss.
 4. **Optional later (learning-expansion, not leverage):** **segmentation** (dense spatial labeling — the *least-him* task, pure new skill; adds "which part is defective" + broadens role coverage); detection+tracking (2D experience exists; 3D stretch, low role-ROI — deprioritized); multi-modal scene sim (the carried R&D ambition: light+geometry, the full multimodal generator).
@@ -81,10 +81,29 @@ Mirror systole's `learning/<date>_<topic>.md` + glossary + on-demand self-quizze
 
 ---
 
+## Input data & handling (MVTec 3D-AD)
+**Format (verified on-disk):** per sample, an 800×800 grid with three synced channels — `rgb/NNN.png` (color), `xyz/NNN.tiff` (per-pixel x,y,z position map, meters, from a Zivid structured-light scanner), `gt/NNN.png` (defect mask, test only). Single-view 2.5D surface (one scan/sample). `train`/`validation` = good only; `test` = good + defect types with masks.
+
+**Representation choice = keep the organized grid (position map as a 3-channel image), not unordered points.** Why: the reconstruction VAE wants a fixed-size tensor (the grid is one); it plays the 2D-CNN strength (depth-image-shaped); and **per-pixel reconstruction error is a pixel-level anomaly map for free — exactly the AU-PRO localization target.**
+
+**Preprocess contract (raw → `processed/mvtec3d/<cat>/<split>/`):**
+1. Load xyz + rgb (+ gt for test).
+2. **Background mask** — `xyz != (0,0,0)` (the only background marker; rgb/gt don't encode it; verified exactly-zero, no NaN).
+3. **Flying-pixel removal** — statistical outlier removal (structured-light artifacts at depth edges are non-zero, so they survive the background mask). Update mask.
+4. **Crop** to object bbox, **resize** to fixed (e.g. 256²).
+5. **Normalize** — geometry to a *known physical* scale (center + fixed scale; xyz already in meters), NOT dataset statistics (the carried calibrate-to-physical-units principle). RGB /255.
+6. **Store** the normalized position-map tensor + valid mask + (test) gt + meta.
+
+**Two carried-from-acoustic specifics:**
+- **Masked reconstruction loss** — compute loss only on valid (object) pixels; don't spend VAE capacity rebuilding background.
+- **Anomaly scoring** — per-pixel residual → pixel map (AU-PRO); top-residual aggregate → image AUROC; **+ latent Mahalanobis distance** (the VAE-latent trick); + ECE calibration.
+
+**Channels:** start geometry-only (xyz, 3ch); later add rgb (→6ch) for a **geometry-vs-rgb-vs-fused mini-triad** (fusion strength + an honest comparison).
+
 ## Tech stack
 - **Data:** MVTec 3D-AD (real) → synthetic defects (Replicator/Isaac, or Blender/BlenderProc)
 - **Processing:** Open3D (PCL if C++ needed) — *new; the ramp target*
-- **Models:** MMDetection3D / OpenPCDet / anomaly methods — **use, never reimplement**
+- **Models:** **reconstruction VAE — built, not borrowed** (the one justified exception to use-don't-reimplement: it's the contribution, ported from acoustic anomaly work). Libraries (Open3D, training infra) for plumbing only. Memory-bank methods (PatchCore/M3DM) as comparison baselines, used not rebuilt.
 - **Deploy:** ONNX → TensorRT (→ Jetson); RPi/edge-accel experience carries
 - **Viewers:** three.js / vtk.js / Open3D-web (in-browser ONNX), TypeScript
 - **Eval:** custom harness — rare-class metrics, calibration-under-shift, sim-to-real gap, per-condition diagnostics ← **the contribution**

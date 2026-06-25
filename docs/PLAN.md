@@ -32,7 +32,7 @@ systole's power is one through-line — *segment the heart → measure EF → sh
 
 ### Headline numbers — decided up front (systole's lesson)
 systole hits because the numbers are concrete and tied to a bar: *EF MAE 5.9%, bias −5.2%, LoA ±13, against a ±5% clinical bar.* mirage commits to its equivalents on day one:
-- **AUPRO / AUROC** on MVTec 3D-AD held-out (real-trained ceiling) — the standard benchmark *is* the SOTA baseline to quarantine against, the role nnU-Net played in systole.
+- **AU-PRO / AUROC** on MVTec 3D-AD held-out (real-trained ceiling) — the standard benchmark *is* the SOTA baseline to quarantine against, the role nnU-Net played in systole.
 - **Sim-to-real gap** in percentage points (synth-only vs real-trained) — the headline honest number.
 - **Calibration** (ECE / reliability) under domain shift — the rare-class + calibration signature.
 Per-condition diagnostics (defect type, material, lighting) stratify the failure, the way systole stratified EF error by pathology/vendor. (Calibration + ECE + domain-shift detection are already in the toolbox — carried, not learned.)
@@ -45,8 +45,8 @@ The acoustic engine adapts generation difficulty per epoch from the trainer's pr
 ## The ramp (real spine first, then the engine)
 1. **Stage 0 — Static, real data.** Start on **MVTec 3D-AD** (real industrial 3D anomaly). Stand up the **reconstruction-VAE** anomaly model (rebuild normal → residual + latent distance = anomaly) + the **eval harness** (rare-class metrics, calibration, per-condition diagnostics) on real data. Prove the spine before synthetic. **First commit = MVTec 3D-AD + eval harness.** = systole's Gate 1 (presentable) = **the public-flip trigger.**
 2. **Stage 1 — Synthetic engine + sim-to-real (the differentiator, the center).** Render synthetic defects (Replicator/Isaac, or Blender/BlenderProc). Train synth → test real; **quantify the gap honestly.** Reproduce ONE known DA method and *measure* it — don't try to beat it. Then layer the **closed-loop curriculum** on top.
-3. **Stage 2 — Edge deploy.** ONNX → TensorRT + FPS/latency/memory benchmark (Jetson if available, else CPU/GPU; RPi/edge-accel experience carries). Target <1% mAP loss.
-4. **Optional later (learning-expansion, not leverage):** **segmentation** (dense spatial labeling — the *least-him* task, pure new skill; adds "which part is defective" + broadens role coverage); detection+tracking (2D experience exists; 3D stretch, low role-ROI — deprioritized); multi-modal scene sim (the carried R&D ambition: light+geometry, the full multimodal generator).
+3. **Stage 2 — Edge deploy.** ONNX → TensorRT + FPS/latency/memory benchmark (Jetson if available, else CPU/GPU; RPi/edge-accel experience carries). Target <1% AUROC/AU-PRO loss vs the full-precision model.
+4. **After the spine — two expansion axes** (perception breadth · engine depth). Optional, sequenced *after* the public flip — not pulled forward. See **Expansion axes** below.
 
 ## Comparisons (the triad IS the contribution)
 Like systole's nnU-Net baseline, report three honestly:
@@ -55,6 +55,24 @@ Like systole's nnU-Net baseline, report three honestly:
 3. Synthetic + DA (+ closed-loop curriculum) = gap closure
 
 That triad + calibration + per-condition diagnostics is the defensible result — not a leaderboard number.
+
+---
+
+## Expansion axes (after the Stage 0–2 spine)
+Two axes branch off the spine. Both optional, both sequenced *after* the public flip — mapped here so the ladder isn't lost, not to be pulled forward.
+
+**Axis 1 — perception breadth** (more role coverage)
+- **Segmentation** — dense spatial labeling ("which part is defective"). The *least-him* task (pure new skill), but the lever that completes the CV-platform role; shares the eval harness, so cheap. **Keep reachable.**
+- **Detection + tracking** — 2D experience exists; 3D is a stretch and low role-ROI (opens mostly gated roles). Deprioritized.
+- **Multi-modal fusion** — RGB + geometry (+ thermal) join via the calib + timestamp pattern.
+
+**Axis 2 — engine depth** (the carried R&D ambition; toward the simulation-first stack)
+- **The hinge:** building the **Stage 1 generator in Isaac/Omniverse (not Blender)** plants this axis — same Stage-1 deliverable, but in the stack that continues here.
+- **T2 — temporal / scenario simulation:** deepen the static defect-gen into **video-shape** sequential sim (a scene over time) in Isaac Sim / Omniverse / USD. Buys the USD/Omniverse/Isaac-Sim + dataset-gen-as-temporal competence (the full multimodal scene-simulation ambition: light + geometry, later + audio). VLA models are video/sequence-conditioned, so this is their native input.
+
+**Charter boundary — where mirage stops.**
+- **T2 stays in mirage** — it's *generating data*, which is the engine charter.
+- **T3 (train a VLA + RL on that data) is OUT** — that's control/action = door-2, forbidden by the restraint rule (no control, manipulation, or RL). T3 is a separate project/limb. **mirage ends at "generate the data + perceive"; training action models on it is the next project, not a mirage stage.**
 
 ---
 
@@ -111,27 +129,33 @@ Mirror systole's `learning/<date>_<topic>.md` + glossary + on-demand self-quizze
 ### Stack landscape (where things sit)
 - **Formats:** USD (3D scenes), ONNX (models)
 - **Sim / data-gen:** Omniverse (platform) · Isaac Sim (robotics sim) · **Replicator (synthetic data-gen — the center)** · CARLA (driving) · Blender/BlenderProc (generic). **Isaac Lab = RL/control = skip.**
-- **Datasets:** real (MVTec 3D-AD for anomaly; ScanNet/S3DIS indoor; KITTI/nuScenes AV) · synthetic (KITTI-CARLA, SynLiDAR, 3D-FRONT)
+- **Datasets:** anomaly (MVTec 3D-AD — **core**) · seg/AV only on the breadth axis (ScanNet/S3DIS indoor; KITTI/nuScenes AV) · synthetic (our renders — core; KITTI-CARLA/SynLiDAR/3D-FRONT as references)
 - **Processing:** Open3D, PCL
-- **Models:** MMDetection3D, OpenPCDet, Open3D-ML, PyTorch3D
+- **Models:** anomaly — reconstruction VAE (ours, built) · M3DM/BTF/PatchCore-3D (baselines, used). Detection/seg libs (MMDetection3D, OpenPCDet, Open3D-ML, PyTorch3D) only on the breadth axis.
 - **Deploy:** ONNX → TensorRT → Jetson
 
 Generating with Replicator/Isaac Sim (not Isaac Lab) buys USD/Omniverse/Isaac literacy via the *data-gen* half — no RL. It's also the visual instantiation of the carried R&D ambition (multimodal scene simulation as a training-data generator).
 
 ---
 
-## SOTA / OSS landscape (research 2026-06-22; ⚠️ = verify before publishing)
-- **Models:** MMDetection3D (6.5k★), OpenPCDet (5.6k★) — many models, KITTI/nuScenes built-in.
-- **Synthetic:** CARLA (14.1k★), Isaac Sim (free); pre-made KITTI-CARLA (35k), SynLiDAR (200k) ⚠️.
-- **Sim-to-real DA (with code):** ePointDA (2021), Synth-it-Like-KITTI (2025), STAL3D/UADA3D (2024–25); ~5–17% AP3D gain CARLA→KITTI ⚠️.
-- **Anomaly:** MVTec 3D-AD is the standard 3D anomaly benchmark.
-- **Edge:** PyTorch→ONNX→TensorRT, PointPillars ~75 FPS Jetson Xavier, <1% mAP loss ⚠️.
-- **White space (the opening):** no standardized sim-to-real benchmark; Isaac-vs-CARLA fidelity unbenchmarked; quantization+domain-shift compound effect unmeasured (directly in the toolbox: distribution-shift detection + edge quantization).
+## SOTA / OSS landscape (⚠️ = verify before it lands in README; a dedicated research pass is still owed here)
+**Core path — 3D anomaly detection on MVTec 3D-AD:**
+- **Memory-bank / feature methods** (the SOTA baselines to quarantine against, used not rebuilt): BTF (handcrafted FPFH + RGB) ⚠️, M3DM (multimodal RGB + point fusion) ⚠️, PatchCore-3D ⚠️. Top methods report image-AUROC ≈0.9+ and pixel-AU-PRO ≈0.9+ ⚠️.
+- **Reconstruction-based** (our family): autoencoder / dual-branch RGB-D reconstruction (e.g. arXiv 2311.06797) ⚠️. Typically *lags* memory-bank on the leaderboard ⚠️ — expected, and fine: the contribution is the engine + eval rigor, not the number (the systole nnU-Net-baseline move).
+- **Libs:** Anomalib (2D-centric, limited 3D) ⚠️; method repos (M3DM, BTF) used directly.
+- **White space (the opening):** no standardized **sim-to-real** benchmark for 3D anomaly; synthetic-defect generation + honest gap measurement is largely unexplored — the differentiator. Quantization + domain-shift compound effect unmeasured (directly in the toolbox: distribution-shift detection + edge quantization).
+
+**Breadth / AV axis only (Axis 1, or a future pivot — NOT the core anomaly path):**
+- Detection/seg libs: MMDetection3D (6.5k★), OpenPCDet (5.6k★) ⚠️.
+- AV sim-to-real DA (cross-domain reference): ePointDA, STAL3D/UADA3D, Synth-it-Like-KITTI; ~5–17% AP3D CARLA→KITTI ⚠️.
+- Synthetic AV: CARLA, Isaac Sim; KITTI-CARLA, SynLiDAR ⚠️.
+
+**Edge:** PyTorch → ONNX → TensorRT; target sub-1% metric (AUROC/AU-PRO) loss under quantization ⚠️.
 
 ## SOTA stance / honesty rules
-1. **Don't chase mAP/AUPRO SOTA.** Use SOTA libs, reproduce a SOTA-ish DA method, **contribute the eval rigor + the data engine** the field lacks.
+1. **Don't chase AUROC/AU-PRO SOTA.** Use SOTA libs, reproduce a SOTA-ish DA method, **contribute the eval rigor + the data engine** the field lacks.
 2. **Differentiator = the engine + the eval, not the model.** The detector is commodity; say so.
-3. **Cite prior art** (MMDet3D/OpenPCDet, CARLA/Isaac, ePointDA et al., MVTec 3D-AD) — informed, not naive.
+3. **Cite prior art** (MVTec 3D-AD, M3DM/BTF, reconstruction-AD methods; CARLA/Isaac/MMDet3D only where the breadth/sim axes touch them) — informed, not naive.
 4. **Verify every ⚠️** against a primary source before it lands in the README.
 5. Thesis framing: *"a synthetic-data engine + the honest sim-to-real evaluation the field lacks,"* not *"I built synthetic→real detection."*
 6. **Honest-limits section, measured not assumed** (systole's "clinical-grade gap"): claim edge deploy (real), never production-scale serving; 3D is a ramp — say so; state the gaps as numbers.

@@ -5,8 +5,11 @@ from pydantic import BaseModel
 
 
 class HParams(BaseModel):
+    model_type: str = "vae"            # vae | inpaint
     cats: list[str] | None = None      # None = all categories
     channels: list[str] = ["xyz"]      # geometry-only; ["xyz","rgb"] = fused (6ch)
+    mask_ratio: float = 0.5            # inpaint: fraction of patches masked during training
+    grid: int = 8                     # inpaint: grid for masking (patch = size // grid)
     size: int = 256
     base: int = 32
     latent: int = 256

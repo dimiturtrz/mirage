@@ -17,6 +17,7 @@ import torch
 
 from mirage.data.dataset import load_split
 from mirage.evaluation import metrics, scoring
+from mirage.models.inpaint import InpaintAE
 from mirage.models.vae import ConvVAE
 from mirage.tracking import resume
 from mirage.training.hparams import HParams
@@ -27,11 +28,15 @@ def evaluate(run: Path, cats=None):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     data = load_split(split="test", cats=cats or hp.cats, channels=hp.channels, device=dev, size=hp.size)
 
-    model = ConvVAE(in_ch=data.in_ch, base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth,
-                    dropout=hp.dropout).to(dev)
+    cls = InpaintAE if hp.model_type == "inpaint" else ConvVAE
+    model = cls(in_ch=data.in_ch, base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth,
+                dropout=hp.dropout).to(dev)
     model.load_state_dict(torch.load(run / "model.pt", map_location=dev))
 
-    amaps = scoring.anomaly_maps(model, data)
+    if hp.model_type == "inpaint":
+        amaps = scoring.inpaint_maps(model, data, grid=hp.grid)
+    else:
+        amaps = scoring.anomaly_maps(model, data)
     valids = data.valid.squeeze(1).cpu().numpy().astype(bool)
     masks = data.gt.squeeze(1).cpu().numpy().astype(bool)
     scores = scoring.image_scores(amaps, valids)

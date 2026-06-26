@@ -79,8 +79,10 @@ def main():
                     help="render the CLEANED processed sample (post background/outlier/normalize) instead of raw")
     ap.add_argument("--size", type=int, default=None, help="processed param_key size (default: preprocess.SIZE)")
     ap.add_argument("--normals", action="store_true",
-                    help="estimate + show surface normals (arrows); color points by normal direction "
-                         "(unless --mask) — see L2 of learning/2026-06-25_fpfh-and-neighborhoods.md")
+                    help="color points by surface-normal direction (the surface bend, made visible) — "
+                         "see L2 of learning/2026-06-25_fpfh-and-neighborhoods.md")
+    ap.add_argument("--arrows", action="store_true",
+                    help="with --normals: also draw the normal vectors as arrows (50k of them — noisy; opt-in)")
     args = ap.parse_args()
 
     if args.processed:
@@ -132,7 +134,7 @@ def main():
         if not args.mask:                       # color by normal direction: see the surface bend
             n = np.asarray(pc.normals)
             pc.colors = o3d.utility.Vector3dVector((n * 0.5 + 0.5).clip(0, 1))
-        show_normals = True
+        show_normals = args.arrows              # arrows are opt-in (50k of them = visual noise)
 
     print("3D: drag = rotate, scroll = zoom, q = quit")
     o3d.visualization.draw_geometries([pc], window_name="MVTec 3D-AD sample",

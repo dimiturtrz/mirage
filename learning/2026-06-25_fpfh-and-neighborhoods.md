@@ -132,5 +132,13 @@ and report our deployable VAE against it (the systole nnU-Net move).
 - How our cleanup (centroid clip, 256-resize) changes point density vs BTF's native-resolution
   assumptions — may need to run FPFH on the *pre-resize* cloud.
 
+**Finding (2026-06-26, from the `--normals` viz):** where the surface tilts *away* from the scanner
+(grazing angle), structured-light sampling goes sparse + noisy, with visible **depth-quantization
+banding** — and the normals there are garbage (sparse/noisy neighborhood → PCA can't fit a stable
+plane → random direction). Lesson-4 made vivid. Our centroid-clip + SOR + erosion don't catch it
+(near-surface, not a tight far cluster). Tracked: tighten preprocess (drop low-normal-confidence /
+non-scanner-facing points) *only if the VAE proves it cares* — the noise is consistent across
+train+test, so a memory-bank/VAE may tolerate it.
+
 ### Quiz log
 _(none yet — "quiz me" to add one)_

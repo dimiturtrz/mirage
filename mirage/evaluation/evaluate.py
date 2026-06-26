@@ -27,7 +27,8 @@ def evaluate(run: Path, cats=None):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     data = load_split(split="test", cats=cats or hp.cats, channels=hp.channels, device=dev, size=hp.size)
 
-    model = ConvVAE(in_ch=data.in_ch, base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth).to(dev)
+    model = ConvVAE(in_ch=data.in_ch, base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth,
+                    dropout=hp.dropout).to(dev)
     model.load_state_dict(torch.load(run / "model.pt", map_location=dev))
 
     amaps = scoring.anomaly_maps(model, data)

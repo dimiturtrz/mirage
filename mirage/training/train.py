@@ -31,7 +31,7 @@ def train(hp: HParams, out: Path):
 
     data = load_split(split="train", label=0, cats=hp.cats, channels=hp.channels, device=dev, size=hp.size)
     n = len(data)
-    model = ConvVAE(in_ch=data.in_ch, base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth)
+    model = ConvVAE(in_ch=data.in_ch, base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth, dropout=hp.dropout)
     model = model.to(dev, memory_format=torch.channels_last)
     run_model = torch.compile(model) if (hp.compile and dev == "cuda") else model
     opt = optim.AdamW(model.parameters(), lr=hp.lr)
@@ -77,6 +77,7 @@ def main():
     ap.add_argument("--cats", nargs="*", default=None)
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--batch", type=int, default=None)
+    ap.add_argument("--dropout", type=float, default=None)
     ap.add_argument("--no-compile", action="store_true")
     args = ap.parse_args()
     hp = HParams()
@@ -86,6 +87,8 @@ def main():
         hp.epochs = args.epochs
     if args.batch is not None:
         hp.batch = args.batch
+    if args.dropout is not None:
+        hp.dropout = args.dropout
     if args.no_compile:
         hp.compile = False
     train(hp, args.out)

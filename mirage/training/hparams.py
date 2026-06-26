@@ -11,6 +11,7 @@ class HParams(BaseModel):
     base: int = 32
     latent: int = 256
     depth: int = 5
+    dropout: float = 0.0               # >0 breaks the identity/copy shortcut (forces generalization)
     batch: int = 64
     epochs: int = 100
     lr: float = 2e-4

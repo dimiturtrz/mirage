@@ -49,8 +49,8 @@ def load_processed(cat, split, defect, idx, size=None):
     return a["rgb"], a["xyz"], a["gt"], a["valid"]
 
 
-def anomaly_map(run, rgb, xyz, valid):
-    """Per-pixel reconstruction error from a trained model (run dir). Requires processed inputs."""
+def _run_model(run, rgb, xyz):
+    """Load a trained model + run it on one sample -> (input x [1,C,H,W], recon [1,C,H,W]), numpy."""
     import json
 
     import torch
@@ -63,14 +63,26 @@ def anomaly_map(run, rgb, xyz, valid):
     chans = [(xyz if c == "xyz" else rgb).transpose(2, 0, 1) for c in hp.channels]
     x = np.concatenate(chans, 0)[None].astype("float32")          # 1,C,H,W
     dev = "cuda" if torch.cuda.is_available() else "cpu"
-    model = ConvVAE(in_ch=x.shape[1], base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth).to(dev)
+    model = ConvVAE(in_ch=x.shape[1], base=hp.base, latent=hp.latent, size=hp.size,
+                    depth=hp.depth, dropout=hp.dropout).to(dev)
     model.load_state_dict(torch.load(run / "model.pt", map_location=dev))
     model.eval()
     with torch.no_grad():
-        xt = torch.from_numpy(x).to(dev)
-        recon, _, _ = model(xt)
-        err = ((recon - xt) ** 2).sum(1).squeeze(0).cpu().numpy()  # H,W
+        recon, _, _ = model(torch.from_numpy(x).to(dev))
+    return x, recon.cpu().numpy()
+
+
+def anomaly_map(run, rgb, xyz, valid):
+    """Per-pixel reconstruction error from a trained model (run dir). Requires processed inputs."""
+    x, recon = _run_model(run, rgb, xyz)
+    err = ((recon - x) ** 2).sum(1).squeeze(0)                    # H,W
     return err * valid
+
+
+def recon_xyz(run, rgb, xyz):
+    """The model's reconstructed xyz channels (H,W,3) — what it rebuilt the surface as."""
+    _, recon = _run_model(run, rgb, xyz)
+    return recon[0, :3].transpose(1, 2, 0)                        # C,H,W -> H,W,3 (xyz channels)
 
 
 def to_point_cloud(rgb, xyz, valid, gt=None):
@@ -113,6 +125,9 @@ def main():
     ap.add_argument("--anomaly", type=Path, default=None,
                     help="run dir (e.g. runs/vae_all/bagel): color points by the model's reconstruction "
                          "anomaly score (inferno). Requires --processed.")
+    ap.add_argument("--recon", type=Path, default=None,
+                    help="run dir: show the model's RECONSTRUCTED surface (its rebuilt xyz), colored by the "
+                         "original rgb. See what it actually rebuilds. Requires --processed.")
     args = ap.parse_args()
 
     if args.processed:
@@ -150,6 +165,11 @@ def main():
 
     # 2) the colored 3D point cloud — same grid, now as geometry
     import open3d as o3d
+    if args.recon is not None:
+        if not args.processed:
+            raise SystemExit("--recon needs --processed (the model eats the normalized processed input)")
+        xyz = recon_xyz(args.recon, rgb, xyz)        # show the rebuilt surface instead of the input
+        print("showing the model's RECONSTRUCTED surface (colored by original rgb)")
     pts, cols = to_point_cloud(rgb, xyz, valid, gt if args.mask else None)
     pc = o3d.geometry.PointCloud()
     pc.points = o3d.utility.Vector3dVector(pts)

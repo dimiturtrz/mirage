@@ -13,6 +13,7 @@ dependencies = [
     "matplotlib",
     "tqdm",
     "open3d",       # point-cloud processing + the look-at-the-data viewer
+    "scikit-learn", # image AUROC (evaluation/metrics.py)
     "polars",       # data store + splits (mirror of systole's cardioseg/data)
     "pydantic>=2",  # validated hyperparameter configs
     "omegaconf",    # paths.yaml config loader (one-root data path)
@@ -25,6 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest"]
 export = ["onnxruntime"]   # ONNX export + parity check (train-vs-deploy skew, carried from acoustic)
+track = ["mlflow"]         # optional experiment tracking (mirage/tracking.py; guarded, no-op if absent)
 # models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).

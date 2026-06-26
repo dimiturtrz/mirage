@@ -83,6 +83,9 @@ def main():
                          "see L2 of learning/2026-06-25_fpfh-and-neighborhoods.md")
     ap.add_argument("--arrows", action="store_true",
                     help="with --normals: also draw the normal vectors as arrows (50k of them — noisy; opt-in)")
+    ap.add_argument("--curvature", action="store_true",
+                    help="color points by surface variation lambda2/(sum) — flat=dark, edges/noise/defects "
+                         "glow. The geometric-weirdness score, a baby anomaly heatmap.")
     args = ap.parse_args()
 
     if args.processed:
@@ -126,7 +129,17 @@ def main():
     pc.colors = o3d.utility.Vector3dVector(cols)
 
     show_normals = False
-    if args.normals:
+    if args.curvature:
+        # surface variation = smallest / sum of the neighbor-covariance eigenvalues (L2 bonus):
+        # ~0 on a clean planar patch, large where neighbors are a blob (edges/noise/defects).
+        pc.estimate_covariances(search_param=o3d.geometry.KDTreeSearchParamKNN(30))
+        ev = np.linalg.eigvalsh(np.asarray(pc.covariances))     # ascending: ev[:,0] = smallest
+        sv = ev[:, 0] / (ev.sum(1) + 1e-12)
+        import matplotlib.cm as cm
+        sv_n = (sv / (np.percentile(sv, 99) + 1e-12)).clip(0, 1)  # robust scale (ignore top 1%)
+        pc.colors = o3d.utility.Vector3dVector(cm.inferno(sv_n)[:, :3])
+        print(f"surface variation: median {np.median(sv):.4f}  p99 {np.percentile(sv, 99):.4f}")
+    elif args.normals:
         # normal = PCA smallest-eigenvector of the local neighborhood (L2). KNN search is
         # scale-free (works on raw meters or normalized units); orient toward the scanner.
         pc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(30))

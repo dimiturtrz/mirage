@@ -49,6 +49,30 @@ def load_processed(cat, split, defect, idx, size=None):
     return a["rgb"], a["xyz"], a["gt"], a["valid"]
 
 
+def anomaly_map(run, rgb, xyz, valid):
+    """Per-pixel reconstruction error from a trained model (run dir). Requires processed inputs."""
+    import json
+
+    import torch
+
+    from mirage.models.vae import ConvVAE
+    from mirage.training.hparams import HParams
+
+    run = Path(run)
+    hp = HParams(**json.loads((run / "config.json").read_text()))
+    chans = [(xyz if c == "xyz" else rgb).transpose(2, 0, 1) for c in hp.channels]
+    x = np.concatenate(chans, 0)[None].astype("float32")          # 1,C,H,W
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    model = ConvVAE(in_ch=x.shape[1], base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth).to(dev)
+    model.load_state_dict(torch.load(run / "model.pt", map_location=dev))
+    model.eval()
+    with torch.no_grad():
+        xt = torch.from_numpy(x).to(dev)
+        recon, _, _ = model(xt)
+        err = ((recon - xt) ** 2).sum(1).squeeze(0).cpu().numpy()  # H,W
+    return err * valid
+
+
 def to_point_cloud(rgb, xyz, valid, gt=None):
     """Drop background, return (points Nx3, colors Nx3 in [0,1]).
 
@@ -86,6 +110,9 @@ def main():
     ap.add_argument("--curvature", action="store_true",
                     help="color points by surface variation lambda2/(sum) — flat=dark, edges/noise/defects "
                          "glow. The geometric-weirdness score, a baby anomaly heatmap.")
+    ap.add_argument("--anomaly", type=Path, default=None,
+                    help="run dir (e.g. runs/vae_all/bagel): color points by the model's reconstruction "
+                         "anomaly score (inferno). Requires --processed.")
     args = ap.parse_args()
 
     if args.processed:
@@ -129,7 +156,17 @@ def main():
     pc.colors = o3d.utility.Vector3dVector(cols)
 
     show_normals = False
-    if args.curvature:
+    if args.anomaly is not None:
+        if not args.processed:
+            raise SystemExit("--anomaly needs --processed (the model eats the normalized processed input)")
+        err = anomaly_map(args.anomaly, rgb, xyz, valid)
+        import matplotlib.cm as cm
+        e = err[valid.astype(bool)]
+        e = (e / (np.percentile(e, 99) + 1e-9)).clip(0, 1)
+        pc.colors = o3d.utility.Vector3dVector(cm.inferno(e)[:, :3])
+        print(f"anomaly residual: median {np.median(err[valid.astype(bool)]):.4f}  "
+              f"p99 {np.percentile(err[valid.astype(bool)], 99):.4f}")
+    elif args.curvature:
         # surface variation = smallest / sum of the neighbor-covariance eigenvalues (L2 bonus):
         # ~0 on a clean planar patch, large where neighbors are a blob (edges/noise/defects).
         pc.estimate_covariances(search_param=o3d.geometry.KDTreeSearchParamKNN(30))

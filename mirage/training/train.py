@@ -75,6 +75,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--cats", nargs="*", default=None)
+    ap.add_argument("--channels", nargs="*", default=None, help="e.g. xyz | xyz rgb (fused)")
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--batch", type=int, default=None)
     ap.add_argument("--dropout", type=float, default=None)
@@ -83,6 +84,8 @@ def main():
     hp = HParams()
     if args.cats is not None:
         hp.cats = args.cats
+    if args.channels is not None:
+        hp.channels = args.channels
     if args.epochs is not None:
         hp.epochs = args.epochs
     if args.batch is not None:

@@ -32,9 +32,11 @@ standardized sim-to-real 3D-anomaly benchmark exists), not a leaderboard score.
   diagnostics. Later: the sim-to-real triad (real ceiling / synth-only / synth + domain-adaptation).
 
 ## Status
-🚧 **Stage 0, private.** Standing up the anomaly spine + evaluation harness on **real** data
-(MVTec 3D-AD) before any synthetic generation. "Look at the data" step done (see `scripts/`). Goes
-public when the spine is presentable. Full staged plan → [`docs/PLAN.md`](docs/PLAN.md).
+🚧 **Stage 0, private.** Anomaly spine + eval harness on **real** data (MVTec 3D-AD), before any
+synthetic generation. First findings → [`docs/RESULTS.md`](docs/RESULTS.md): reconstruction-residual
+≈ random at localization (AU-PRO 0.095, *measured* across four variants + diagnosed), while a feature
+memory bank (PatchCore-rgb) reaches **AU-PRO 0.908** — the "compare to normal" paradigm. Goes public
+when the spine is presentable. Full staged plan → [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Data
 **MVTec 3D-AD** (Bergmann et al., VISAPP 2022) — real industrial 3D anomaly benchmark, 10 object

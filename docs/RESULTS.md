@@ -10,10 +10,23 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.48 | **0.095** |
 | BTF (FPFH memory bank) — ours | geometry | 0.675 | 0.653 |
 | **PatchCore (feature memory bank) — ours** | rgb | **0.819** | **0.908** |
+| **Feature-recon / RD4AD-lite — ours** | rgb | 0.807 | **0.908** |
 | Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.857¹ | **0.937**¹ |
 | SOTA (BTF / M3DM, *papers*) ⚠ | rgb + 3D | ~0.95 | ~0.96 |
 
 <sub>¹ fused = bagel only so far (proof it helps: 0.928 rgb → 0.937 fused); all-10 fusion pending. Geometry-only BTF is preprocessing-limited (below).</sub>
+
+**The sharpened lesson:** two *independent* feature methods — a memory bank (PatchCore) and a
+reconstruction AE (feature-recon) — both land at **AU-PRO 0.908**, vs pixel-reconstruction 0.095.
+So the winning ingredient isn't memory-bank-vs-reconstruction; it's the **feature space**.
+Reconstruction was never the wrong idea — *raw-pixel space* was (normal geometric complexity
+dominates the residual). Move the same reconstruction into a frozen-backbone feature space (where
+normal complexity is already normalized) and it localizes fine. That's the cleanest statement of
+the Stage-0 finding.
+
+### Per-defect-type (PatchCore-rgb, pooled across categories)
+Most defect types localize 0.87–0.96 AU-PRO; weak spots: **thread 0.59**, color hardest to *detect*
+(image-AUROC 0.59). The stratified failure (like systole's EF-by-pathology).
 
 **0.095 → 0.908.** Reconstruction-residual is ≈ random at localization. The reason — *measured*
 across four reconstruction variants (vanilla VAE, +dropout, masked-inpainting, rgb-fused), all

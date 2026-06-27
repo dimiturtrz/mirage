@@ -27,6 +27,7 @@ dependencies = [
 dev = ["pytest"]
 export = ["onnxruntime"]   # ONNX export + parity check (train-vs-deploy skew, carried from acoustic)
 track = ["mlflow"]         # optional experiment tracking (mirage/tracking.py; guarded, no-op if absent)
+features = ["torchvision"] # PatchCore feature memory bank (pretrained backbone) — install cu128 build
 # models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).

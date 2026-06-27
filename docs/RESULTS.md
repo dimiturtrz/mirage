@@ -8,6 +8,7 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | method | modality | mean img-AUROC | mean pixel AU-PRO |
 |---|---|---|---|
 | Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.48 | **0.095** |
+| DRAEM (synthesis-recon, crude Perlin) — ours | xyz / rgb | — | 0.48 / 0.21² |
 | BTF (FPFH memory bank) — ours | geometry | 0.675 | 0.653 |
 | **PatchCore (feature memory bank) — ours** | rgb | **0.819** | **0.908** |
 | **Feature-recon / RD4AD-lite — ours** | rgb | 0.807 | **0.908** |
@@ -23,6 +24,12 @@ Reconstruction was never the wrong idea — *raw-pixel space* was (normal geomet
 dominates the residual). Move the same reconstruction into a frozen-backbone feature space (where
 normal complexity is already normalized) and it localizes fine. That's the cleanest statement of
 the Stage-0 finding.
+
+² **DRAEM** (synthesis-recon) is weak with *crude* Perlin-noise synthesis (bagel xyz 0.48, rgb 0.21):
+the discriminator learns to spot noise, not defects. This is the bottleneck DAS3D/3DSR fix with
+realistic synthesis — so it **experimentally motivates the Stage-1 engine**: realistic synthetic
+defects → DRAEM discriminator → the SOTA path. The project's two halves (synthesis + detection)
+connect here.
 
 ### Per-defect-type (PatchCore-rgb, pooled across categories)
 Most defect types localize 0.87–0.96 AU-PRO; weak spots: **thread 0.59**, color hardest to *detect*

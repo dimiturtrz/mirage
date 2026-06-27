@@ -8,9 +8,12 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | method | modality | mean img-AUROC | mean pixel AU-PRO |
 |---|---|---|---|
 | Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.48 | **0.095** |
-| BTF (FPFH memory bank) — ours | geometry | ⚠ (bagel 0.75) | ⚠ (bagel 0.51) |
-| **PatchCore (feature memory bank) — ours** | rgb | **0.82** | **0.908** |
+| BTF (FPFH memory bank) — ours | geometry | 0.675 | 0.653 |
+| **PatchCore (feature memory bank) — ours** | rgb | **0.819** | **0.908** |
+| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.857¹ | **0.937**¹ |
 | SOTA (BTF / M3DM, *papers*) ⚠ | rgb + 3D | ~0.95 | ~0.96 |
+
+<sub>¹ fused = bagel only so far (proof it helps: 0.928 rgb → 0.937 fused); all-10 fusion pending. Geometry-only BTF is preprocessing-limited (below).</sub>
 
 **0.095 → 0.908.** Reconstruction-residual is ≈ random at localization. The reason — *measured*
 across four reconstruction variants (vanilla VAE, +dropout, masked-inpainting, rgb-fused), all

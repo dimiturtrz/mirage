@@ -11,10 +11,10 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | BTF (FPFH memory bank) — ours | geometry | 0.675 | 0.653 |
 | **PatchCore (feature memory bank) — ours** | rgb | **0.819** | **0.908** |
 | **Feature-recon / RD4AD-lite — ours** | rgb | 0.807 | **0.908** |
-| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.857¹ | **0.937**¹ |
+| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.782 | 0.904¹ |
 | SOTA (BTF / M3DM, *papers*) ⚠ | rgb + 3D | ~0.95 | ~0.96 |
 
-<sub>¹ fused = bagel only so far (proof it helps: 0.928 rgb → 0.937 fused); all-10 fusion pending. Geometry-only BTF is preprocessing-limited (below).</sub>
+<sub>¹ fused all-10 (0.904) is **net-neutral** vs rgb-only (0.908): it *helps* where geometry is decent (bagel 0.928→0.937, carrot) but *hurts* where our weak BTF geometry is bad (cookie, foam). Our BTF is preprocessing-limited (below), so fusion can't pay until native-res FPFH lands — an honest negative: rgb-only is the current deployable.</sub>
 
 **The sharpened lesson:** two *independent* feature methods — a memory bank (PatchCore) and a
 reconstruction AE (feature-recon) — both land at **AU-PRO 0.908**, vs pixel-reconstruction 0.095.

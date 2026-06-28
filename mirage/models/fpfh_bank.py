@@ -11,13 +11,29 @@ import open3d as o3d
 import torch
 
 
-def fpfh_for_sample(xyz, valid, normal_knn=30, fpfh_knn=100):
-    """-> (n,33) FPFH descriptors + (n,2) pixel (row,col) for each valid point."""
-    coords = np.argwhere(valid)
+def _normals(pts, knn):
     pc = o3d.geometry.PointCloud()
-    pc.points = o3d.utility.Vector3dVector(xyz[valid].astype(np.float64))
-    pc.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(normal_knn))
+    pc.points = o3d.utility.Vector3dVector(pts)
+    pc.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn))
     pc.orient_normals_towards_camera_location((0.0, 0.0, 0.0))
+    return pc
+
+
+def fpfh_for_sample(xyz, valid, normal_knn=30, fpfh_knn=100, clean=False, graze=0.3):
+    """-> (n,33) FPFH descriptors + (n,2) pixel (row,col) for each valid point.
+
+    clean: drop grazing-angle points (surface nearly perpendicular to the view ray) — that's the
+    sparse/noisy periphery that gives garbage normals + FPFH. Recompute normals on the clean set.
+    """
+    coords = np.argwhere(valid)
+    pts = xyz[valid].astype(np.float64)
+    pc = _normals(pts, normal_knn)
+    if clean:
+        n = np.asarray(pc.normals)
+        view = -pts / (np.linalg.norm(pts, axis=1, keepdims=True) + 1e-9)   # scanner at origin
+        keep = np.abs((n * view).sum(1)) > graze                            # ~1 = facing, ~0 = grazing
+        pts, coords = pts[keep], coords[keep]
+        pc = _normals(pts, normal_knn)
     f = o3d.pipelines.registration.compute_fpfh_feature(pc, o3d.geometry.KDTreeSearchParamKNN(fpfh_knn))
     return np.asarray(f.data).T.astype(np.float32), coords
 

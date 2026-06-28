@@ -85,6 +85,21 @@ def recon_xyz(run, rgb, xyz):
     return recon[0, :3].transpose(1, 2, 0)                        # C,H,W -> H,W,3 (xyz channels)
 
 
+def patchcore_map(cat, rgb, valid, coreset=0.1):
+    """The WORKING detector's anomaly map: fit a PatchCore bank on this category's train-good (rgb),
+    score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
+    import torch
+
+    from mirage.data.dataset import load_split
+    from mirage.models.patchcore import PatchCore
+
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
+    pc = PatchCore(device=dev).fit(train.x, coreset=coreset)
+    x = torch.from_numpy(rgb.transpose(2, 0, 1)[None]).to(dev)
+    return pc.score_maps(x)[0] * valid                           # H,W
+
+
 def to_point_cloud(rgb, xyz, valid, gt=None):
     """Drop background, return (points Nx3, colors Nx3 in [0,1]).
 
@@ -125,6 +140,9 @@ def main():
     ap.add_argument("--anomaly", type=Path, default=None,
                     help="run dir (e.g. runs/vae_all/bagel): color points by the model's reconstruction "
                          "anomaly score (inferno). Requires --processed.")
+    ap.add_argument("--patchcore", action="store_true",
+                    help="color points by the WORKING detector (PatchCore, fit on this category's "
+                         "train-good) — the defect glows. Requires --processed.")
     ap.add_argument("--recon", type=Path, default=None,
                     help="run dir: show the model's RECONSTRUCTED surface (its rebuilt xyz), colored by the "
                          "original rgb. See what it actually rebuilds. Requires --processed.")
@@ -176,15 +194,17 @@ def main():
     pc.colors = o3d.utility.Vector3dVector(cols)
 
     show_normals = False
-    if args.anomaly is not None:
+    if args.anomaly is not None or args.patchcore:
         if not args.processed:
-            raise SystemExit("--anomaly needs --processed (the model eats the normalized processed input)")
-        err = anomaly_map(args.anomaly, rgb, xyz, valid)
+            raise SystemExit("--anomaly/--patchcore need --processed (the model eats the processed input)")
+        err = (patchcore_map(args.cat, rgb, valid) if args.patchcore
+               else anomaly_map(args.anomaly, rgb, xyz, valid))
         import matplotlib.cm as cm
         e = err[valid.astype(bool)]
         e = (e / (np.percentile(e, 99) + 1e-9)).clip(0, 1)
         pc.colors = o3d.utility.Vector3dVector(cm.inferno(e)[:, :3])
-        print(f"anomaly residual: median {np.median(err[valid.astype(bool)]):.4f}  "
+        tag = "patchcore" if args.patchcore else "recon residual"
+        print(f"{tag}: median {np.median(err[valid.astype(bool)]):.4f}  "
               f"p99 {np.percentile(err[valid.astype(bool)], 99):.4f}")
     elif args.curvature:
         # surface variation = smallest / sum of the neighbor-covariance eigenvalues (L2 bonus):

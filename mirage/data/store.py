@@ -102,6 +102,15 @@ def load_arrays(path) -> dict:
     return {k: z[k] for k in z.files}
 
 
+def arrays(cat, split, label=None, size=None):
+    """(df, [array-dict per sample]) for one category/split — the raw processed arrays
+    (xyz/rgb/valid/gt). Used by the geometry methods that work on point clouds, not the GPU grid."""
+    df = load(size=size).filter(pl.col("category") == cat).filter(pl.col("split") == split)
+    if label is not None:
+        df = df.filter(pl.col("label") == label)
+    return df, [load_arrays(p) for p in df["path"].to_list()]
+
+
 if __name__ == "__main__":
     import argparse
 

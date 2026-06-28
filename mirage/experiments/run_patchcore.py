@@ -1,6 +1,6 @@
 """PatchCore feature memory bank over categories -> aggregate (no training). Uses the eval harness.
 
-Run:  python -m mirage.training.run_patchcore [--cats bagel ...] [--coreset 0.1] [--coreset-method greedy|random]
+Run:  python -m mirage.experiments.run_patchcore [--cats bagel ...] [--coreset 0.1] [--coreset-method greedy|random]
 """
 from __future__ import annotations
 

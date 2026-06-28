@@ -2,7 +2,7 @@
 
 Uses the eval harness. Fit a normal-FPFH bank per category, score the test split. No training.
 
-Run:  python -m mirage.training.run_btf [--cats bagel ...]
+Run:  python -m mirage.experiments.run_btf [--cats bagel ...]
 """
 from __future__ import annotations
 
@@ -10,18 +10,10 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-import polars as pl
 
 from mirage.data import store
 from mirage.evaluation import harness, scoring
 from mirage.models.fpfh_bank import FpfhBank
-
-
-def _load(cat, split, size, label=None):
-    df = store.load(size=size).filter(pl.col("category") == cat).filter(pl.col("split") == split)
-    if label is not None:
-        df = df.filter(pl.col("label") == label)
-    return df, [store.load_arrays(p) for p in df["path"].to_list()]
 
 
 def main():
@@ -33,11 +25,11 @@ def main():
     size = args.size or 256
 
     def fit(c):
-        _, train = _load(c, "train", size, 0)
+        _, train = store.arrays(c, "train", 0, size)
         return FpfhBank().fit([(a["xyz"], a["valid"]) for a in train])
 
     def score(bank, c):
-        dft, test = _load(c, "test", size)
+        dft, test = store.arrays(c, "test", size=size)
         amaps = np.stack([bank.score_map(a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])

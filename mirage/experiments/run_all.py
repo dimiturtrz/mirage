@@ -4,7 +4,7 @@ One model per object is the MVTec convention (BTF/M3DM do this); a single model 
 bagel+tire+rope would be the harder multi-category setting. Each run is fast (GPU-resident),
 so all 10 take a couple of minutes.
 
-Run:  python -m mirage.training.run_all [--out-root runs/vae_all] [--cats ...] [--epochs 100]
+Run:  python -m mirage.experiments.run_all [--out-root runs/vae_all] [--cats ...] [--epochs 100]
 """
 from __future__ import annotations
 

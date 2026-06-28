@@ -3,7 +3,7 @@
 Per category: extract frozen-backbone features for train-good, train a small AE to reconstruct
 them, score the test split by per-location feature-reconstruction error.
 
-Run:  python -m mirage.training.run_featrecon [--cats bagel ...] [--epochs 100]
+Run:  python -m mirage.experiments.run_featrecon [--cats bagel ...] [--epochs 100]
 """
 from __future__ import annotations
 

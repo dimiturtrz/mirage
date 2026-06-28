@@ -20,6 +20,20 @@ _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 
 
+@torch.no_grad()
+def _greedy_coreset(feats, n, seed):
+    """k-center greedy: iteratively pick the point farthest from the current selection (no host
+    syncs in the loop)."""
+    g = torch.Generator(device=feats.device).manual_seed(seed)
+    sel = torch.empty(n, dtype=torch.long, device=feats.device)
+    sel[0] = torch.randint(len(feats), (1,), generator=g, device=feats.device)
+    min_d = torch.cdist(feats, feats[sel[0:1]]).squeeze(1)
+    for i in range(1, n):
+        sel[i] = min_d.argmax()
+        torch.minimum(min_d, torch.cdist(feats, feats[sel[i:i + 1]]).squeeze(1), out=min_d)
+    return feats[sel]
+
+
 class PatchCore:
     def __init__(self, backbone="wide_resnet50_2", layers=("layer2", "layer3"), device="cuda"):
         self.device = device
@@ -49,21 +63,26 @@ class PatchCore:
         h, w = fmaps[0].shape[-2:]                                  # align to the largest (shallowest) layer
         fmaps = [F.interpolate(f, size=(h, w), mode="bilinear", align_corners=False) for f in fmaps]
         f = torch.cat(fmaps, 1)                                     # N,C,h,w
+        f = F.avg_pool2d(f, 3, stride=1, padding=1)                 # locally-aware patches (PatchCore)
         n, c = f.shape[0], f.shape[1]
         return f.permute(0, 2, 3, 1).reshape(n, h * w, c), (h, w)
 
     @torch.no_grad()
-    def fit(self, x, batch=16, coreset=0.1, seed=0):
+    def fit(self, x, batch=16, coreset=0.1, method="greedy", seed=0, pool_cap=200_000):
         feats = []
         for i in range(0, len(x), batch):
             e, _ = self._embed(x[i:i + batch])
             feats.append(e.reshape(-1, e.shape[-1]))
         feats = torch.cat(feats)                                    # M,C
-        if coreset < 1.0:
-            g = torch.Generator(device=feats.device).manual_seed(seed)
-            idx = torch.randperm(len(feats), generator=g, device=feats.device)[:int(len(feats) * coreset)]
-            feats = feats[idx]                                      # random coreset (greedy is the refinement)
-        self.bank = feats
+        target = max(1, int(len(feats) * coreset))
+        g = torch.Generator(device=feats.device).manual_seed(seed)
+        if method == "greedy":
+            pool = feats
+            if len(pool) > pool_cap:                                # cap the pool so greedy stays tractable
+                pool = pool[torch.randperm(len(pool), generator=g, device=feats.device)[:pool_cap]]
+            self.bank = _greedy_coreset(pool, min(target, len(pool)), seed)
+        else:
+            self.bank = feats[torch.randperm(len(feats), generator=g, device=feats.device)[:target]]
         return self
 
     @torch.no_grad()

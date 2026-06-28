@@ -27,8 +27,6 @@ runs/
 checkpoints/
 logs/
 wandb/
-mlruns/
-.mlflow_run_id
 
 # Editor / OS
 .idea/

@@ -18,7 +18,6 @@ from torch import optim
 
 from mirage.data.dataset import load_split
 from mirage.models.vae import ConvVAE
-from mirage.tracking import start
 from mirage.training.hparams import HParams
 from mirage.training.losses import kl_loss, masked_recon_loss
 
@@ -36,7 +35,6 @@ def train(hp: HParams, out: Path):
     run_model = torch.compile(model) if (hp.compile and dev == "cuda") else model
     opt = optim.AdamW(model.parameters(), lr=hp.lr)
     amp = dev == "cuda" and hp.bf16
-    trk = start("mirage", out.name, params=hp.model_dump(), run_dir=out)
 
     print(f"train: {n} good samples | in_ch={data.in_ch} | dev={dev} | bf16={amp} | compile={hp.compile}")
     for epoch in range(hp.epochs):
@@ -58,16 +56,11 @@ def train(hp: HParams, out: Path):
             loss.backward()
             opt.step()
             tot += loss.item(); rtot += rl.item(); ktot += kl.item(); nb += 1
-        trk.metric("loss", tot / nb, step=epoch)
-        trk.metric("recon", rtot / nb, step=epoch)
-        trk.metric("kl", ktot / nb, step=epoch)
         if epoch % max(1, hp.epochs // 20) == 0 or epoch == hp.epochs - 1:
             print(f"ep {epoch:3d}  loss {tot/nb:.4f}  recon {rtot/nb:.4f}  kl {ktot/nb:.3f}  {time.time()-t0:.2f}s")
 
     torch.save(model.state_dict(), out / "model.pt")
     (out / "config.json").write_text(json.dumps(hp.model_dump(), indent=2))
-    trk.artifact(str(out / "config.json"))
-    trk.end()
     print(f"saved -> {out}")
 
 

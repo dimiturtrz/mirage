@@ -19,7 +19,6 @@ from mirage.data.dataset import load_split
 from mirage.evaluation import metrics, scoring
 from mirage.models.inpaint import InpaintAE
 from mirage.models.vae import ConvVAE
-from mirage.tracking import resume
 from mirage.training.hparams import HParams
 
 
@@ -61,12 +60,6 @@ def evaluate(run: Path, cats=None):
 
     res = {"run": str(run), "per_category": rows, "mean": mean}
     (run / "results.json").write_text(json.dumps(res, indent=2))
-
-    trk = resume("mirage", run.name, run_dir=run)
-    trk.metric("test_img_auroc", mean["img_auroc"])
-    trk.metric("test_au_pro", mean["au_pro"])
-    trk.artifact(str(run / "results.json"))
-    trk.end()
     return res
 
 

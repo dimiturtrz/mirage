@@ -4,6 +4,12 @@
 
 > Working name `mirage` (synthetic that must survive contact with the real). Repo folder may differ.
 
+![mirage anomaly viewer — the working detector's heatmap on a held-out bagel](docs/media/viewer-anomaly.png)
+
+*The working detector (PatchCore feature memory bank) scoring a held-out bagel — bright = anomalous,
+lit at the defect. Rotatable in-browser → [`pointcloud-viewer/`](pointcloud-viewer/). (Scan from
+[MVTec 3D-AD](https://www.mvtec.com/company/research/datasets/mvtec-3d-ad), CC BY-NC-SA.)*
+
 mirage detects **defects on 3D surface scans**, training only on *good* examples. Stage 0 stands up the
 detector + a rigorous eval harness on **real** data and runs an honest comparison of methods; the
 differentiator (Stage 1) is a **synthetic-defect generator** + the **sim-to-real gap** measurement the

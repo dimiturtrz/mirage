@@ -58,9 +58,10 @@ mirage/mirage/
   config.py            data root from paths.yaml (-> raw/ + processed/)
   data/                adapter (mvtec) + preprocess + unified store (meta.csv = the inventory)
   models/              vae · inpaint · draem · feat_recon · patchcore · fpfh_bank (BTF)
-  training/            run_* (per-category fit/score) + train loops
+  training/            train loops + hparams + losses
+  experiments/         run_* — per-method benchmark runners (produce the AU-PRO board)
   evaluation/          metrics (AU-PRO/AUROC) · scoring · diagnostics · harness
-  visualization/show.py   3D viewer: raw / processed / normals / curvature / anomaly heatmap
+  visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
 docs/                  PLAN.md (staged plan) · RESULTS.md (the findings)
 learning/              theory notes (the 3D-geometry ramp)
 ```
@@ -74,7 +75,7 @@ cp paths.example.yaml paths.yaml          # set `data:` to your data root
 python -m mirage.data.store               # consolidate raw -> processed (needs the dataset)
 
 # the working detector, scored through the eval harness:
-python -m mirage.training.run_patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories
+python -m mirage.experiments.run_patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories
 
 # see it: the defect glows under the working detector (vs the VAE's backwards residual):
 python -m mirage.visualization.show --cat bagel --split test --defect hole --idx 0 --processed --patchcore

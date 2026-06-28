@@ -53,8 +53,9 @@ scanned with a Zivid structured-light sensor (per-pixel rgb + xyz position map +
 redistributed here.
 
 ## Layout
+Repo root holds the `mirage/` package + docs/learning/tests/viewer:
 ```
-mirage/mirage/
+mirage/                the importable package
   config.py            data root from paths.yaml (-> raw/ + processed/)
   data/                adapter (mvtec) + preprocess + unified store (meta.csv = the inventory)
   models/              vae · inpaint · draem · feat_recon · patchcore · fpfh_bank (BTF)
@@ -64,6 +65,7 @@ mirage/mirage/
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
 docs/                  PLAN.md (staged plan) · RESULTS.md (the findings)
 learning/              theory notes (the 3D-geometry ramp)
+tests/  pointcloud-viewer/
 ```
 
 ## Quickstart

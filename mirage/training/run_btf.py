@@ -1,20 +1,19 @@
 """BTF (FPFH geometry memory bank) over categories -> aggregate. The geometry SOTA-floor.
 
-Fit a normal-FPFH bank per category, score the test split through OUR eval harness. No training.
+Uses the eval harness. Fit a normal-FPFH bank per category, score the test split. No training.
 
 Run:  python -m mirage.training.run_btf [--cats bagel ...]
 """
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 import numpy as np
 import polars as pl
 
-from mirage.data import mvtec, store
-from mirage.evaluation import metrics, scoring
+from mirage.data import store
+from mirage.evaluation import harness, scoring
 from mirage.models.fpfh_bank import FpfhBank
 
 
@@ -31,30 +30,20 @@ def main():
     ap.add_argument("--out", type=Path, default=Path("runs/btf"))
     args = ap.parse_args()
 
-    cats = args.cats or mvtec.categories()
-    rows = []
-    for c in cats:
+    def fit(c):
         _, train = _load(c, "train", 0)
-        bank = FpfhBank().fit([(a["xyz"], a["valid"]) for a in train])
+        return FpfhBank().fit([(a["xyz"], a["valid"]) for a in train])
+
+    def score(bank, c):
         dft, test = _load(c, "test")
         amaps = np.stack([bank.score_map(a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])
         scores = scoring.image_scores(amaps, valids)
-        labels = dft["label"].to_numpy()
-        r = {"category": c, "n": int(len(scores)),
-             "img_auroc": metrics.image_auroc(scores, labels),
-             "au_pro": metrics.au_pro(amaps, masks, valids)}
-        rows.append(r)
-        print(f"  {c:12s}  img_auroc {r['img_auroc']:.3f}   au_pro {r['au_pro']:.3f}")
+        return (amaps, valids, masks, scores,
+                dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
-    auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
-    aupro = float(np.nanmean([r["au_pro"] for r in rows]))
-    print(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
-    args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / "aggregate.json").write_text(
-        json.dumps({"method": "btf_fpfh", "per_category": rows,
-                    "mean": {"img_auroc": auroc, "au_pro": aupro}}, indent=2))
+    harness.run("btf_fpfh", fit, score, cats=args.cats, out=args.out)
 
 
 if __name__ == "__main__":

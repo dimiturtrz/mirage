@@ -40,3 +40,6 @@ Thumbs.db
 .dolt/
 *.db
 .beads-credential-key
+
+# Web viewer data (MVTec-derived, CC BY-NC-SA — generate locally, do not redistribute)
+pointcloud-viewer/data/

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mirage — 3D anomaly viewer</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 13px/1.5 system-ui, sans-serif; background: #0e1116; color: #d6dae0; }
+  #ui { position: fixed; top: 12px; left: 12px; z-index: 10; background: #161b22cc;
+        padding: 12px 14px; border-radius: 10px; border: 1px solid #2a3340; backdrop-filter: blur(4px); }
+  #ui h1 { margin: 0 0 8px; font-size: 15px; color: #6cb6ff; }
+  #ui .sub { color: #8b949e; margin: -4px 0 10px; font-size: 12px; }
+  select, .seg button { background: #21262d; color: #d6dae0; border: 1px solid #30363d;
+                        border-radius: 6px; padding: 5px 9px; font: inherit; cursor: pointer; }
+  .seg { display: inline-flex; gap: 4px; margin-top: 6px; }
+  .seg button.on { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  label { display: block; color: #8b949e; margin: 8px 0 3px; }
+  #hint { position: fixed; bottom: 10px; left: 12px; color: #6e7681; }
+  #empty { position: fixed; inset: 0; display: none; place-items: center; text-align: center; color: #8b949e; }
+  #empty code { color: #6cb6ff; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <h1>mirage</h1>
+  <div class="sub">3D surface-defect anomaly viewer</div>
+  <label>sample</label>
+  <select id="sample"></select>
+  <label>color by</label>
+  <div class="seg" id="mode">
+    <button data-m="rgb" class="on">rgb</button>
+    <button data-m="anomaly">anomaly</button>
+    <button data-m="gt">defect (GT)</button>
+  </div>
+</div>
+<div id="hint">drag = rotate · scroll = zoom · right-drag = pan</div>
+<div id="empty">
+  No data. Generate it:<br><br>
+  <code>python -m mirage.visualization.export_web --samples bagel:test:hole:0</code>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.001, 100);
+camera.position.set(0, 0, 4);
+const controls = new OrbitControls(camera, renderer.domElement);
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+(function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+
+// inferno-ish ramp (black -> purple -> orange -> yellow)
+const RAMP = [[0,0,0],[0.3,0.05,0.35],[0.75,0.2,0.25],[0.98,0.55,0.06],[1,1,0.7]];
+function inferno(t){
+  t = Math.max(0, Math.min(1, t)); const x = t * (RAMP.length - 1);
+  const i = Math.floor(x), f = x - i, a = RAMP[i], b = RAMP[Math.min(i+1, RAMP.length-1)];
+  return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f];
+}
+
+let current = null, mode = 'rgb', cloud = null;
+
+function colorsFor(d, m){
+  const n = d.anomaly.length, c = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++){
+    let r, g, b;
+    if (m === 'rgb'){ r = d.rgb[i*3]; g = d.rgb[i*3+1]; b = d.rgb[i*3+2]; }
+    else if (m === 'anomaly'){ const k = inferno(d.anomaly[i]); r = k[0]; g = k[1]; b = k[2]; }
+    else { const a = d.gt[i]; r = a ? 1 : 0.18; g = a ? 0.1 : 0.18; b = a ? 0.1 : 0.2; }
+    c[i*3] = r; c[i*3+1] = g; c[i*3+2] = b;
+  }
+  return c;
+}
+
+function render(d){
+  if (cloud){ scene.remove(cloud); cloud.geometry.dispose(); cloud.material.dispose(); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(d.points), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colorsFor(d, mode), 3));
+  // scale into view
+  geo.computeBoundingSphere();
+  const s = 1.6 / (geo.boundingSphere.radius || 1);
+  cloud = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.012, vertexColors: true }));
+  cloud.scale.setScalar(s);
+  scene.add(cloud);
+}
+
+async function load(id){
+  const d = await (await fetch(`data/${id}.json`)).json();
+  current = d; render(d);
+}
+
+document.querySelectorAll('#mode button').forEach(btn => btn.onclick = () => {
+  document.querySelectorAll('#mode button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on'); mode = btn.dataset.m;
+  if (current) cloud.geometry.setAttribute('color', new THREE.BufferAttribute(colorsFor(current, mode), 3)),
+               cloud.geometry.attributes.color.needsUpdate = true;
+});
+
+const sel = document.getElementById('sample');
+sel.onchange = () => load(sel.value);
+
+(async () => {
+  try {
+    const man = await (await fetch('data/manifest.json')).json();
+    if (!man.samples?.length) throw 0;
+    man.samples.forEach(id => sel.add(new Option(id, id)));
+    load(man.samples[0]);
+  } catch { document.getElementById('empty').style.display = 'grid'; }
+})();
+</script>
+</body>
+</html>

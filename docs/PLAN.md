@@ -6,6 +6,8 @@ Working name `mirage` (synthetic that must survive contact with the real). Folde
 
 Sibling project — same build philosophy, different domain: **[systole](../cardiac-seg/)** (cardiac MRI segmentation → ejection fraction → honest cross-scanner eval). mirage is the same *engine-first, honest-eval* pattern, applied to 3D inspection. The structural and honesty conventions below are lifted from it deliberately.
 
+> **⚠️ Stage-0 outcome (the investigation overrode the plan below — read [`RESULTS.md`](RESULTS.md)).** This plan framed the model as a **reconstruction VAE**. It was tried and *measured to fail* (AU-PRO ≈ 0.095 ≈ random) — diagnosed: raw-residual tracks geometric *complexity*, not defect-ness. Three distinct paradigms got compared: **reconstruction** (rebuild → error: VAE/inpaint/**feature-recon**), **memory bank** (store normal features → nearest-neighbour distance: **PatchCore**/BTF — *not* reconstruction), **synthesis-discriminative** (DRAEM). The **working detector is a memory bank (PatchCore, 0.91)** — *not* reconstruction; the one reconstruction variant that recovered is **feature-recon** (rebuild *features*, also 0.91). So "reconstruction" below = the *original* plan and the *failed* path, not the deployable. The contribution stands: the honest investigation + (Stage 1) the synthetic engine.
+
 ---
 
 ## The center (what this actually is)
@@ -121,7 +123,7 @@ Mirror systole's `learning/<date>_<topic>.md` + glossary + on-demand self-quizze
 ## Tech stack
 - **Data:** MVTec 3D-AD (real) → synthetic defects (Replicator/Isaac, or Blender/BlenderProc)
 - **Processing:** Open3D (PCL if C++ needed) — *new; the ramp target*
-- **Models:** **reconstruction VAE — built, not borrowed** (the one justified exception to use-don't-reimplement: it's the contribution, ported from acoustic anomaly work). Libraries (Open3D, training infra) for plumbing only. Memory-bank methods (PatchCore/M3DM) as comparison baselines, used not rebuilt.
+- **Models** (updated by the Stage-0 investigation): the planned **reconstruction VAE** was built and *failed* (0.095); the **working detector is the feature memory bank — PatchCore (0.91), *not* reconstruction** (store normal patch features → nearest-neighbour distance, no decoder). **feature-recon** (rebuild *features*, 0.91) is the one reconstruction variant that recovered. BTF (FPFH memory bank) = geometry floor. Libraries (torchvision backbone, Open3D) for plumbing; the contribution is the harness + the honest comparison, not any one model.
 - **Deploy:** ONNX → TensorRT (→ Jetson); RPi/edge-accel experience carries
 - **Viewers:** three.js / vtk.js / Open3D-web (in-browser ONNX), TypeScript
 - **Eval:** custom harness — rare-class metrics, calibration-under-shift, sim-to-real gap, per-condition diagnostics ← **the contribution**

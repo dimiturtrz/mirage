@@ -18,19 +18,21 @@ honestly evaluated).
 Not a leaderboard number — the *measured contrast*. Per-category models, scored through one verified
 eval harness (image-AUROC + pixel-AU-PRO). Full table + diagnostics → [`docs/RESULTS.md`](docs/RESULTS.md).
 
-| method | pixel AU-PRO |
-|---|---|
-| reconstruction (VAE / inpaint / DRAEM / fused — 4+ variants) | **0.095** (≈ random) |
-| **PatchCore / feature-recon** (the working method) | **0.91** |
-| SOTA (M3DM, *paper*) | ~0.96 |
+| method | paradigm | pixel AU-PRO |
+|---|---|---|
+| VAE / inpaint / DRAEM / fused (4+ variants) | reconstruct pixels → error | **0.095** (≈ random) |
+| **PatchCore** (the deployable) | **memory bank** — nearest-neighbour to normal features, *no reconstruction* | **0.91** |
+| feature-recon | reconstruct *features* → error | 0.91 |
+| SOTA (M3DM, *paper*) | learned point-transformer + fusion | ~0.96 |
 
-**The finding:** reconstruction-residual is ≈ random at localization — *measured* across four variants,
+**The finding:** pixel-reconstruction is ≈ random at localization — *measured* across four variants,
 then *diagnosed*: raw-residual tracks geometric **complexity** (a curved rim is hard to rebuild), not
-**defect-ness** (a smooth defect rebuilds fine → low residual). Move to **"compare to normal"** (a
-feature memory bank) and it localizes — two independent feature methods both land at 0.91. The remaining
-gap to SOTA is named and measured: M3DM-scale multimodal geometry, not bank or resolution tuning. The
-contribution is the eval rigor + the honest mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg)
-reported its triad.
+**defect-ness** (a smooth defect rebuilds fine → low residual). What works is **"compare to normal"** —
+and two *different* paradigms get there: a **memory bank** (PatchCore: store normal features, score by
+nearest-neighbour distance — no rebuilding at all) and **reconstruction moved into feature space**
+(feature-recon). Both 0.91. The deployable is the memory bank. The gap to SOTA is named and measured:
+M3DM-scale multimodal geometry, not bank/resolution tuning. The contribution is the eval rigor + the
+honest mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg) reported its triad.
 
 ## The honest question (Stage 1, the differentiator)
 The easy demo trains on real defects and reports a flattering number. The real questions: can a model

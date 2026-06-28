@@ -81,3 +81,10 @@ not the single number.
 
 *Reproduce: `python -m mirage.training.run_all` (reconstruction) · `... run_patchcore` · `... run_btf`.
 ⚠ = verify against the primary source before any public claim.*
+
+
+## Drill: where PatchCore's ceiling actually is (decisive)
+Hardened the working method to find the cap, not spray new ones:
+- **Bank quality** (greedy k-center coreset + locally-aware features) → **net-flat** (0.908→0.902). The bank wasn't the bottleneck.
+- **Resolution** 256→512 → **+1pt** on bagel (0.928→0.937 AU-PRO, img 0.943→0.974). The 256-resize was a *mild* cap — but 4× compute + near-OOM for ~1pt, and it doesn't break the rgb-only ceiling (~0.93).
+- **Conclusion:** PatchCore-rgb tops out ~0.93. The remaining ~3pt to SOTA (0.96) is **multimodal geometry fusion** (M3DM), which needs *good* geometry (native-res FPFH, our preprocessing currently degrades it) — NOT bank tuning or rgb resolution. That's the named, measured lever.

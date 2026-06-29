@@ -1,4 +1,5 @@
-"""Validated hyperparameters (serialized to runs/<run>/config.json for reproducibility)."""
+"""Validated hyperparameters (logged as the config.json MLflow artifact for reproducibility;
+evaluate reads them back via tracking.load_config to rebuild the exact model)."""
 from __future__ import annotations
 
 from pydantic import BaseModel

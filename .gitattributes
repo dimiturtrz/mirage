@@ -1,0 +1,15 @@
+# Normalize line endings — text is LF in the repo, checked out native on each platform.
+# (Stops the "LF will be replaced by CRLF" churn on Windows.)
+* text=auto eol=lf
+
+# Binary assets — never touch line endings, never diff as text.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.tiff  binary
+*.npy   binary
+*.npz   binary
+*.pth   binary
+*.onnx  binary
+*.engine binary
+*.pcd   binary

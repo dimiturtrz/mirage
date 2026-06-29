@@ -63,9 +63,9 @@ That triad + calibration + per-condition diagnostics is the defensible result �
 ## Expansion axes (after the Stage 0–2 spine)
 Two axes branch off the spine. Both optional, both sequenced *after* the public flip — mapped here so the ladder isn't lost, not to be pulled forward.
 
-**Axis 1 — perception breadth** (more role coverage)
-- **Segmentation** — dense spatial labeling ("which part is defective"). The *least-him* task (pure new skill), but the lever that completes the CV-platform role; shares the eval harness, so cheap. **Keep reachable.**
-- **Detection + tracking** — 2D experience exists; 3D is a stretch and low role-ROI (opens mostly gated roles). Deprioritized.
+**Axis 1 — perception breadth** (more of the perception surface)
+- **Segmentation** — dense spatial labeling ("which part is defective"). The furthest from current strength (pure new skill), but it broadens the perception surface and shares the eval harness, so cheap. **Keep reachable.**
+- **Detection + tracking** — 2D experience exists; 3D is a stretch and low-leverage here. Deprioritized.
 - **Multi-modal fusion** — RGB + geometry (+ thermal) join via the calib + timestamp pattern.
 
 **Axis 2 — engine depth** (the carried R&D ambition; toward the simulation-first stack)

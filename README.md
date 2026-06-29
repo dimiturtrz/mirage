@@ -64,8 +64,10 @@ surfscan/              the importable package
   evaluation/          metrics (AU-PRO/AUROC) · scoring · diagnostics · harness
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
 docs/                  PLAN.md (staged plan) · RESULTS.md (the findings)
-learning/              theory notes (the 3D-geometry ramp)
-tests/  pointcloud-viewer/
+learning/              theory notes — the 3D-geometry ramp (mine)
+research/              cited deep-dives that ground the learning (agent-side)
+tests/                 unit/ (equivalence-class) + integration/ (module pairs)
+pointcloud-viewer/
 ```
 
 ## Quickstart

@@ -12,6 +12,10 @@ venv/
 # Local machine config — the data root lives outside the repo
 paths.yaml
 
+# Private/local-only docs (generic pattern — reveals no intent in the ignore list itself)
+*.local.md
+.local/
+
 # Data / weights / artifacts (never commit large or licensed data)
 data/raw/
 data/processed/

@@ -3,7 +3,7 @@
 Each step masks random patches of the input and reconstructs the FULL image from context, so
 the model learns to predict normal from surroundings (it can't copy a hidden region).
 
-Run:  python -m mirage.training.train_inpaint --out runs/inpaint --cats bagel [--epochs 200]
+Run:  python -m surfscan.training.train_inpaint --out runs/inpaint --cats bagel [--epochs 200]
 """
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from pathlib import Path
 import torch
 from torch import optim
 
-from mirage.data.dataset import load_split
-from mirage.models.inpaint import InpaintAE, random_mask
-from mirage.training.hparams import HParams
-from mirage.training.losses import masked_recon_loss
+from surfscan.data.dataset import load_split
+from surfscan.models.inpaint import InpaintAE, random_mask
+from surfscan.training.hparams import HParams
+from surfscan.training.losses import masked_recon_loss
 
 
 def train(hp: HParams, out: Path):

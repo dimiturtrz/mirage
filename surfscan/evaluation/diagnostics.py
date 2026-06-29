@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from mirage.evaluation import metrics
+from surfscan.evaluation import metrics
 
 
 def by_defect(amaps, scores, masks, valids, labels, defects):

@@ -10,7 +10,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from mirage.models.vae import _dec_block, _enc_block
+from surfscan.models.vae import _dec_block, _enc_block
 
 
 class InpaintAE(nn.Module):

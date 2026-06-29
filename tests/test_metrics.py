@@ -5,7 +5,7 @@ perfect/reversed/single-class. No dataset needed.
 """
 import numpy as np
 
-from mirage.evaluation.metrics import au_pro, image_auroc
+from surfscan.evaluation.metrics import au_pro, image_auroc
 
 
 def _masks(n=20, h=64, w=64):

@@ -2,7 +2,7 @@
 
 Score each test sample with both banks, z-score each map family over the valid test pixels, sum.
 
-Run:  python -m mirage.experiments.run_fused [--cats bagel ...]
+Run:  python -m surfscan.experiments.run_fused [--cats bagel ...]
 """
 from __future__ import annotations
 
@@ -11,11 +11,11 @@ from pathlib import Path
 
 import numpy as np
 
-from mirage.data import store
-from mirage.data.dataset import load_split
-from mirage.evaluation import harness, scoring
-from mirage.models.fpfh_bank import FpfhBank
-from mirage.models.patchcore import PatchCore
+from surfscan.data import store
+from surfscan.data.dataset import load_split
+from surfscan.evaluation import harness, scoring
+from surfscan.models.fpfh_bank import FpfhBank
+from surfscan.models.patchcore import PatchCore
 
 
 def _zscore(maps, valids):

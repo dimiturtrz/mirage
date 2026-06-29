@@ -3,7 +3,7 @@
 Per category: extract frozen-backbone features for train-good, train a small AE to reconstruct
 them, score the test split by per-location feature-reconstruction error.
 
-Run:  python -m mirage.experiments.run_featrecon [--cats bagel ...] [--epochs 100]
+Run:  python -m surfscan.experiments.run_featrecon [--cats bagel ...] [--epochs 100]
 """
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
-from mirage.data.dataset import load_split
-from mirage.evaluation import harness, scoring
-from mirage.models.feat_recon import FeatAE, FeatExtractor
+from surfscan.data.dataset import load_split
+from surfscan.evaluation import harness, scoring
+from surfscan.models.feat_recon import FeatAE, FeatExtractor
 
 
 @torch.no_grad()

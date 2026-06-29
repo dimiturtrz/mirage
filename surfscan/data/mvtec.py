@@ -5,7 +5,7 @@ On disk (per category):
     <cat>/test/<defect>/{rgb/NNN.png, xyz/NNN.tiff, gt/NNN.png}
 `gt` exists only under test/. defect == "good" -> normal; anything else -> anomaly.
 
-This stays a raw->arrays reader; mirage/data/store.py turns it into the unified store.
+This stays a raw->arrays reader; surfscan/data/store.py turns it into the unified store.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ import numpy as np
 import tifffile
 from PIL import Image
 
-from mirage import config
+from surfscan import config
 
 SPLITS = ("train", "validation", "test")
 

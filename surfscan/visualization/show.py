@@ -8,8 +8,8 @@ The whole point of running this: feel in your hands that a "sample" is a
 Lift the grid to points, paint with the photo, spin it. That's 2.5D.
 
 Run (in the `mirage` conda env, after `pip install -e .`):
-    python -m mirage.visualization.show --cat bagel --split test --defect hole --idx 0 --mask
-    python -m mirage.visualization.show --cat bagel --split train --defect good --idx 0   # a normal one
+    python -m surfscan.visualization.show --cat bagel --split test --defect hole --idx 0 --mask
+    python -m surfscan.visualization.show --cat bagel --split train --defect good --idx 0   # a normal one
 
 Opens the Open3D 3D window straight away (drag = rotate, scroll = zoom,
 right-drag = pan, q = quit); the defect is painted red with --mask. Add
@@ -23,7 +23,7 @@ import numpy as np
 import tifffile
 from PIL import Image
 
-from mirage import config
+from surfscan import config
 
 
 def load_sample(root, cat, split, defect, idx):
@@ -39,12 +39,12 @@ def load_sample(root, cat, split, defect, idx):
 def load_processed(cat, split, defect, idx, size=None):
     """Load one CLEANED sample from the processed store (rgb [0,1], xyz normalized,
     valid + gt)."""
-    from mirage.data import store
-    from mirage.data import preprocess as pp
+    from surfscan.data import store
+    from surfscan.data import preprocess as pp
     sid = f"{cat}_{split}_{defect}_{idx:03d}"
     path = store.dataset_dir(size=size or pp.SIZE) / "data" / f"{sid}.npz"
     if not path.exists():
-        raise FileNotFoundError(f"{path} not built — run: python -m mirage.data.store --cats {cat}")
+        raise FileNotFoundError(f"{path} not built — run: python -m surfscan.data.store --cats {cat}")
     a = store.load_arrays(path)
     return a["rgb"], a["xyz"], a["gt"], a["valid"]
 
@@ -55,8 +55,8 @@ def _run_model(run, rgb, xyz):
 
     import torch
 
-    from mirage.models.vae import ConvVAE
-    from mirage.training.hparams import HParams
+    from surfscan.models.vae import ConvVAE
+    from surfscan.training.hparams import HParams
 
     run = Path(run)
     hp = HParams(**json.loads((run / "config.json").read_text()))
@@ -90,8 +90,8 @@ def patchcore_map(cat, rgb, valid, coreset=0.1):
     score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
     import torch
 
-    from mirage.data.dataset import load_split
-    from mirage.models.patchcore import PatchCore
+    from surfscan.data.dataset import load_split
+    from surfscan.models.patchcore import PatchCore
 
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)

@@ -3,7 +3,7 @@
 Image AUROC (detection) + pixel AU-PRO (localization), per category + mean. Writes
 runs/<run>/results.json and logs the summary into the run's MLflow entry.
 
-Run:  python -m mirage.evaluation.evaluate --run runs/vae [--cats bagel]
+Run:  python -m surfscan.evaluation.evaluate --run runs/vae [--cats bagel]
 """
 from __future__ import annotations
 
@@ -15,11 +15,11 @@ import numpy as np
 import polars as pl
 import torch
 
-from mirage.data.dataset import load_split
-from mirage.evaluation import metrics, scoring
-from mirage.models.inpaint import InpaintAE
-from mirage.models.vae import ConvVAE
-from mirage.training.hparams import HParams
+from surfscan.data.dataset import load_split
+from surfscan.evaluation import metrics, scoring
+from surfscan.models.inpaint import InpaintAE
+from surfscan.models.vae import ConvVAE
+from surfscan.training.hparams import HParams
 
 
 def evaluate(run: Path, cats=None):

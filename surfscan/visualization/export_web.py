@@ -1,6 +1,6 @@
 """Export samples to the web viewer's data/ — points + rgb + PatchCore anomaly + gt, downsampled.
 
-Run: python -m mirage.visualization.export_web --samples bagel:test:hole:0 cookie:test:crack:0
+Run: python -m surfscan.visualization.export_web --samples bagel:test:hole:0 cookie:test:crack:0
 Writes pointcloud-viewer/data/<id>.json + manifest.json. The data is MVTec-derived (CC BY-NC-SA),
 so pointcloud-viewer/data/ is gitignored — run this to populate the viewer locally.
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from mirage.visualization.show import load_processed, patchcore_map
+from surfscan.visualization.show import load_processed, patchcore_map
 
 OUT = Path(__file__).resolve().parents[2] / "pointcloud-viewer" / "data"
 

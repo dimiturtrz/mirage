@@ -2,7 +2,7 @@
 
 Uses the eval harness. Fit a normal-FPFH bank per category, score the test split. No training.
 
-Run:  python -m mirage.experiments.run_btf [--cats bagel ...]
+Run:  python -m surfscan.experiments.run_btf [--cats bagel ...]
 """
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from pathlib import Path
 
 import numpy as np
 
-from mirage.data import store
-from mirage.evaluation import harness, scoring
-from mirage.models.fpfh_bank import FpfhBank
+from surfscan.data import store
+from surfscan.evaluation import harness, scoring
+from surfscan.models.fpfh_bank import FpfhBank
 
 
 def main():

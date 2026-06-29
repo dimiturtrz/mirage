@@ -3,7 +3,7 @@
 Per category: train recon+disc on good samples with synthetic proxy anomalies, score the test
 split by the discriminator output. Default channel = xyz (the geometry signal).
 
-Run:  python -m mirage.experiments.run_draem [--cats bagel ...] [--epochs 150] [--channels xyz]
+Run:  python -m surfscan.experiments.run_draem [--cats bagel ...] [--epochs 150] [--channels xyz]
 """
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
-from mirage.data.dataset import load_split
-from mirage.evaluation import harness, scoring
-from mirage.models.draem import Draem, synthesize
+from surfscan.data.dataset import load_split
+from surfscan.evaluation import harness, scoring
+from surfscan.models.draem import Draem, synthesize
 
 
 def main():

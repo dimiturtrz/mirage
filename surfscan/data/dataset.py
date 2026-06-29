@@ -10,8 +10,8 @@ import numpy as np
 import polars as pl
 import torch
 
-from mirage.data import preprocess as pp
-from mirage.data import store
+from surfscan.data import preprocess as pp
+from surfscan.data import store
 
 
 def _stack_channels(a: dict, channels) -> np.ndarray:

@@ -3,7 +3,7 @@
 The whole train-good split lives in VRAM; each epoch shuffles indices and slices batches on
 the GPU (no DataLoader, no CPU↔GPU copy). bf16 autocast + channels_last + TF32 + torch.compile.
 
-Run:  python -m mirage.training.train --out runs/vae [--cats bagel] [--epochs 100] [--no-compile]
+Run:  python -m surfscan.training.train --out runs/vae [--cats bagel] [--epochs 100] [--no-compile]
 A run is reproducible from runs/<run>/config.json.
 """
 from __future__ import annotations
@@ -16,10 +16,10 @@ from pathlib import Path
 import torch
 from torch import optim
 
-from mirage.data.dataset import load_split
-from mirage.models.vae import ConvVAE
-from mirage.training.hparams import HParams
-from mirage.training.losses import kl_loss, masked_recon_loss
+from surfscan.data.dataset import load_split
+from surfscan.models.vae import ConvVAE
+from surfscan.training.hparams import HParams
+from surfscan.training.losses import kl_loss, masked_recon_loss
 
 
 def train(hp: HParams, out: Path):

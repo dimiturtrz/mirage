@@ -2,7 +2,7 @@
 
 Source of truth: `paths.yaml` at the repo root (gitignored). Copy
 `paths.example.yaml` -> `paths.yaml` and set the single `data:` line.
-Override with the env var MIRAGE_DATA (e.g. in CI).
+Override with the env var SURFSCAN_DATA (e.g. in CI).
 
 Under <data> the layout is:
     <data>/raw/        register-gated downloads (you drop them here)
@@ -17,14 +17,14 @@ _REPO = Path(__file__).resolve().parent.parent
 
 
 def data_root() -> Path:
-    env = os.environ.get("MIRAGE_DATA")
+    env = os.environ.get("SURFSCAN_DATA")
     if env:
         return Path(env)
     cfg = _REPO / "paths.yaml"
     if not cfg.exists():
         raise FileNotFoundError(
             f"{cfg} not found — copy paths.example.yaml -> paths.yaml and set `data:` "
-            f"(or set the MIRAGE_DATA env var)."
+            f"(or set the SURFSCAN_DATA env var)."
         )
     return Path(OmegaConf.load(cfg).data)
 

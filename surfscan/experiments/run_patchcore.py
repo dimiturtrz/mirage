@@ -1,6 +1,6 @@
 """PatchCore feature memory bank over categories -> aggregate (no training). Uses the eval harness.
 
-Run:  python -m mirage.experiments.run_patchcore [--cats bagel ...] [--coreset 0.1] [--coreset-method greedy|random]
+Run:  python -m surfscan.experiments.run_patchcore [--cats bagel ...] [--coreset 0.1] [--coreset-method greedy|random]
 """
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ from pathlib import Path
 
 import numpy as np
 
-from mirage.data.dataset import load_split
-from mirage.evaluation import harness, scoring
-from mirage.models.patchcore import PatchCore
+from surfscan.data.dataset import load_split
+from surfscan.evaluation import harness, scoring
+from surfscan.models.patchcore import PatchCore
 
 
 def main():

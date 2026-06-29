@@ -53,9 +53,9 @@ scanned with a Zivid structured-light sensor (per-pixel rgb + xyz position map +
 redistributed here.
 
 ## Layout
-Repo root holds the `mirage/` package + docs/learning/tests/viewer:
+Repo root holds the `surfscan/` package + docs/learning/tests/viewer:
 ```
-mirage/                the importable package
+surfscan/              the importable package
   config.py            data root from paths.yaml (-> raw/ + processed/)
   data/                adapter (mvtec) + preprocess + unified store (meta.csv = the inventory)
   models/              vae · inpaint · draem · feat_recon · patchcore · fpfh_bank (BTF)
@@ -74,13 +74,13 @@ conda create -n mirage python=3.11 -y && conda activate mirage
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128   # Blackwell/RTX 5090
 pip install -e .
 cp paths.example.yaml paths.yaml          # set `data:` to your data root
-python -m mirage.data.store               # consolidate raw -> processed (needs the dataset)
+python -m surfscan.data.store               # consolidate raw -> processed (needs the dataset)
 
 # the working detector, scored through the eval harness:
-python -m mirage.experiments.run_patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories
+python -m surfscan.experiments.run_patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories
 
 # see it: the defect glows under the working detector (vs the VAE's backwards residual):
-python -m mirage.visualization.show --cat bagel --split test --defect hole --idx 0 --processed --patchcore
+python -m surfscan.visualization.show --cat bagel --split test --defect hole --idx 0 --processed --patchcore
 ```
 
 ## How it's built

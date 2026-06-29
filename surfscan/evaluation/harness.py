@@ -13,8 +13,8 @@ from pathlib import Path
 
 import numpy as np
 
-from mirage.data import mvtec
-from mirage.evaluation import diagnostics, metrics
+from surfscan.data import mvtec
+from surfscan.evaluation import diagnostics, metrics
 
 _KEYS = ("amaps", "masks", "valids", "scores", "labels", "defects")
 

@@ -145,7 +145,7 @@ Generating with Replicator/Isaac Sim (not Isaac Lab) buys USD/Omniverse/Isaac li
 - **Memory-bank / feature methods** (the SOTA baselines to quarantine against, used not rebuilt): BTF (handcrafted FPFH + RGB) ⚠️, M3DM (multimodal RGB + point fusion) ⚠️, PatchCore-3D ⚠️. Top methods report image-AUROC ≈0.9+ and pixel-AU-PRO ≈0.9+ ⚠️.
 - **Reconstruction-based** (our family): autoencoder / dual-branch RGB-D reconstruction (e.g. arXiv 2311.06797) ⚠️. Typically *lags* memory-bank on the leaderboard ⚠️ — expected, and fine: the contribution is the engine + eval rigor, not the number (the systole nnU-Net-baseline move).
 - **Libs:** Anomalib (2D-centric, limited 3D) ⚠️; method repos (M3DM, BTF) used directly.
-- **White space (the opening):** no standardized **sim-to-real** benchmark for 3D anomaly; synthetic-defect generation + honest gap measurement is largely unexplored — the differentiator. Quantization + domain-shift compound effect unmeasured (directly in the toolbox: distribution-shift detection + edge quantization).
+- **White space (the opening):** sim-to-real for 3D anomaly is only now being charted — **SiM3D** (arXiv 2506.21549, 2025) is the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real, voxel AD) ✓verified 2026-06-29. Physics-based **defect-generation** + closed-loop curriculum + honest gap measurement on commodity MVTec-style scans remains largely unexplored — the differentiator. Quantization + domain-shift compound effect unmeasured (directly in the toolbox: distribution-shift detection + edge quantization).
 
 **Breadth / AV axis only (Axis 1, or a future pivot — NOT the core anomaly path):**
 - Detection/seg libs: MMDetection3D (6.5k★), OpenPCDet (5.6k★) ⚠️.

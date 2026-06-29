@@ -43,7 +43,10 @@ honest mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg) r
 ## The honest question (Stage 1, the differentiator)
 The easy demo trains on real defects and reports a flattering number. The real questions: can a model
 trained on **synthetic** defects detect **real** ones, *how much does it lose*, and is it **calibrated**
-under that shift? No standardized sim-to-real 3D-anomaly benchmark exists — that gap is the contribution.
+under that shift? Sim-to-real for 3D anomaly is only now being charted — [SiM3D](https://arxiv.org/abs/2506.21549)
+(2025) is the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real). A physics-based
+*defect-generation* engine + closed-loop curriculum + an honest gap measurement on commodity MVTec-style
+scans is still open ground — that's the contribution.
 
 ## Data
 **MVTec 3D-AD** (Bergmann et al., VISAPP 2022) — real industrial 3D anomaly benchmark, 10 categories

@@ -23,7 +23,9 @@ datasets/
 *.pth
 *.onnx
 *.engine
-runs/
+mlflow.db
+mlartifacts/
+mlruns/
 checkpoints/
 logs/
 wandb/

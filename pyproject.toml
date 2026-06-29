@@ -17,6 +17,7 @@ dependencies = [
     "polars",       # data store + splits (mirror of systole's cardioseg/data)
     "pydantic>=2",  # validated hyperparameter configs
     "omegaconf",    # paths.yaml config loader (one-root data path)
+    "mlflow",       # canonical experiment tracking (params/metrics/artifacts/models; `mlflow ui`)
     # torch >=2.7 is required for NVIDIA Blackwell (sm_120, e.g. RTX 5090).
     # Install the CUDA build from the PyTorch index, NOT plain PyPI (which is CPU):
     #   pip install torch --index-url https://download.pytorch.org/whl/cu128

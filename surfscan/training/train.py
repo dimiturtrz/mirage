@@ -2,28 +2,27 @@
 
 The whole train-good split lives in VRAM; each epoch shuffles indices and slices batches on
 the GPU (no DataLoader, no CPU↔GPU copy). bf16 autocast + channels_last + TF32 + torch.compile.
+Params, the loss curves, and the model are logged to MLflow (browse with `mlflow ui`).
 
-Run:  python -m surfscan.training.train --out runs/vae [--cats bagel] [--epochs 100] [--no-compile]
-A run is reproducible from runs/<run>/config.json.
+Run:  python -m surfscan.training.train [--run-name vae] [--cats bagel] [--epochs 100] [--no-compile]
+Returns the MLflow run id (so evaluate can load the model back).
 """
 from __future__ import annotations
 
 import argparse
-import json
 import time
-from pathlib import Path
 
 import torch
 from torch import optim
 
+from surfscan import tracking
 from surfscan.data.dataset import load_split
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import HParams
 from surfscan.training.losses import kl_loss, masked_recon_loss
 
 
-def train(hp: HParams, out: Path):
-    out.mkdir(parents=True, exist_ok=True)
+def train(hp: HParams, run_name: str = "vae") -> str:
     torch.manual_seed(hp.seed)
     torch.set_float32_matmul_precision("high")          # TF32 matmuls
     dev = "cuda" if torch.cuda.is_available() else "cpu"
@@ -36,37 +35,40 @@ def train(hp: HParams, out: Path):
     opt = optim.AdamW(model.parameters(), lr=hp.lr)
     amp = dev == "cuda" and hp.bf16
 
-    print(f"train: {n} good samples | in_ch={data.in_ch} | dev={dev} | bf16={amp} | compile={hp.compile}")
-    for epoch in range(hp.epochs):
-        model.train()
-        idx = torch.randperm(n, device=dev)
-        tot = rtot = ktot = 0.0
-        nb = 0
-        t0 = time.time()
-        for i in range(0, n, hp.batch):
-            b = idx[i:i + hp.batch]
-            x = data.x[b].to(memory_format=torch.channels_last)
-            m = data.valid[b]
-            with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
-                recon, mu, logvar = run_model(x)
-                rl = masked_recon_loss(recon, x, m)
-                kl = kl_loss(mu, logvar)
-                loss = rl + hp.beta * kl
-            opt.zero_grad(set_to_none=True)
-            loss.backward()
-            opt.step()
-            tot += loss.item(); rtot += rl.item(); ktot += kl.item(); nb += 1
-        if epoch % max(1, hp.epochs // 20) == 0 or epoch == hp.epochs - 1:
-            print(f"ep {epoch:3d}  loss {tot/nb:.4f}  recon {rtot/nb:.4f}  kl {ktot/nb:.3f}  {time.time()-t0:.2f}s")
+    with tracking.run("surfscan", run_name, params=hp.model_dump()) as run_id:
+        print(f"train: {n} good samples | in_ch={data.in_ch} | dev={dev} | bf16={amp} | compile={hp.compile}")
+        for epoch in range(hp.epochs):
+            model.train()
+            idx = torch.randperm(n, device=dev)
+            tot = rtot = ktot = 0.0
+            nb = 0
+            t0 = time.time()
+            for i in range(0, n, hp.batch):
+                b = idx[i:i + hp.batch]
+                x = data.x[b].to(memory_format=torch.channels_last)
+                m = data.valid[b]
+                with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
+                    recon, mu, logvar = run_model(x)
+                    rl = masked_recon_loss(recon, x, m)
+                    kl = kl_loss(mu, logvar)
+                    loss = rl + hp.beta * kl
+                opt.zero_grad(set_to_none=True)
+                loss.backward()
+                opt.step()
+                tot += loss.item(); rtot += rl.item(); ktot += kl.item(); nb += 1
+            tracking.metrics({"loss": tot / nb, "recon": rtot / nb, "kl": ktot / nb}, step=epoch)
+            if epoch % max(1, hp.epochs // 20) == 0 or epoch == hp.epochs - 1:
+                print(f"ep {epoch:3d}  loss {tot/nb:.4f}  recon {rtot/nb:.4f}  kl {ktot/nb:.3f}  {time.time()-t0:.2f}s")
 
-    torch.save(model.state_dict(), out / "model.pt")
-    (out / "config.json").write_text(json.dumps(hp.model_dump(), indent=2))
-    print(f"saved -> {out}")
+        tracking.artifact_json("config.json", hp.model_dump())
+        tracking.log_model(model)
+        print(f"logged -> mlflow run {run_id}")
+        return run_id
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--run-name", default="vae")
     ap.add_argument("--cats", nargs="*", default=None)
     ap.add_argument("--channels", nargs="*", default=None, help="e.g. xyz | xyz rgb (fused)")
     ap.add_argument("--epochs", type=int, default=None)
@@ -87,7 +89,7 @@ def main():
         hp.dropout = args.dropout
     if args.no_compile:
         hp.compile = False
-    train(hp, args.out)
+    train(hp, args.run_name)
 
 
 if __name__ == "__main__":

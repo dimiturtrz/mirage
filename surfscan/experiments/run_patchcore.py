@@ -5,7 +5,6 @@ Run:  python -m surfscan.experiments.run_patchcore [--cats bagel ...] [--coreset
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 
@@ -20,7 +19,6 @@ def main():
     ap.add_argument("--coreset", type=float, default=0.1)
     ap.add_argument("--coreset-method", default="greedy", choices=["greedy", "random"])
     ap.add_argument("--size", type=int, default=None, help="processed store resolution (default 256)")
-    ap.add_argument("--out", type=Path, default=Path("runs/patchcore"))
     args = ap.parse_args()
 
     def fit(c):
@@ -36,7 +34,7 @@ def main():
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run(f"patchcore_rgb_{args.coreset_method}", fit, score, cats=args.cats, out=args.out)
+    harness.run(f"patchcore_rgb_{args.coreset_method}", fit, score, cats=args.cats)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,6 @@ Run:  python -m surfscan.experiments.run_draem [--cats bagel ...] [--epochs 150]
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -25,7 +24,6 @@ def main():
     ap.add_argument("--cats", nargs="*", default=None)
     ap.add_argument("--channels", nargs="*", default=["xyz"])
     ap.add_argument("--epochs", type=int, default=150)
-    ap.add_argument("--out", type=Path, default=Path("runs/draem"))
     args = ap.parse_args()
     torch.set_float32_matmul_precision("high")
     torch.manual_seed(0)
@@ -68,7 +66,7 @@ def main():
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run(f"draem_{'_'.join(args.channels)}", fit, score, cats=args.cats, out=args.out)
+    harness.run(f"draem_{'_'.join(args.channels)}", fit, score, cats=args.cats)
 
 
 if __name__ == "__main__":

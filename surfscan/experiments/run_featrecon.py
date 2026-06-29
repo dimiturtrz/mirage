@@ -8,7 +8,6 @@ Run:  python -m surfscan.experiments.run_featrecon [--cats bagel ...] [--epochs 
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -41,7 +40,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cats", nargs="*", default=None)
     ap.add_argument("--epochs", type=int, default=100)
-    ap.add_argument("--out", type=Path, default=Path("runs/featrecon"))
     args = ap.parse_args()
     torch.set_float32_matmul_precision("high")
     ext = FeatExtractor(device="cuda")
@@ -70,7 +68,7 @@ def main():
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run("feat_recon", fit, score, cats=args.cats, out=args.out)
+    harness.run("feat_recon", fit, score, cats=args.cats)
 
 
 if __name__ == "__main__":

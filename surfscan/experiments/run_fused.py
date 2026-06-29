@@ -7,7 +7,6 @@ Run:  python -m surfscan.experiments.run_fused [--cats bagel ...]
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 
@@ -26,7 +25,6 @@ def _zscore(maps, valids):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cats", nargs="*", default=None)
-    ap.add_argument("--out", type=Path, default=Path("runs/fused"))
     args = ap.parse_args()
 
     def fit(c):
@@ -49,7 +47,7 @@ def main():
         return (fused, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run("fused_rgb_fpfh", fit, score, cats=args.cats, out=args.out)
+    harness.run("fused_rgb_fpfh", fit, score, cats=args.cats)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,6 @@ Run:  python -m surfscan.experiments.run_btf [--cats bagel ...]
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 
@@ -20,7 +19,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cats", nargs="*", default=None)
     ap.add_argument("--size", type=int, default=None, help="store resolution (default 256; 512 = native-ish)")
-    ap.add_argument("--out", type=Path, default=Path("runs/btf"))
     args = ap.parse_args()
     size = args.size or 256
 
@@ -37,7 +35,7 @@ def main():
         return (amaps, valids, masks, scores,
                 dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
-    harness.run("btf_fpfh", fit, score, cats=args.cats, out=args.out)
+    harness.run("btf_fpfh", fit, score, cats=args.cats)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,20 @@
+# mirage synthetic-defect ENGINE — runs in its OWN env (Isaac Sim bundles a kit runtime that can't
+# co-resolve with the perception .venv's cu130/py3.12 torch). This is the standard sim split: the
+# engine renders labeled scenes here; surfscan/data/synth.py (perception env) adapts the output into
+# the common store. Build:  cd sim && uv sync   (then OMNI_KIT_ACCEPT_EULA=YES uv run python ...)
+[project]
+name = "surfscan-sim"
+version = "0.1.0"
+description = "mirage synthetic-defect engine — Isaac Sim / Replicator scene-gen producing the labeled task-graph (rgb/depth/normals/seg/anomaly) that feeds the perception pipeline via the common store."
+requires-python = "==3.11.*"          # isaacsim ships cp311 wheels
+dependencies = [
+    "isaacsim[all,extscache]==5.1.0",
+]
+
+# NVIDIA's index hosts isaacsim + all its isaacsim-* / omni-* subpackages.
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

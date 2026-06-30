@@ -7,9 +7,9 @@ The whole point of running this: feel in your hands that a "sample" is a
     gt/NNN.png    -> defect mask         (0 = normal, >0 = defect; all-black for 'good')
 Lift the grid to points, paint with the photo, spin it. That's 2.5D.
 
-Run (in the `mirage` conda env, after `pip install -e .`):
-    python -m surfscan.visualization.show --cat bagel --split test --defect hole --idx 0 --mask
-    python -m surfscan.visualization.show --cat bagel --split train --defect good --idx 0   # a normal one
+Run (after `uv sync`):
+    uv run python -m surfscan.visualization.show --cat bagel --split test --defect hole --idx 0 --mask
+    uv run python -m surfscan.visualization.show --cat bagel --split train --defect good --idx 0   # a normal one
 
 Opens the Open3D 3D window straight away (drag = rotate, scroll = zoom,
 right-drag = pan, q = quit); the defect is painted red with --mask. Add

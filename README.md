@@ -75,18 +75,16 @@ pointcloud-viewer/
 
 ## Quickstart
 ```bash
-conda create -n mirage python=3.11 -y && conda activate mirage
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128   # Blackwell/RTX 5090
-pip install -e .
+uv sync --extra features          # .venv + deps; torch/torchvision cu130 (Blackwell/RTX 5090) auto-resolved
 cp paths.example.yaml paths.yaml          # set `data:` to your data root
-python -m surfscan.data.store               # consolidate raw -> processed (needs the dataset)
+uv run python -m surfscan.data.store        # consolidate raw -> processed (needs the dataset)
 
 # the working detector, scored through the eval harness (logs params/metrics to MLflow):
-python -m surfscan.experiments.run_patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories
-mlflow ui --backend-store-uri sqlite:///mlflow.db   # compare every method run in the browser
+uv run python -m surfscan.experiments.run_patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db   # compare every method run in the browser
 
 # see it: the defect glows under the working detector (vs the VAE's backwards residual):
-python -m surfscan.visualization.show --cat bagel --split test --defect hole --idx 0 --processed --patchcore
+uv run python -m surfscan.visualization.show --cat bagel --split test --defect hole --idx 0 --processed --patchcore
 ```
 Experiment tracking is **MLflow** (canonical store: `mlflow.db` + `mlartifacts/`, gitignored) — every
 method/training run logs params, metrics (per-category + per-defect), the aggregate, and trained models.

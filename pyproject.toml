@@ -3,7 +3,7 @@ name = "surfscan"
 version = "0.1.0"
 description = "A physics-based synthetic-data engine for 3D perception: generate defect scenes, detect anomalies, measure the sim-to-real gap honestly. Edge-deployable."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"   # open3d ships cp311/cp312 wheels only (no cp313 yet)
 dependencies = [
     "numpy",
     "scipy",
@@ -18,9 +18,8 @@ dependencies = [
     "pydantic>=2",  # validated hyperparameter configs
     "omegaconf",    # paths.yaml config loader (one-root data path)
     "mlflow",       # canonical experiment tracking (params/metrics/artifacts/models; `mlflow ui`)
-    # torch >=2.7 is required for NVIDIA Blackwell (sm_120, e.g. RTX 5090).
-    # Install the CUDA build from the PyTorch index, NOT plain PyPI (which is CPU):
-    #   pip install torch --index-url https://download.pytorch.org/whl/cu128
+    # torch >=2.7 required for NVIDIA Blackwell (sm_120, RTX 5090). The CUDA build comes from the
+    # PyTorch index (see [tool.uv.sources] below), NOT plain PyPI (which is CPU). Verified: 2.10+cu130.
     "torch>=2.7",
 ]
 
@@ -35,6 +34,17 @@ all = ["onnxruntime", "pytest"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# torch + torchvision CUDA builds live on the PyTorch index, not PyPI. Pin them there explicitly so uv
+# resolves the cu130 wheels (RTX 5090) instead of CPU. `explicit` = only [tool.uv.sources] packages use it.
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
 
 [build-system]
 requires = ["setuptools>=68"]

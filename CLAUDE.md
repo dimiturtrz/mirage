@@ -62,7 +62,7 @@ bd close <id>         # Complete work
 
 ## Build & Test
 
-_No code yet. Fill once the pipeline exists. (Will mirror systole: `pip install -e .`, `pytest tests/ -q`, one-root `paths.yaml` config.)_
+Env is **uv** (like the siblings): `uv sync --extra features` (creates `.venv`, resolves torch/torchvision cu130 for the RTX 5090), `uv run pytest tests/ -q`, one-root `paths.yaml` config.
 
 ## Architecture Overview
 

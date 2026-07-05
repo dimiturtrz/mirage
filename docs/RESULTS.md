@@ -29,11 +29,11 @@ the Stage-0 finding.
 
 ² **DRAEM** (synthesis-discriminative), bagel xyz, **3-seed** (noise discipline): crude Perlin
 **0.36 ± 0.09** — the earlier single-seed **0.48 was a lucky draw** (an honesty fix to our own number).
-Counter-intuitively, *realistic* channel-aware synthesis scored **lower, 0.18 ± 0.02** (bands don't
-overlap): DRAEM's discriminator wants a **strong high-contrast target**, so subtle physical defects give
-a weaker training signal — **realism HURTS DRAEM.** So DRAEM is *not* the vehicle for realistic
-synthesis; the realistic engine's payoff is the sim-to-real **transfer** experiment (a non-discriminative
-detector) + the Stage-2 twin. See `learning/2026-07-06_realism-hurts-draem.md`.
+My channel-aware "realistic" synth scored **lower, 0.18 ± 0.02** (non-overlapping) — **but *why* is
+unresolved.** The synth is geometrically suspect (displacement along the **z-axis, not the surface
+normal**; oversized magnitude), so it may just be a **bad synth**, not a law that realism hurts DRAEM.
+Disentangling owed (visualize · normal-displacement · vary contrast). See
+`learning/2026-07-06_draem-synthesis-comparison.md`.
 
 ### Per-defect-type (PatchCore-rgb, pooled across categories)
 Most defect types localize 0.87–0.96 AU-PRO; weak spots: **thread 0.59**, color hardest to *detect*

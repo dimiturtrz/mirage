@@ -8,7 +8,7 @@
 IS the inventory — filter it (category / split / label) to get any split; no separate
 index. Mirrors systole's cardioseg/data/store.py.
 
-CLI:  python -m surfscan.data.store [--cats bagel ...] [--size 256] [--rebuild]
+CLI:  python -m core.data.store [--cats bagel ...] [--size 256] [--rebuild]
 """
 from __future__ import annotations
 
@@ -19,9 +19,9 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from surfscan import config
-from surfscan.data import mvtec
-from surfscan.data import preprocess as pp
+from core import config
+from core.data import mvtec
+from core.data import preprocess as pp
 
 # unified cloud columns. `file` -> the npz in data/; `raw_*` -> the original channels.
 META_FIELDS = ["sample_id", "category", "split", "defect", "label", "has_gt", "file",

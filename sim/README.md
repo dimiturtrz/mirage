@@ -6,7 +6,7 @@ semantic/instance seg · anomaly mask), which feeds the perception pipeline as a
 ## Why a separate env
 Isaac Sim bundles its own kit runtime and pins deps that **can't co-resolve** with the perception
 package's env (py3.12 + torch cu130). So the *env* is isolated — but the *code* lives here in the
-repo, and the *output* flows into the same store via [`surfscan/data/synth.py`](../surfscan/data/synth.py).
+repo, and the *output* flows into the same store via [`core/data/synth.py`](../core/data/synth.py).
 Standard sim split: engine renders → adapter ingests → harness scores. One repo, two envs, one data contract.
 
 ## Setup
@@ -20,5 +20,5 @@ not `TiledCamera` (IsaacLab #4951 hangs on sm_120) — TiledCamera only matters 
 
 ## Data handoff
 `generate.py` (this env) writes renders to `<data root>/synth/<category>/...`; the perception env's
-`surfscan/data/synth.py` adapter maps them to the common store schema (same shape as the MVTec adapter),
+`core/data/synth.py` adapter maps them to the common store schema (same shape as the MVTec adapter),
 so synthetic and real are one 2-source cloud the harness scores identically — the sim-to-real gap.

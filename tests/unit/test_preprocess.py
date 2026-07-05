@@ -5,7 +5,7 @@ flying-pixel cluster dropped (xyz bounded by the centroid clip).
 """
 import numpy as np
 
-from surfscan.data.preprocess import CLIP, SIZE, preprocess
+from core.data.preprocess import CLIP, SIZE, preprocess
 
 
 def _sample(h=200, w=200):

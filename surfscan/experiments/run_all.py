@@ -12,7 +12,7 @@ import argparse
 import numpy as np
 
 from surfscan import tracking
-from surfscan.data import mvtec
+from core.data import mvtec
 from surfscan.evaluation.evaluate import evaluate
 from surfscan.training.hparams import HParams
 from surfscan.training.train import train

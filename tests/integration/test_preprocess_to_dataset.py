@@ -6,8 +6,8 @@ the invalid-zeroed guarantee surviving the stack) without any dataset or GPU.
 """
 import numpy as np
 
-from surfscan.data.dataset import _stack_channels
-from surfscan.data.preprocess import SIZE, preprocess
+from core.data.dataset import _stack_channels
+from core.data.preprocess import SIZE, preprocess
 
 
 def _sample(h=200, w=200):

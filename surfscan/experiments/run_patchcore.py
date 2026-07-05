@@ -8,7 +8,7 @@ import argparse
 
 import numpy as np
 
-from surfscan.data.dataset import load_split
+from core.data.dataset import load_split
 from surfscan.evaluation import harness, scoring
 from surfscan.models.patchcore import PatchCore
 

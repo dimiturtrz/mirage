@@ -14,7 +14,7 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
-from surfscan.data.dataset import load_split
+from core.data.dataset import load_split
 from surfscan.evaluation import harness, scoring
 from surfscan.models.feat_recon import FeatAE, FeatExtractor
 

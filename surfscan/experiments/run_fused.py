@@ -10,8 +10,8 @@ import argparse
 
 import numpy as np
 
-from surfscan.data import store
-from surfscan.data.dataset import load_split
+from core.data import store
+from core.data.dataset import load_split
 from surfscan.evaluation import harness, scoring
 from surfscan.models.fpfh_bank import FpfhBank
 from surfscan.models.patchcore import PatchCore

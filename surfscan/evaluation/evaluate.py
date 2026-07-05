@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 from surfscan import tracking
-from surfscan.data.dataset import load_split
+from core.data.dataset import load_split
 from surfscan.evaluation import harness, scoring
 from surfscan.training.hparams import HParams
 

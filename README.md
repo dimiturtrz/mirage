@@ -56,28 +56,28 @@ scanned with a Zivid structured-light sensor (per-pixel rgb + xyz position map +
 redistributed here.
 
 ## Layout
-Repo root holds the `surfscan/` package + docs/learning/tests/viewer:
+`core/` (reusable engine) + `surfscan/` (the ML science) + `sim/` (the synthetic engine, own env):
 ```
-surfscan/              the importable package
-  config.py            data root from paths.yaml (-> raw/ + processed/)
-  data/                adapter (mvtec) + preprocess + unified store (meta.csv = the inventory)
+core/                  the reusable, method-agnostic engine
+  config.py            data root from paths.yaml (-> raw/ + processed/ + synth/)
+  data/                adapters (mvtec · synth) + preprocess + unified store
+  method.py            the (fit_fn, score_fn) contract the harness scores
+surfscan/              the science layer
   models/              vae · inpaint · draem · feat_recon · patchcore · fpfh_bank (BTF)
-  training/            train loops + hparams + losses
+  training/            train spine + hparams + losses
   experiments/         run_* — per-method benchmark runners (produce the AU-PRO board)
-  evaluation/          metrics (AU-PRO/AUROC) · scoring · diagnostics · harness
+  evaluation/          harness (spine) · metrics · scoring · diagnostics · sync_numbers
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
-docs/                  PLAN.md (staged plan) · RESULTS.md (findings) · STRUCTURE.md (architecture)
-learning/              theory notes — the 3D-geometry ramp (mine)
-research/              cited deep-dives that ground the learning (agent-side)
-tests/                 unit/ (equivalence-class) + integration/ (module pairs)
-pointcloud-viewer/
+sim/                   synthetic-defect engine — Isaac/Replicator (its own env)
+docs/                  PLAN.md · RESULTS.md (+ RESULTS.json canonical) · STRUCTURE.md
+learning/ research/ tests/ (unit + integration) · pointcloud-viewer/
 ```
 
 ## Quickstart
 ```bash
 uv sync --extra features          # .venv + deps; torch/torchvision cu130 (Blackwell/RTX 5090) auto-resolved
 cp paths.example.yaml paths.yaml          # set `data:` to your data root
-uv run python -m surfscan.data.store        # consolidate raw -> processed (needs the dataset)
+uv run python -m core.data.store        # consolidate raw -> processed (needs the dataset)
 
 # the working detector, scored through the eval harness (logs params/metrics to MLflow):
 uv run python -m surfscan.experiments.run_patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories

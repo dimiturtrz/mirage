@@ -9,7 +9,7 @@ contrast IS the sim-to-real gap. Per category, under `<data root>/synth/`:
 
 `xyz` is a per-pixel position map (meters), the same representation the Zivid scanner produces for
 MVTec — Replicator emits it from the depth/world-position pass so geometry channels match. By keeping
-the format identical, `surfscan/data/store.py` + preprocess + the harness work on synthetic unchanged;
+the format identical, `core/data/store.py` + preprocess + the harness work on synthetic unchanged;
 only the *source root* differs. (Sim-only metadata — material / lighting / defect params — can ride
 alongside as a sidecar later; the core triple is what the perception pipeline consumes.)
 """
@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from surfscan import config
-from surfscan.data.mvtec import Sample, load_raw  # identical on-disk format -> reuse the loader
+from core import config
+from core.data.mvtec import Sample, load_raw  # identical on-disk format -> reuse the loader
 
 SPLITS = ("train", "validation", "test")
 

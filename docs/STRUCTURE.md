@@ -6,14 +6,18 @@ from the interchangeable *methods* it scores, and treats synthetic-data generati
 source behind the same adapter boundary.
 
 ## Layout
+Two packages — a reusable engine and the science on top — plus the sim engine in its own env:
 ```
-surfscan/            the importable package (perception env — uv .venv, py3.12, torch cu130)
+core/                the reusable, method-agnostic ENGINE (perception env — uv .venv, py3.12, torch cu130)
   config.py          one data root from paths.yaml -> raw/ + processed/ + synth/
   data/              adapters (mvtec · synth) -> unified store; dataset (GPU-resident splits)
+  method.py          the (fit_fn, score_fn) contract + ScoreArrays the harness scores
+surfscan/            the SCIENCE layer (imports core)
   models/            the three method families: vae · inpaint · draem · feat_recon · patchcore · fpfh_bank
   training/          train spine (registry-dispatched) + hparams + losses
   experiments/       run_* — per-method drivers that feed the harness (the AU-PRO board)
-  evaluation/        the spine: harness · metrics · scoring · diagnostics · method (contract) · sync_numbers
+  evaluation/        the spine: harness · metrics · scoring · diagnostics · sync_numbers
+  tracking.py        MLflow wrapper
   visualization/     3D viewer + web-viewer export
 sim/                 the synthetic-defect ENGINE (its OWN env — Isaac/Replicator, py3.11/3.12)
 docs/                PLAN · RESULTS.md (+ RESULTS.json canonical numbers) · STRUCTURE (this)
@@ -21,7 +25,7 @@ tests/               unit (equivalence-class) + integration (module-pair)
 ```
 
 ## The eval spine + the method contract
-The harness is **method-agnostic**: it speaks one contract, `evaluation/method.Method` — a
+The harness is **method-agnostic**: it speaks one contract, `core/method.Method` — a
 `(fit_fn, score_fn)` pair returning a named `ScoreArrays` — that **all three anomaly paradigms**
 satisfy, so one spine scores them identically (cf. mindscape's `Decoder` contract).
 
@@ -44,10 +48,10 @@ One-root `paths.yaml` → `<data>/{raw,processed,synth}`. Two adapters emit the 
 (rgb · xyz position-map · gt), so the store/preprocess/harness ingest them identically:
 
 ```
-raw/mvtec…  ──(data/mvtec.py)──┐
-                               ├──► data/store (unified) ──► dataset (GPU-resident) ──► harness
-synth/…     ──(data/synth.py)──┘        ▲
-   ▲                                    │
+raw/mvtec…  ──(core/data/mvtec.py)──┐
+                                    ├──► core/data/store ──► dataset (GPU-resident) ──► harness
+synth/…     ──(core/data/synth.py)──┘        ▲
+   ▲                                         │
    └── sim/ engine (Isaac/Replicator, separate env) renders the labeled task-graph
 ```
 Real vs synthetic scored through one harness **is** the sim-to-real gap — the Stage-1 contribution.

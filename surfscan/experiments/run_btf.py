@@ -10,7 +10,7 @@ import argparse
 
 import numpy as np
 
-from surfscan.data import store
+from core.data import store
 from surfscan.evaluation import harness, scoring
 from surfscan.models.fpfh_bank import FpfhBank
 

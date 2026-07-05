@@ -1,14 +1,17 @@
-"""Realistic synthetic defects on real good scans — the classical Stage-1 synthesis.
+"""Realistic synthetic defects on real good scans — the classical Stage-1 synthesis (channel-aware,
+fully vectorized).
 
-Replaces DRAEM's crude Perlin-noise blobs (which taught the discriminator to spot NOISE, not defects
-— RESULTS.md 0.48). Here the anomalies are **coherent defect shapes** (dents · scratches · contamination)
-with **structured, defect-like edits** (local darkening · displacement · real-texture paste — NOT
-gaussian noise), placed inside the object mask. Returns `(aug, mask)`; `mask` is the free ground-truth
-label. Channel-agnostic and drop-in for the DRAEM `synthesize` signature, so it also persists to a
-synthetic dataset. torch-native (params via np RandomState).
+v1 was channel-agnostic and regressed on xyz (0.275 < Perlin 0.48): scaling xyz coordinates isn't a
+dent, it's a coordinate cliff. This is **channel-aware** with **smooth profiles** (no hard edge):
+  - xyz (geometry): displace the surface along z by a smooth Gaussian profile — a real dent/bump/groove,
+    amplitude derived from each object's own z-range (no magic number).
+  - rgb (appearance): darken (dent/scratch), brighten (bump), or paste REAL texture (contamination) —
+    never gaussian noise.
+The whole batch is built with tensor ops (no per-sample python loop); the mask (profile > thr) is the
+free ground-truth label. Drop-in for the DRAEM synthesize signature.
 
-The point vs Perlin: a real surface defect is a *coherent structure* (a dark dent, a scratch line, a
-contamination patch), not high-frequency noise — so the detector must learn defect-ness, not noise.
+Note (honest): z-displacement approximates surface-normal displacement (exact per-pixel normals are a
+later refinement); already far better than coordinate scaling.
 """
 from __future__ import annotations
 
@@ -16,64 +19,72 @@ import numpy as np
 import torch
 
 KINDS = ("dent", "scratch", "contamination", "bump")
+_THR = 0.05
 
 
-def _grid(h, w, device):
+def _u(rng, lo, hi, b, device):
+    return torch.as_tensor(rng.uniform(lo, hi, b), dtype=torch.float32, device=device)[:, None, None]
+
+
+def _profiles(b, h, w, rng, device, is_scratch):
+    """Batched smooth profiles (B,H,W): elliptical blob, or thin scratch where is_scratch."""
     yy, xx = torch.meshgrid(torch.arange(h, device=device), torch.arange(w, device=device), indexing="ij")
-    return yy.float(), xx.float()
-
-
-def _blob(h, w, rng, device) -> torch.Tensor:
-    """A random elliptical blob (coherent, not noise) -> bool (H,W)."""
-    yy, xx = _grid(h, w, device)
-    cy, cx = rng.uniform(0.2, 0.8) * h, rng.uniform(0.2, 0.8) * w
-    ry, rx = rng.uniform(0.03, 0.14) * h, rng.uniform(0.03, 0.14) * w
-    a = rng.uniform(0, np.pi)
+    yy, xx = yy.float()[None], xx.float()[None]
+    cy, cx = _u(rng, 0.2, 0.8, b, device) * h, _u(rng, 0.2, 0.8, b, device) * w
+    a = _u(rng, 0, np.pi, b, device)
+    ca, sa = torch.cos(a), torch.sin(a)
     y, x = yy - cy, xx - cx
-    yr = y * np.cos(a) + x * np.sin(a)
-    xr = -y * np.sin(a) + x * np.cos(a)
-    return (yr / ry) ** 2 + (xr / rx) ** 2 < 1.0
+    yr, xr = y * ca + x * sa, -y * sa + x * ca
 
+    ry, rx = _u(rng, 0.03, 0.14, b, device) * h, _u(rng, 0.03, 0.14, b, device) * w
+    blob = torch.clamp(1.0 - ((yr / ry) ** 2 + (xr / rx) ** 2), min=0.0)
 
-def _scratch(h, w, rng, device) -> torch.Tensor:
-    """A thin elongated line (a scratch/crack) -> bool (H,W)."""
-    yy, xx = _grid(h, w, device)
-    cy, cx = rng.uniform(0.2, 0.8) * h, rng.uniform(0.2, 0.8) * w
-    a = rng.uniform(0, np.pi)
-    length, thick = rng.uniform(0.15, 0.4) * h, rng.uniform(0.004, 0.012) * h
-    y, x = yy - cy, xx - cx
-    along = y * np.cos(a) + x * np.sin(a)      # distance along the scratch
-    across = -y * np.sin(a) + x * np.cos(a)    # distance across it
-    return (across.abs() < thick) & (along.abs() < length / 2)
+    length, thick = _u(rng, 0.15, 0.4, b, device) * h, _u(rng, 0.004, 0.012, b, device) * h
+    scratch = torch.clamp(1.0 - (xr / thick) ** 2, min=0.0) * (yr.abs() < length / 2)
 
-
-def _apply(xb, m, kind, rng):
-    """Structured, defect-like edit of one sample xb (C,H,W) inside mask m (H,W bool)."""
-    if kind == "dent":                                   # coherent dark depression
-        xb[:, m] = xb[:, m] * rng.uniform(0.25, 0.55)
-    elif kind == "scratch":                              # sharp dark line
-        xb[:, m] = xb[:, m] * rng.uniform(0.15, 0.4)
-    elif kind == "bump":                                 # raised / bright protrusion
-        xb[:, m] = torch.clamp(xb[:, m] * rng.uniform(1.4, 1.9), max=1.0)
-    elif kind == "contamination":                        # paste REAL texture from elsewhere (not noise)
-        sy, sx = int(rng.uniform(0.2, 0.8) * xb.shape[1]), int(rng.uniform(0.2, 0.8) * xb.shape[2])
-        rolled = torch.roll(xb, shifts=(sy, sx), dims=(1, 2))
-        b = rng.uniform(0.6, 0.95)
-        xb[:, m] = b * rolled[:, m] + (1 - b) * xb[:, m]
+    return torch.where(is_scratch[:, None, None], scratch, blob)
 
 
 @torch.no_grad()
-def synthesize(x, valid, rng, kinds=KINDS):
-    """x: (B,C,H,W), valid: (B,1,H,W) bool-ish -> (aug, mask (B,1,H,W)) with a coherent defect per sample."""
+def synthesize(x, valid, rng, channels=("rgb",), kinds=KINDS):
+    """x: (B,C,H,W), valid: (B,1,H,W) -> (aug, mask (B,1,H,W)). channels maps the stacked 3-wide slices:
+    xyz -> geometric z-displacement, rgb -> appearance. Fully batched — no per-sample loop."""
     B, C, H, W = x.shape
+    dev = x.device
+    sl, off = {}, 0
+    for c in channels:
+        sl[c] = off; off += 3
+
+    ki = torch.as_tensor(rng.randint(len(kinds), size=B), device=dev)
+    kind = np.asarray(kinds)[ki.cpu().numpy()]
+    is_scratch = torch.as_tensor(kind == "scratch", device=dev)
+    is_bump = torch.as_tensor(kind == "bump", device=dev)[:, None, None]
+    is_contam = torch.as_tensor(kind == "contamination", device=dev)[:, None, None, None]
+
+    prof = _profiles(B, H, W, rng, dev, is_scratch) * (valid[:, 0] > 0.5)   # (B,H,W), on-object
+    m = prof > _THR
+    pa = prof * m                                                          # smooth inside, 0 outside m
     aug = x.clone()
-    mask = torch.zeros((B, 1, H, W), dtype=x.dtype, device=x.device)
-    for b in range(B):
-        kind = kinds[rng.randint(len(kinds))]
-        shape = _scratch(H, W, rng, x.device) if kind == "scratch" else _blob(H, W, rng, x.device)
-        m = shape & (valid[b, 0] > 0.5)                  # keep the defect on the object
-        if not m.any():
-            continue
-        _apply(aug[b], m, kind, rng)
-        mask[b, 0][m] = 1.0
-    return aug, mask
+
+    if "xyz" in sl:                                                        # geometry: smooth z-displacement
+        zc = sl["xyz"] + 2
+        z = aug[:, zc]
+        zm = torch.where(valid[:, 0] > 0.5, z, torch.full_like(z, float("nan")))
+        zr = (torch.nan_to_num(zm, nan=-1e9).amax((1, 2)) - torch.nan_to_num(zm, nan=1e9).amin((1, 2)))
+        zr = zr.clamp(min=1e-6)[:, None, None]
+        sign = torch.where(is_bump, 1.0, -1.0)
+        frac = torch.where(is_scratch[:, None, None], _u(rng, 0.2, 0.5, B, dev), _u(rng, 0.15, 0.35, B, dev))
+        aug[:, zc] = z + sign * frac * zr * pa
+
+    if "rgb" in sl:                                                        # appearance
+        r = slice(sl["rgb"], sl["rgb"] + 3)
+        rgb = aug[:, r]
+        s = _u(rng, 0.4, 0.7, B, dev)[:, None]                            # (B,1,1,1)
+        fac = torch.where(is_bump[:, None], 1 + s * pa[:, None], 1 - s * pa[:, None])
+        darkened = torch.clamp(rgb * fac, 0.0, 1.0)
+        sy, sx = int(rng.uniform(0.2, 0.8) * H), int(rng.uniform(0.2, 0.8) * W)
+        rolled = torch.roll(rgb, shifts=(sy, sx), dims=(2, 3))            # real texture from elsewhere
+        contam = rgb * (1 - pa[:, None]) + rolled * pa[:, None]
+        aug[:, r] = torch.where(is_contam, contam, darkened)
+
+    return aug, m[:, None].to(x.dtype)

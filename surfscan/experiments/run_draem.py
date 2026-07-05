@@ -42,7 +42,7 @@ def main():
             for i in range(0, n, 16):
                 b = idx[i:i + 16]
                 x, v = train.x[b], train.valid[b]
-                aug, mask = synthesize(x, v, rng)
+                aug, mask = synthesize(x, v, rng, channels=args.channels)
                 with torch.autocast("cuda", dtype=torch.bfloat16):
                     rec, logits = model(aug.to(memory_format=torch.channels_last))
                     rl = (((rec - x) ** 2) * v).sum() / (v.sum() * x.shape[1] + 1e-8)

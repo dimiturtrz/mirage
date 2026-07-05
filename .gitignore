@@ -16,6 +16,9 @@ paths.yaml
 *.local.md
 .local/
 
+# sim engine scratch (Replicator smoke renders)
+sim/_smoke_out/
+
 # Data / weights / artifacts (never commit large or licensed data)
 data/raw/
 data/processed/

@@ -6,15 +6,22 @@
 name = "surfscan-sim"
 version = "0.1.0"
 description = "mirage synthetic-defect engine — Isaac Sim / Replicator scene-gen producing the labeled task-graph (rgb/depth/normals/seg/anomaly) that feeds the perception pipeline via the common store."
-requires-python = "==3.11.*"          # isaacsim ships cp311 wheels
+requires-python = "==3.12.*"          # isaacsim 6.0 ships cp312 wheels (5.1 was cp311)
 dependencies = [
-    "isaacsim[all,extscache]==5.1.0",
+    "isaacsim[all,extscache]==6.0.1.0",
 ]
 
 # NVIDIA's index hosts isaacsim + all its isaacsim-* / omni-* subpackages.
 [[tool.uv.index]]
 name = "nvidia"
 url = "https://pypi.nvidia.com"
+
+[tool.uv]
+# isaacsim 6.0's deps span both indexes (e.g. isaacsim-core needs mujoco-usd-converter==0.2.0, which
+# is on pypi.org not the nvidia index). Let uv pick the best version across indexes, not first-only.
+index-strategy = "unsafe-best-match"
+# isaacsim-core pins pre-release deps (e.g. tinyobjloader==2.0.0rc13). Allow them.
+prerelease = "allow"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,26 @@
+{
+  "_comment": "The ONE canonical source of published Stage-0 numbers. docs/RESULTS.md tables are rendered from this by surfscan/evaluation/sync_numbers.py (between <!-- results:X --> markers) so a number lives in ONE place and the docs can't drift. Curated from the measured investigation; refresh the measured entries from mlflow when reruns land. The root README stays a curated portfolio face (not synced) per CLAUDE.md.",
+  "harness": "image-AUROC (detection) + pixel-AU-PRO (localization), per-category models, our runs through one harness",
+  "methods": [
+    {"name": "Reconstruction (VAE / +dropout / inpaint / fused)", "modality": "xyz (+rgb)", "paradigm": "reconstruct pixels → error", "img_auroc": 0.48, "au_pro": 0.095, "note": "≈ random localization"},
+    {"name": "DRAEM (synthesis-recon, crude Perlin)", "modality": "xyz / rgb", "paradigm": "synthesis-discriminative", "img_auroc": null, "au_pro": 0.48, "note": "0.48 xyz / 0.21 rgb — crude synthesis"},
+    {"name": "BTF (FPFH memory bank)", "modality": "geometry", "paradigm": "memory bank", "img_auroc": 0.675, "au_pro": 0.653},
+    {"name": "PatchCore (feature memory bank)", "modality": "rgb", "paradigm": "memory bank — NN to normal features", "img_auroc": 0.819, "au_pro": 0.908, "deployable": true},
+    {"name": "Feature-recon / RD4AD-lite", "modality": "rgb", "paradigm": "reconstruct features → error", "img_auroc": 0.807, "au_pro": 0.908},
+    {"name": "Fused (PatchCore-rgb + BTF)", "modality": "rgb + 3D", "paradigm": "memory-bank fusion", "img_auroc": 0.782, "au_pro": 0.904, "note": "net-neutral vs rgb-only until native-res FPFH"}
+  ],
+  "sota": {"name": "M3DM", "modality": "rgb + 3D", "img_auroc": 0.945, "au_pro": 0.964, "cite": "Wang et al., CVPR 2023", "verified": "2026-06-29"},
+  "patchcore_per_category": [
+    {"category": "bagel", "img_auroc": 0.943, "au_pro": 0.928},
+    {"category": "cable_gland", "img_auroc": 0.806, "au_pro": 0.728},
+    {"category": "carrot", "img_auroc": 0.944, "au_pro": 0.987},
+    {"category": "cookie", "img_auroc": 0.708, "au_pro": 0.822},
+    {"category": "dowel", "img_auroc": 0.897, "au_pro": 0.974},
+    {"category": "peach", "img_auroc": 0.828, "au_pro": 0.960},
+    {"category": "potato", "img_auroc": 0.860, "au_pro": 0.986},
+    {"category": "rope", "img_auroc": 0.909, "au_pro": 0.971},
+    {"category": "tire", "img_auroc": 0.604, "au_pro": 0.936},
+    {"category": "foam", "img_auroc": 0.691, "au_pro": 0.789}
+  ],
+  "patchcore_mean": {"img_auroc": 0.819, "au_pro": 0.908}
+}

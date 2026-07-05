@@ -2,7 +2,7 @@
 is a (fit_fn, score_fn) pair fed through it.
 
     fit_fn(cat) -> state
-    score_fn(state, cat) -> (amaps, valids, masks, scores, labels, defects)   # all np arrays
+    score_fn(state, cat) -> ScoreArrays   # named per-sample outputs (see evaluation/method.py)
 
 `aggregate` is pure (compute per-category + mean + per-defect, no IO — unit-testable).
 `run` calls aggregate, then logs everything to MLflow: a fresh method run, or — pass run_id —
@@ -16,22 +16,21 @@ import numpy as np
 from surfscan import tracking
 from surfscan.data import mvtec
 from surfscan.evaluation import diagnostics, metrics
-
-_KEYS = ("amaps", "masks", "valids", "scores", "labels", "defects")
+from surfscan.evaluation.method import ScoreArrays  # the (fit_fn, score_fn) contract
 
 
 def aggregate(method, fit_fn, score_fn, cats):
     """Pure: run the method over categories, compute the metrics. No MLflow, no side effects."""
     rows = []
-    pool = {k: [] for k in _KEYS}
+    pool: dict[str, list] = {f: [] for f in ScoreArrays._fields}
     for c in cats:
-        amaps, valids, masks, scores, labels, defects = score_fn(fit_fn(c), c)
-        rows.append({"category": c, "n": int(len(scores)),
-                     "img_auroc": metrics.image_auroc(scores, labels),
-                     "au_pro": metrics.au_pro(amaps, masks, valids)})
+        sa = ScoreArrays(*score_fn(fit_fn(c), c))          # named fields — no fragile tuple order
+        rows.append({"category": c, "n": int(len(sa.scores)),
+                     "img_auroc": metrics.image_auroc(sa.scores, sa.labels),
+                     "au_pro": metrics.au_pro(sa.amaps, sa.masks, sa.valids)})
         print(f"  {c:12s}  img_auroc {rows[-1]['img_auroc']:.3f}   au_pro {rows[-1]['au_pro']:.3f}")
-        for k, v in zip(_KEYS, (amaps, masks, valids, scores, labels, defects)):
-            pool[k].append(v)
+        for f in ScoreArrays._fields:
+            pool[f].append(getattr(sa, f))
 
     auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
     aupro = float(np.nanmean([r["au_pro"] for r in rows]))

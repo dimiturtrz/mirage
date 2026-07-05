@@ -66,7 +66,7 @@ surfscan/              the importable package
   experiments/         run_* — per-method benchmark runners (produce the AU-PRO board)
   evaluation/          metrics (AU-PRO/AUROC) · scoring · diagnostics · harness
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
-docs/                  PLAN.md (staged plan) · RESULTS.md (the findings)
+docs/                  PLAN.md (staged plan) · RESULTS.md (findings) · STRUCTURE.md (architecture)
 learning/              theory notes — the 3D-geometry ramp (mine)
 research/              cited deep-dives that ground the learning (agent-side)
 tests/                 unit/ (equivalence-class) + integration/ (module pairs)

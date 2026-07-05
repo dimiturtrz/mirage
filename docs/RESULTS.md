@@ -5,15 +5,17 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 *our* runs through *one* eval harness, **not** the papers' leaderboard numbers.
 
 ## Headline: reconstruction fails, feature-memory-bank works
+<!-- results:methods -->
 | method | modality | mean img-AUROC | mean pixel AU-PRO |
 |---|---|---|---|
-| Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.48 | **0.095** |
-| DRAEM (synthesis-recon, crude Perlin) — ours | xyz / rgb | — | 0.48 / 0.21² |
+| Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.480 | 0.095 |
+| DRAEM (synthesis-recon, crude Perlin) — ours | xyz / rgb | — | 0.480 |
 | BTF (FPFH memory bank) — ours | geometry | 0.675 | 0.653 |
-| **PatchCore (feature memory bank) — ours** | rgb | **0.819** | **0.908** |
-| **Feature-recon / RD4AD-lite — ours** | rgb | 0.807 | **0.908** |
-| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.782 | 0.904¹ |
-| SOTA (BTF / M3DM, *papers*) ⚠ | rgb + 3D | ~0.95 | ~0.96 |
+| **PatchCore (feature memory bank)** — ours | rgb | 0.819 | 0.908 |
+| Feature-recon / RD4AD-lite — ours | rgb | 0.807 | 0.908 |
+| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.782 | 0.904 |
+| SOTA (M3DM) ⚠ | rgb + 3D | ~0.94 | ~0.96 |
+<!-- /results:methods -->
 
 <sub>¹ fused all-10 (0.904) is **net-neutral** vs rgb-only (0.908): it *helps* where geometry is decent (bagel 0.928→0.937, carrot) but *hurts* where our weak BTF geometry is bad (cookie, foam). Our BTF is preprocessing-limited (below), so fusion can't pay until native-res FPFH lands — an honest negative: rgb-only is the current deployable.</sub>
 
@@ -48,6 +50,7 @@ rim) matches a normal rim in the bank → not flagged. That's why the SOTA is me
 based, not reconstruction — here, measured.
 
 ## PatchCore-rgb, per category (the working method)
+<!-- results:per_category -->
 | category | img-AUROC | AU-PRO |
 |---|---|---|
 | bagel | 0.943 | 0.928 |
@@ -61,6 +64,7 @@ based, not reconstruction — here, measured.
 | tire | 0.604 | 0.936 |
 | foam | 0.691 | 0.789 |
 | **MEAN** | **0.819** | **0.908** |
+<!-- /results:per_category -->
 
 ## Honest caveats (the measured gaps to SOTA)
 - **PatchCore is rgb-only + *random* coreset** (not greedy). The gap to SOTA (~0.96) is exactly the

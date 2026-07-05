@@ -25,11 +25,12 @@ def main():
     ap.add_argument("--cats", nargs="*", default=None)
     ap.add_argument("--channels", nargs="*", default=["xyz"])
     ap.add_argument("--epochs", type=int, default=150)
+    ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
     torch.set_float32_matmul_precision("high")
-    torch.manual_seed(0)
+    torch.manual_seed(args.seed)
     dev = "cuda"
-    rng = np.random.RandomState(0)
+    rng = np.random.RandomState(args.seed)
 
     def fit(c):
         train = load_split(split="train", label=0, cats=[c], channels=args.channels, device=dev)

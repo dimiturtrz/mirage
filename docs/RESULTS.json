@@ -2,10 +2,10 @@
   "_comment": "The ONE canonical source of published Stage-0 numbers. docs/RESULTS.md tables are rendered from this by surfscan/evaluation/sync_numbers.py (between <!-- results:X --> markers) so a number lives in ONE place and the docs can't drift. Curated from the measured investigation; refresh the measured entries from mlflow when reruns land. The root README stays a curated portfolio face (not synced) per CLAUDE.md.",
   "harness": "image-AUROC (detection) + pixel-AU-PRO (localization), per-category models, our runs through one harness",
   "methods": [
-    {"name": "Reconstruction (VAE / +dropout / inpaint / fused)", "modality": "xyz (+rgb)", "paradigm": "reconstruct pixels → error", "img_auroc": 0.48, "au_pro": 0.095, "note": "≈ random localization"},
+    {"name": "Reconstruction (VAE / +dropout / inpaint / fused)", "modality": "xyz (+rgb)", "paradigm": "reconstruct pixels → error", "img_auroc": 0.48, "au_pro": 0.095, "note": "≈ random localization", "mlflow_run": "vae_all"},
     {"name": "DRAEM (synthesis-recon, crude Perlin)", "modality": "xyz / rgb", "paradigm": "synthesis-discriminative", "img_auroc": null, "au_pro": 0.48, "note": "0.48 xyz / 0.21 rgb — crude synthesis"},
     {"name": "BTF (FPFH memory bank)", "modality": "geometry", "paradigm": "memory bank", "img_auroc": 0.675, "au_pro": 0.653},
-    {"name": "PatchCore (feature memory bank)", "modality": "rgb", "paradigm": "memory bank — NN to normal features", "img_auroc": 0.819, "au_pro": 0.908, "deployable": true},
+    {"name": "PatchCore (feature memory bank)", "modality": "rgb", "paradigm": "memory bank — NN to normal features", "img_auroc": 0.819, "au_pro": 0.908, "deployable": true, "mlflow_run": "patchcore_rgb_greedy"},
     {"name": "Feature-recon / RD4AD-lite", "modality": "rgb", "paradigm": "reconstruct features → error", "img_auroc": 0.807, "au_pro": 0.908},
     {"name": "Fused (PatchCore-rgb + BTF)", "modality": "rgb + 3D", "paradigm": "memory-bank fusion", "img_auroc": 0.782, "au_pro": 0.904, "note": "net-neutral vs rgb-only until native-res FPFH"}
   ],

@@ -46,12 +46,10 @@ The acoustic engine adapts generation difficulty per epoch from the trainer's pr
 
 ## The ramp (real spine first, then the engine)
 1. **Stage 0 — Static, real data.** Start on **MVTec 3D-AD** (real industrial 3D anomaly). Stand up the **reconstruction-VAE** anomaly model (rebuild normal → residual + latent distance = anomaly) + the **eval harness** (rare-class metrics, calibration, per-condition diagnostics) on real data. Prove the spine before synthetic. **First commit = MVTec 3D-AD + eval harness.** = systole's Gate 1 (presentable) = **the public-flip trigger.**
-2. **Stage 1 — Synthetic engine + sim-to-real (the differentiator, the center).** Two roads produce the synthetic defects; both feed the same **sim-to-real triad** (real→real = the ceiling · synth→real = the gap · synth+DA→real = closure), scored through the existing harness:
-   - **Road A — classical (start here, Isaac-free):** inject defects directly on the *real* good scans in 2.5D (carve/displace xyz, add contamination/scratch in rgb). Real-pixel base transfers better than an imperfect sim; directly fixes the DRAEM-on-crude-Perlin failure. Fast, driver-free, gets the first honest gap number.
-   - **Road B — digital twin (ambitious, dual-purpose):** reconstruct a renderable 3D asset per category from the 244 single-view good instances (a *learned category-shape model* — not multi-view fusion), then render arbitrary good + defect views in Isaac/Replicator. Harder; won't beat the good-only detector (0.908) — it's for the contribution + the 3D-reconstruction job lane. Do after Road A.
-   - Then reproduce ONE known DA method and *measure* it (don't try to beat it), and layer the **closed-loop curriculum** on top. **Honesty rule: "I modeled it" never stands in for "I measured it transferred."**
-3. **Stage 2 — Edge deploy.** ONNX → TensorRT + FPS/latency/memory benchmark (Jetson if available, else CPU/GPU; RPi/edge-accel experience carries). Target <1% AUROC/AU-PRO loss vs the full-precision model.
-4. **After the spine — two expansion axes** (perception breadth · engine depth). Optional, sequenced *after* the public flip — not pulled forward. See **Expansion axes** below.
+2. **Stage 1 — Classical synthetic engine + sim-to-real (the differentiator, the center).** Inject defects directly on the *real* good scans in 2.5D (carve/displace xyz, add contamination/scratch in rgb) → labeled synth in MVTec format → train-synth / test-real. Real-pixel base transfers better than an imperfect sim, and directly fixes the DRAEM-on-crude-Perlin failure. **Isaac-free, driver-free — the first honest gap number.** Feeds the **triad** (real→real = ceiling · synth→real = gap · synth+DA→real = closure); reproduce ONE DA method + the carried **closed-loop curriculum**. **Honesty rule: "I modeled it" never stands in for "I measured it transferred."**
+3. **Stage 2 — Digital twin (the ambitious road + the reconstruction lane).** Reconstruct a renderable 3D asset per category from the 244 single-view good instances (a *learned category-shape model* — not multi-view fusion), then render arbitrary good + defect views in Isaac/Replicator → richer synth + its *own* sim-to-real number (twin vs classical = which transfers better, an honest result in itself). Won't beat the good-only detector (0.908) — it's for the contribution + the 3D-reconstruction job lane (Fiducial/Productize/3DLOOK). The "model the physical world" approach; gated on the Isaac render path.
+4. **Stage 3 — Real-world integration (edge deploy).** ONNX → TensorRT + FPS/latency/memory benchmark (Jetson if available, else CPU/GPU; RPi/edge-accel experience carries). Target <1% AUROC/AU-PRO loss vs the full-precision model. The detector taken to real hardware.
+5. **After the spine — two expansion axes** (perception breadth · engine depth). Optional, sequenced *after* the public flip — not pulled forward. See **Expansion axes** below.
 
 ## Comparisons (the triad IS the contribution)
 Like systole's nnU-Net baseline, report three honestly:
@@ -63,7 +61,7 @@ That triad + calibration + per-condition diagnostics is the defensible result �
 
 ---
 
-## Expansion axes (after the Stage 0–2 spine)
+## Expansion axes (after the Stage 0–3 spine)
 Two axes branch off the spine. Both optional, both sequenced *after* the public flip — mapped here so the ladder isn't lost, not to be pulled forward.
 
 **Axis 1 — perception breadth** (more of the perception surface)

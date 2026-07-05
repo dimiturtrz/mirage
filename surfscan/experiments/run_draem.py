@@ -15,8 +15,9 @@ import torch.nn.functional as F
 from torch import optim
 
 from core.data.dataset import load_split
+from core.data.defects import synthesize   # realistic coherent defects (was draem's crude Perlin, 0.48)
 from surfscan.evaluation import harness, scoring
-from surfscan.models.draem import Draem, synthesize
+from surfscan.models.draem import Draem
 
 
 def main():
@@ -66,7 +67,7 @@ def main():
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run(f"draem_{'_'.join(args.channels)}", fit, score, cats=args.cats)
+    harness.run(f"draem_realistic_{'_'.join(args.channels)}", fit, score, cats=args.cats)
 
 
 if __name__ == "__main__":

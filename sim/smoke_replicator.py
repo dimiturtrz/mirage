@@ -46,8 +46,7 @@ for a in annots.values():
     a.attach(rp)
 
 print("RENDERING...", flush=True)
-omni.timeline.get_timeline_interface().play()   # render products only render while the timeline plays
-for _ in range(10):            # warmup: materials load + Windows standalone first-frame skip
+for _ in range(10):            # warmup: materials/shaders load (async off; step() drives the frames)
     app.update()
 for _ in range(3):
     rep.orchestrator.step()

@@ -9,7 +9,7 @@
     {"name": "Feature-recon / RD4AD-lite", "modality": "rgb", "paradigm": "reconstruct features → error", "img_auroc": 0.807, "au_pro": 0.908},
     {"name": "Fused (PatchCore-rgb + BTF)", "modality": "rgb + 3D", "paradigm": "memory-bank fusion", "img_auroc": 0.782, "au_pro": 0.904, "note": "net-neutral vs rgb-only until native-res FPFH"}
   ],
-  "sota": {"name": "M3DM", "modality": "rgb + 3D", "img_auroc": 0.945, "au_pro": 0.964, "cite": "Wang et al., CVPR 2023", "verified": "2026-06-29"},
+  "sota": {"name": "DCRDF-Net", "modality": "rgb + 3D", "img_auroc": 0.971, "au_pro": 0.988, "cite": "DCRDF-Net 2026 (PMC12846035) — current top; M3DM CVPR2023 (0.945/0.964) is the classic reference. Field cluster 2025-26: MMRD 0.950/0.976 · Shape-Guided 0.947/0.976.", "verified": "2026-07-06"},
   "patchcore_per_category": [
     {"category": "bagel", "img_auroc": 0.943, "au_pro": 0.928},
     {"category": "cable_gland", "img_auroc": 0.806, "au_pro": 0.728},

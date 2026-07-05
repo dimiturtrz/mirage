@@ -14,7 +14,7 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | **PatchCore (feature memory bank)** — ours | rgb | 0.819 | 0.908 |
 | Feature-recon / RD4AD-lite — ours | rgb | 0.807 | 0.908 |
 | Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.782 | 0.904 |
-| SOTA (M3DM) ⚠ | rgb + 3D | ~0.94 | ~0.96 |
+| SOTA (DCRDF-Net) ⚠ | rgb + 3D | ~0.97 | ~0.99 |
 <!-- /results:methods -->
 
 <sub>¹ fused all-10 (0.904) is **net-neutral** vs rgb-only (0.908): it *helps* where geometry is decent (bagel 0.928→0.937, carrot) but *hurts* where our weak BTF geometry is bad (cookie, foam). Our BTF is preprocessing-limited (below), so fusion can't pay until native-res FPFH lands — an honest negative: rgb-only is the current deployable.</sub>

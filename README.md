@@ -29,7 +29,7 @@ eval harness (image-AUROC + pixel-AU-PRO). Full table + diagnostics → [`docs/R
 | VAE / inpaint / DRAEM / fused (4+ variants) | reconstruct pixels → error | **0.095** (≈ random) |
 | **PatchCore** (the deployable) | **memory bank** — nearest-neighbour to normal features, *no reconstruction* | **0.91** |
 | feature-recon | reconstruct *features* → error | 0.91 |
-| SOTA (M3DM, *paper*) | learned point-transformer + fusion | ~0.96 |
+| SOTA (multimodal fusion, *papers*) | RGB + 3D geometry fusion (M3DM 0.96 → DCRDF-Net 0.99) | ~0.96–0.99 |
 
 **The finding:** pixel-reconstruction is ≈ random at localization — *measured* across four variants,
 then *diagnosed*: raw-residual tracks geometric **complexity** (a curved rim is hard to rebuild), not
@@ -37,7 +37,7 @@ then *diagnosed*: raw-residual tracks geometric **complexity** (a curved rim is 
 and two *different* paradigms get there: a **memory bank** (PatchCore: store normal features, score by
 nearest-neighbour distance — no rebuilding at all) and **reconstruction moved into feature space**
 (feature-recon). Both 0.91. The deployable is the memory bank. The gap to SOTA is named and measured:
-M3DM-scale multimodal geometry, not bank/resolution tuning. The contribution is the eval rigor + the
+multimodal RGB+3D fusion (M3DM through current DCRDF-Net ~0.99), not bank/resolution tuning. The contribution is the eval rigor + the
 honest mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg) reported its triad.
 
 ## The honest question (Stage 1, the differentiator)

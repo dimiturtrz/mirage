@@ -15,9 +15,10 @@ import torch.nn.functional as F
 from torch import optim
 
 from core.data.dataset import load_split
-from core.data.defects import synthesize   # realistic coherent defects (was draem's crude Perlin, 0.48)
+from core.data.defects import synthesize as synth_realistic   # channel-aware coherent defects
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import Draem
+from surfscan.models.draem import synthesize as synth_perlin   # the original crude Perlin (control)
 
 
 def main():
@@ -26,6 +27,7 @@ def main():
     ap.add_argument("--channels", nargs="*", default=["xyz"])
     ap.add_argument("--epochs", type=int, default=150)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--synth", default="realistic", choices=["realistic", "perlin"])
     args = ap.parse_args()
     torch.set_float32_matmul_precision("high")
     torch.manual_seed(args.seed)
@@ -43,7 +45,8 @@ def main():
             for i in range(0, n, 16):
                 b = idx[i:i + 16]
                 x, v = train.x[b], train.valid[b]
-                aug, mask = synthesize(x, v, rng, channels=args.channels)
+                aug, mask = (synth_realistic(x, v, rng, channels=args.channels)
+                             if args.synth == "realistic" else synth_perlin(x, v, rng))
                 with torch.autocast("cuda", dtype=torch.bfloat16):
                     rec, logits = model(aug.to(memory_format=torch.channels_last))
                     rl = (((rec - x) ** 2) * v).sum() / (v.sum() * x.shape[1] + 1e-8)
@@ -68,7 +71,7 @@ def main():
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run(f"draem_realistic_{'_'.join(args.channels)}", fit, score, cats=args.cats)
+    harness.run(f"draem_{args.synth}_{'_'.join(args.channels)}", fit, score, cats=args.cats)
 
 
 if __name__ == "__main__":

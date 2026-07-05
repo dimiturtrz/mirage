@@ -3,7 +3,7 @@
   "harness": "image-AUROC (detection) + pixel-AU-PRO (localization), per-category models, our runs through one harness",
   "methods": [
     {"name": "Reconstruction (VAE / +dropout / inpaint / fused)", "modality": "xyz (+rgb)", "paradigm": "reconstruct pixels → error", "img_auroc": 0.48, "au_pro": 0.095, "note": "≈ random localization", "mlflow_run": "vae_all"},
-    {"name": "DRAEM (synthesis-recon, crude Perlin)", "modality": "xyz / rgb", "paradigm": "synthesis-discriminative", "img_auroc": null, "au_pro": 0.48, "note": "0.48 xyz / 0.21 rgb — crude synthesis"},
+    {"name": "DRAEM (synthesis-discriminative, crude Perlin)", "modality": "xyz", "paradigm": "synthesis-discriminative", "img_auroc": null, "au_pro": 0.36, "note": "bagel xyz, 3-seed mean 0.36±0.09 (the earlier single-seed 0.48 was a lucky draw). Realistic channel-aware synth scored LOWER (0.18±0.02) — DRAEM's discriminator wants a strong high-contrast target, so realism HURTS it."},
     {"name": "BTF (FPFH memory bank)", "modality": "geometry", "paradigm": "memory bank", "img_auroc": 0.675, "au_pro": 0.653},
     {"name": "PatchCore (feature memory bank)", "modality": "rgb", "paradigm": "memory bank — NN to normal features", "img_auroc": 0.819, "au_pro": 0.908, "deployable": true, "mlflow_run": "patchcore_rgb_greedy"},
     {"name": "Feature-recon / RD4AD-lite", "modality": "rgb", "paradigm": "reconstruct features → error", "img_auroc": 0.807, "au_pro": 0.908},

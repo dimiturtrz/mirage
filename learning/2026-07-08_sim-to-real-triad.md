@@ -45,16 +45,16 @@ The acoustic engine adapts generation difficulty per epoch from the trainer's sc
 `KindCurriculum`: track an EMA of training loss per defect **kind**, sample the next batch's kind
 ∝ softmax(standardized loss) — the generator chases whatever kind the detector is currently worst on,
 instead of a fixed uniform mix. Single-kind batches so the scalar loss attributes cleanly to one kind.
+**As ported it REGRESSED** (see RESULTS + the diagnosis below) — kept as an honest negative, not a win.
 
-## RESULTS (bagel..all-10, rgb, 100 epochs, 3 seeds)
-<!-- fill from `python -m surfscan.experiments.triad_summary` once the curriculum seeds land -->
+## RESULTS (all-10, rgb, 100 epochs, 3 seeds) — `python -m surfscan.experiments.triad_summary`
 
 | arm | au_pro (3-seed) | img_auroc | ECE |
 |---|---|---|---|
-| real → real (ceiling) | 0.804 ± 0.007 | 0.892 | 0.011 |
-| synth → real (gap) | 0.537 ± 0.049 | 0.635 | 0.037 |
-| synth+DA → real (AdaBN) | 0.660 ± 0.045 | 0.579 | 0.013 |
-| synth + curriculum | _pending seeds 1,2_ | | |
+| real → real (ceiling) | **0.804 ± 0.007** | 0.892 | 0.011 |
+| synth → real (gap) | **0.537 ± 0.049** | 0.635 | 0.037 |
+| synth+DA → real (AdaBN) | **0.660 ± 0.045** | 0.579 | 0.013 |
+| synth + curriculum | **0.487 ± 0.057** | 0.617 | 0.083 |
 
 - **Sim-to-real GAP ≈ 0.27 au_pro (27 pp).** Ceiling rock-stable (±0.007), synth wider (±0.049).
 - **AdaBN closes ~46%** (+0.12) **and restores calibration** (ECE 0.037 → 0.013 ≈ ceiling). But it
@@ -62,7 +62,21 @@ instead of a fixed uniform mix. Single-kind batches so the scalar loss attribute
   honest trade, reported not hidden.
 - **Real ceiling 0.80 < PatchCore 0.91 (unsupervised).** Supervised-from-scarce-labels loses to the
   memory bank — the real arm is a *scarce-label* ceiling (~half a small defect set), not an oracle.
-- **Curriculum:** _to fill_ (seed-0 was +0.019, likely marginal — report honestly either way).
+- **Curriculum REGRESSED — the honest negative.** Kind-chasing curriculum scored **0.487 (−0.051 vs
+  uniform synth) and *doubled* ECE (0.037 → 0.083)** — worse on both axes, across all 3 seeds. The
+  differentiator, as ported, hurt.
+
+## Why the curriculum hurt (diagnosis, not excuse)
+The port chases the highest-*loss* defect **kind**. Two failure modes, both plausible:
+1. **Highest-loss ≠ most-learnable.** The kind with the biggest BCE is often the *intrinsically noisiest /
+   most label-ambiguous* one (e.g. diffuse contamination), not the one the detector could most improve on.
+   Chasing it pours capacity into an unlearnable target → worse everywhere, and the over-confident
+   predictions on that noisy kind blow up ECE.
+2. **Single-kind batches kill diversity.** One kind per batch (needed for clean per-kind attribution)
+   starves each step of the defect variety a segmentation net wants → less stable features.
+Fix directions (Stage-1.5, not now): adapt **difficulty** (defect subtlety/contrast), not *kind*; or cap
+per-kind sampling so it can't collapse onto the noisiest class; or attribute loss per-kind *within* mixed
+batches. The acoustic engine adapted SNR (a difficulty knob) — kind is the wrong analog.
 
 ## The honest takeaways
 - The gap is **big and measured**, not modeled-and-assumed. That's the Stage-1 deliverable.
@@ -70,3 +84,5 @@ instead of a fixed uniform mix. Single-kind batches so the scalar loss attribute
   win is arguably the more interesting result than the localization one.
 - Synthetic data's real payoff here isn't beating real labels — it's that real labels are *scarce*
   (supervised real→real < unsupervised PatchCore), so unlimited synthetic labels + DA is a credible path.
+- **The curriculum is a negative result** — reported, diagnosed, and kept in the repo. A portfolio that
+  shows a refuted differentiator with a mechanism beats one that quietly drops it.

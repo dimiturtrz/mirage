@@ -1,4 +1,4 @@
-# Stage 0 results — anomaly detection on MVTec 3D-AD
+# Results — anomaly detection on MVTec 3D-AD (Stage 0 detector + Stage 1 sim-to-real)
 
 Honest first-stage findings. **Per-category models** (the MVTec convention), scored through our own
 eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (localization). These are
@@ -71,6 +71,32 @@ based, not reconstruction — here, measured.
 | foam | 0.691 | 0.789 |
 | **MEAN** | **0.819** | **0.908** |
 <!-- /results:per_category -->
+
+## Stage 1 — sim-to-real triad (the honest gap number)
+The Stage-1 deliverable: *"I modeled it" never stands in for "I measured it transferred."* ONE supervised
+defect-segmentation U-Net, trained from three label sources, scored on ONE shared real eval half (all-10,
+rgb, 100 ep, **3 seeds**). Only the label source varies → the drop IS the sim-to-real gap. Full method +
+diagnosis → [`learning/2026-07-08_sim-to-real-triad.md`](../learning/2026-07-08_sim-to-real-triad.md).
+
+<!-- results:triad -->
+| arm | au_pro (3-seed) | img-AUROC | ECE |
+|---|---|---|---|
+| real → real (ceiling) | 0.804 ± 0.007 | 0.892 | 0.011 |
+| synth → real (the gap) | 0.537 ± 0.049 | 0.635 | 0.037 |
+| synth+DA → real (AdaBN) | 0.660 ± 0.045 | 0.579 | 0.013 |
+| synth + curriculum | 0.487 ± 0.057 | 0.617 | 0.083 |
+<!-- /results:triad -->
+
+- **Sim-to-real gap ≈ 27 pp** (real 0.804 → synth 0.537 AU-PRO). Ceiling rock-stable (±0.007).
+- **AdaBN (one DA method) closes ~46%** (+0.12) **and restores calibration** (ECE 0.037 → 0.013 ≈ ceiling)
+  — a cheap, label-free BN-stat realignment recovers both localization *and* trust. It *costs*
+  image-detection (img 0.64 → 0.58) — an honest trade.
+- **Real ceiling 0.80 < PatchCore 0.91 (unsupervised):** supervised-from-scarce-labels loses to the memory
+  bank. Synthetic data's payoff here is *volume* (real labels are scarce), not beating them.
+- **Closed-loop curriculum REGRESSED — the honest negative.** Kind-chasing scored 0.487 (−0.05 vs uniform)
+  and *doubled* ECE (0.083). Diagnosed (chases the noisiest kind, not the most learnable; single-kind
+  batches starve diversity) and kept in the repo — a refuted differentiator with a mechanism beats a
+  quietly-dropped one. Fix (Stage-1.5): adapt *difficulty*, not *kind*.
 
 ## Honest caveats (the measured gaps to SOTA)
 - **PatchCore is rgb-only + *random* coreset** (not greedy). The gap to SOTA (~0.96) is exactly the

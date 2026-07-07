@@ -43,7 +43,16 @@ def per_category() -> str:
     return "\n".join(rows)
 
 
-_BLOCKS = {"methods": methods, "per_category": per_category}
+def triad() -> str:
+    t = R["stage1_triad"]
+    rows = ["| arm | au_pro (3-seed) | img-AUROC | ECE |", "|---|---|---|---|"]
+    for a in t["arms"]:
+        rows.append(f"| {a['arm']} | {a['au_pro']:.3f} ± {a['au_pro_std']:.3f} | "
+                    f"{a['img_auroc']:.3f} | {a['ece']:.3f} |")
+    return "\n".join(rows)
+
+
+_BLOCKS = {"methods": methods, "per_category": per_category, "triad": triad}
 
 
 def sync() -> None:

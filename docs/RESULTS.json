@@ -23,5 +23,17 @@
     {"category": "tire", "img_auroc": 0.604, "au_pro": 0.936},
     {"category": "foam", "img_auroc": 0.691, "au_pro": 0.789}
   ],
-  "patchcore_mean": {"img_auroc": 0.819, "au_pro": 0.908}
+  "patchcore_mean": {"img_auroc": 0.819, "au_pro": 0.908},
+  "stage1_triad": {
+    "_comment": "Stage-1 sim-to-real triad: ONE supervised defect-seg U-Net, all-10 rgb, 100 ep, 3 seeds. Only the label SOURCE varies; shared real eval half. run_triad.py + triad_summary.py.",
+    "arms": [
+      {"arm": "real → real (ceiling)", "au_pro": 0.804, "au_pro_std": 0.007, "img_auroc": 0.892, "ece": 0.011, "note": "scarce-label supervised ceiling (< PatchCore 0.91 unsupervised)"},
+      {"arm": "synth → real (the gap)", "au_pro": 0.537, "au_pro_std": 0.049, "img_auroc": 0.635, "ece": 0.037, "note": "train on synthetic defects, test real"},
+      {"arm": "synth+DA → real (AdaBN)", "au_pro": 0.660, "au_pro_std": 0.045, "img_auroc": 0.579, "ece": 0.013, "note": "AdaBN closes 46% of the gap + restores calibration; costs image-detection"},
+      {"arm": "synth + curriculum", "au_pro": 0.487, "au_pro_std": 0.057, "img_auroc": 0.617, "ece": 0.083, "note": "NEGATIVE: kind-chasing curriculum regressed on both au_pro and ECE"}
+    ],
+    "gap_pp": 0.267,
+    "da_closure_pp": 0.123,
+    "curriculum_delta_pp": -0.051
+  }
 }

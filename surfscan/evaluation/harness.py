@@ -44,13 +44,23 @@ def aggregate(method, fit_fn, score_fn, cats):
     for d in defect_rows:
         print(f"  {d['defect']:14s}  img_auroc {d['img_auroc']:.3f}   au_pro {d['au_pro']:.3f}  (n={d['n']})")
 
+    # calibration (ECE) — only meaningful when amaps are probabilities in [0,1] (e.g. the triad's
+    # sigmoid outputs); residual/distance methods aren't calibrated, so skip them cleanly.
+    amaps_all = np.concatenate(pool["amaps"])
+    calib = None
+    if amaps_all.size and np.nanmin(amaps_all) >= 0.0 and np.nanmax(amaps_all) <= 1.0:
+        calib = metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
+        print(f"  ECE (calibration under shift) {calib:.4f}")
+
     return {"method": method, "per_category": rows,
-            "mean": {"img_auroc": auroc, "au_pro": aupro}, "per_defect": defect_rows}
+            "mean": {"img_auroc": auroc, "au_pro": aupro}, "ece": calib, "per_defect": defect_rows}
 
 
 def _log(res):
     rows = res["per_category"]
     tracking.metrics({"img_auroc_mean": res["mean"]["img_auroc"], "au_pro_mean": res["mean"]["au_pro"]})
+    if res.get("ece") is not None:
+        tracking.metrics({"ece": res["ece"]})
     tracking.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
     tracking.per_group("img_auroc", {r["category"]: r["img_auroc"] for r in rows})
     tracking.per_group("au_pro_defect", {d["defect"]: d["au_pro"] for d in res["per_defect"]})

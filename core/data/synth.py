@@ -18,7 +18,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from core import config
-from core.data.mvtec import Sample, load_raw  # identical on-disk format -> reuse the loader
+from core.data.mvtec import (  # identical on-disk format -> reuse the loader
+    Sample,
+    load_raw,
+)
 
 SPLITS = ("train", "validation", "test")
 

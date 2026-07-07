@@ -39,8 +39,8 @@ def load_sample(root, cat, split, defect, idx):
 def load_processed(cat, split, defect, idx, size=None):
     """Load one CLEANED sample from the processed store (rgb [0,1], xyz normalized,
     valid + gt)."""
-    from core.data import store
     from core.data import preprocess as pp
+    from core.data import store
     sid = f"{cat}_{split}_{defect}_{idx:03d}"
     path = store.dataset_dir(size=size or pp.SIZE) / "data" / f"{sid}.npz"
     if not path.exists():

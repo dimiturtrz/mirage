@@ -15,10 +15,14 @@ import torch.nn.functional as F
 from torch import optim
 
 from core.data.dataset import load_split
-from core.data.defects import synthesize as synth_realistic   # channel-aware coherent defects
+from core.data.defects import (
+    synthesize as synth_realistic,  # channel-aware coherent defects
+)
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import Draem
-from surfscan.models.draem import synthesize as synth_perlin   # the original crude Perlin (control)
+from surfscan.models.draem import (
+    synthesize as synth_perlin,  # the original crude Perlin (control)
+)
 
 
 def main():

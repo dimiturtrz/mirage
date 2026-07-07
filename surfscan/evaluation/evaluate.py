@@ -14,8 +14,8 @@ import argparse
 import numpy as np
 import torch
 
-from surfscan import tracking
 from core.data.dataset import load_split
+from surfscan import tracking
 from surfscan.evaluation import harness, scoring
 from surfscan.training.hparams import HParams
 

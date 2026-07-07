@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from surfscan import tracking
 from core.data import mvtec
-from surfscan.evaluation import diagnostics, metrics
 from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
+from surfscan import tracking
+from surfscan.evaluation import diagnostics, metrics
 
 
 def aggregate(method, fit_fn, score_fn, cats):

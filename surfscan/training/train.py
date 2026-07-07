@@ -16,8 +16,8 @@ import time
 import torch
 from torch import optim
 
-from surfscan import tracking
 from core.data.dataset import load_split
+from surfscan import tracking
 from surfscan.models.inpaint import InpaintAE, random_mask
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import HParams

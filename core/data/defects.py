@@ -3,20 +3,25 @@ fully vectorized).
 
 v1 was channel-agnostic and regressed on xyz (0.275 < Perlin 0.48): scaling xyz coordinates isn't a
 dent, it's a coordinate cliff. This is **channel-aware** with **smooth profiles** (no hard edge):
-  - xyz (geometry): displace the surface along z by a smooth Gaussian profile — a real dent/bump/groove,
-    amplitude derived from each object's own z-range (no magic number).
+  - xyz (geometry): displace the surface along its **local surface normal** by a smooth Gaussian
+    profile — a real dent/bump/groove, amplitude derived from each object's own z-range (no magic
+    number). Normals come off the grid (core.geometry.grid_normals), so a dent pushes into the surface,
+    not down the world-z axis.
   - rgb (appearance): darken (dent/scratch), brighten (bump), or paste REAL texture (contamination) —
     never gaussian noise.
 The whole batch is built with tensor ops (no per-sample python loop); the mask (profile > thr) is the
 free ground-truth label. Drop-in for the DRAEM synthesize signature.
 
-Note (honest): z-displacement approximates surface-normal displacement (exact per-pixel normals are a
-later refinement); already far better than coordinate scaling.
+History: v1 scaled coordinates (0.275 < Perlin); v2 displaced along world-z (a dent on a tilted face
+went sideways-ish); v3 (this) displaces along the true per-pixel surface normal — the physically
+correct dent direction (learning/2026-07-06_normals-and-curvature.md).
 """
 from __future__ import annotations
 
 import numpy as np
 import torch
+
+from core.geometry import grid_normals
 
 KINDS = ("dent", "scratch", "contamination", "bump")
 _THR = 0.05
@@ -66,15 +71,18 @@ def synthesize(x, valid, rng, channels=("rgb",), kinds=KINDS):
     pa = prof * m                                                          # smooth inside, 0 outside m
     aug = x.clone()
 
-    if "xyz" in sl:                                                        # geometry: smooth z-displacement
-        zc = sl["xyz"] + 2
-        z = aug[:, zc]
+    if "xyz" in sl:                                                        # geometry: displace along the surface normal
+        xc = slice(sl["xyz"], sl["xyz"] + 3)
+        xyz = aug[:, xc]                                                   # (B,3,H,W)
+        n = grid_normals(xyz, valid)                                       # unit normals off the grid
+        z = xyz[:, 2]
         zm = torch.where(valid[:, 0] > 0.5, z, torch.full_like(z, float("nan")))
         zr = (torch.nan_to_num(zm, nan=-1e9).amax((1, 2)) - torch.nan_to_num(zm, nan=1e9).amin((1, 2)))
-        zr = zr.clamp(min=1e-6)[:, None, None]
+        zr = zr.clamp(min=1e-6)[:, None, None]                            # object's own z-extent = scale
         sign = torch.where(is_bump, 1.0, -1.0)
         frac = torch.where(is_scratch[:, None, None], _u(rng, 0.2, 0.5, B, dev), _u(rng, 0.15, 0.35, B, dev))
-        aug[:, zc] = z + sign * frac * zr * pa
+        disp = (sign * frac * zr * pa)[:, None]                           # (B,1,H,W) signed magnitude
+        aug[:, xc] = xyz + n * disp                                        # dent/bump normal to the surface
 
     if "rgb" in sl:                                                        # appearance
         r = slice(sl["rgb"], sl["rgb"] + 3)

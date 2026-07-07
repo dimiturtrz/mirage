@@ -9,7 +9,8 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | method | modality | mean img-AUROC | mean pixel AU-PRO |
 |---|---|---|---|
 | Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.480 | 0.095 |
-| DRAEM (synthesis-discriminative, crude Perlin) — ours | xyz | — | 0.360 |
+| DRAEM (synthesis-discriminative, crude Perlin) · bagel — ours | xyz | 0.610 | 0.360 |
+|   ↳ realistic-synth v3 (normal-displaced, on DRAEM) · bagel — ours | xyz | 0.790 | 0.320 |
 | BTF (FPFH memory bank) — ours | geometry | 0.675 | 0.653 |
 | **PatchCore (feature memory bank)** — ours | rgb | 0.819 | 0.908 |
 | Feature-recon / RD4AD-lite — ours | rgb | 0.807 | 0.908 |
@@ -28,11 +29,14 @@ normal complexity is already normalized) and it localizes fine. That's the clean
 the Stage-0 finding.
 
 ² **DRAEM** (synthesis-discriminative), bagel xyz, **3-seed** (noise discipline): crude Perlin
-**0.36 ± 0.09** — the earlier single-seed **0.48 was a lucky draw** (an honesty fix to our own number).
-My channel-aware "realistic" synth scored **lower, 0.18 ± 0.02** (non-overlapping) — **but *why* is
-unresolved.** The synth is geometrically suspect (displacement along the **z-axis, not the surface
-normal**; oversized magnitude), so it may just be a **bad synth**, not a law that realism hurts DRAEM.
-Disentangling owed (visualize · normal-displacement · vary contrast). See
+**0.36 ± 0.09** au_pro — the earlier single-seed **0.48 was a lucky draw** (an honesty fix to our own
+number). My first "realistic" synth (v2) scored **lower, 0.18 ± 0.02** — but that was **broken geometry,
+not a law that realism hurts DRAEM:** v2 displaced defects along the **world-z axis, not the surface
+normal**, so on the bagel's curved sides a "dent" was a lateral shear. **Fixed (v3, normal-displaced;
+`core/geometry.py`):** re-running the same 3-seed sweep, realistic-v3 = **0.32 ± 0.07 au_pro (tied with
+Perlin, the deficit gone)** and **0.79 img_auroc vs Perlin 0.61 (higher on all 3 seeds, decisively on 2 —
+seed-1 a near dead-heat)**. So realistic-normal is now *tied on localization, better on image-detection*. The eval spine refuted the assumption, exposed
+a cherry-picked number, then caught the over-correction. See
 `learning/2026-07-06_draem-synthesis-comparison.md`.
 
 ### Per-defect-type (PatchCore-rgb, pooled across categories)

@@ -1,4 +1,7 @@
-# DRAEM synthesis comparison — my synth lost to Perlin, and I over-claimed why
+# DRAEM synthesis comparison — my synth lost to Perlin (broken axis), fixed, now tied/better
+
+**Status: RESOLVED 2026-07-07** (see bottom). v2 lost because it displaced along world-z; v3 displaces
+along the surface normal → gap closed. The arc below is kept intact as the honesty record.
 
 **2026-07-06.** Built channel-aware "realistic" defect synthesis for Stage-1 classical, expecting it to
 beat DRAEM's crude Perlin. It lost. I first wrote this up as *"realism hurts DRAEM"* — that was
@@ -36,8 +39,30 @@ before any synthesis claim — single-seed DRAEM swings ±0.09.
 2. **Normal-displacement, sensible magnitude** (compute normals from the geometry) — a real dent.
 3. **Vary contrast** — if a realistic-*shaped* high-contrast defect also loses, then shape not contrast.
 
+## RESOLUTION (2026-07-07) — it was my broken geometry, not realism
+Did owed item #2: replaced z-displacement with **true surface-normal displacement** (new
+`core/geometry.py` grid_normals — per-pixel normals off the position map; one-sided-diff fallback for
+sensor dropouts, 95% coverage). Re-ran the *same* clean 3-seed bagel/xyz sweep:
+
+| synthesis | au_pro (seeds 0/1/2) | au_pro mean | img_auroc mean |
+|---|---|---|---|
+| crude Perlin | 0.481 · 0.302 · 0.295 | 0.36 ± 0.09 | 0.61 |
+| realistic **v3 (normal-displaced)** | 0.400 · 0.323 · 0.232 | **0.32 ± 0.07** | **0.79** |
+
+- **au_pro: now a TIE** (0.32 vs 0.36 — gap 0.04 < both stds, bands overlap). The v2 deficit
+  (0.18 ≪ 0.36, non-overlapping) is **gone.** Fixing the displacement *axis* closed the whole gap.
+- **img_auroc: realistic v3 WINS** — 0.79 vs 0.61 mean, higher on **all 3 seeds** but decisively on
+  only 2 (seed-1 = 0.665 vs 0.657, a near dead-heat; the mean gap is driven by seeds 0 & 2). Still a
+  real effect — normal-displaced defects give a better whole-image signal — just not a clean 3/3 sweep.
+- Perlin seed-0 = 0.481 **again** the lucky outlier; drop it and Perlin au_pro ≈ 0.30 = level with v3.
+
+**Verdict:** the v2 loss was **flawed synth (wrong displacement axis), not a law that realism hurts
+DRAEM** — exactly the alternative hypothesis flagged above, now confirmed. Realistic-normal went from
+*clearly worse* to *tied on localization, better on image-detection*. Owed #1 (visualize) and #3 (vary
+contrast) remain open but are no longer needed to explain the v2 result.
+
 ## Meta-point
-The eval spine did its job twice: it refuted my "realism → better" assumption **and** exposed a
-cherry-picked number in the repo. Then I over-generalized the refutation into a mechanism claim — and
-that got caught too. The discipline isn't "measure once and conclude"; it's "measure, then don't claim
-more than the measurement supports."
+The eval spine did its job **three** times: refuted "realism → better", exposed a cherry-picked repo
+number, and now refuted my *over*-correction ("realism hurts") by fixing the real bug. The discipline
+isn't "measure once and conclude"; it's "measure, hold the claim to the measurement, then fix the actual
+defect and re-measure." Physics (displace along the normal) beat the statistical story both times.

@@ -51,8 +51,9 @@ sensor dropouts, 95% coverage). Re-ran the *same* clean 3-seed bagel/xyz sweep:
 
 - **au_pro: now a TIE** (0.32 vs 0.36 — gap 0.04 < both stds, bands overlap). The v2 deficit
   (0.18 ≪ 0.36, non-overlapping) is **gone.** Fixing the displacement *axis* closed the whole gap.
-- **img_auroc: realistic v3 WINS** — 0.79 vs 0.61, and realistic > Perlin on **all 3 seeds**
-  (consistent → real signal, not scatter). Normal-displaced defects give a better whole-image signal.
+- **img_auroc: realistic v3 WINS** — 0.79 vs 0.61 mean, higher on **all 3 seeds** but decisively on
+  only 2 (seed-1 = 0.665 vs 0.657, a near dead-heat; the mean gap is driven by seeds 0 & 2). Still a
+  real effect — normal-displaced defects give a better whole-image signal — just not a clean 3/3 sweep.
 - Perlin seed-0 = 0.481 **again** the lucky outlier; drop it and Perlin au_pro ≈ 0.30 = level with v3.
 
 **Verdict:** the v2 loss was **flawed synth (wrong displacement axis), not a law that realism hurts

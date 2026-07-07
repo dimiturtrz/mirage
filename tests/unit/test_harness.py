@@ -32,7 +32,7 @@ def _method(kind, n=12, h=48, w=48):
 def test_aggregate_structure_and_perfect():
     cats, fit, score = _method("perfect")
     res = aggregate("m", fit, score, cats)
-    assert set(res) == {"method", "per_category", "mean", "per_defect"}
+    assert set(res) == {"method", "per_category", "mean", "ece", "per_defect"}
     assert len(res["per_category"]) == 2
     assert res["mean"]["au_pro"] > 0.95
     assert res["mean"]["img_auroc"] > 0.95
@@ -44,3 +44,4 @@ def test_aggregate_random_near_diagonal():
     cats, fit, score = _method("random")
     res = aggregate("m", fit, score, cats)
     assert 0.05 < res["mean"]["au_pro"] < 0.35         # ~diagonal, not perfect
+    assert res["ece"] is not None and 0.0 <= res["ece"] <= 1.0   # amaps ∈ [0,1) -> ECE computed

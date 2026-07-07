@@ -18,6 +18,32 @@ def image_auroc(scores, labels):
     return float(roc_auc_score(labels, scores))
 
 
+def ece(probs, targets, valids, n_bins=15):
+    """Expected Calibration Error over valid object pixels. probs ∈ [0,1] (per-pixel defect
+    probability), targets = binary defect mask, valids = object mask. Bins predictions and sums
+    |accuracy − confidence| weighted by bin population. The honest 'is the score a probability?'
+    number — under sim-to-real shift a synth-trained model is typically over-confident (ECE ↑).
+    amaps/masks/valids: (N,H,W)."""
+    p, t = [], []
+    for pr, tg, v in zip(probs, targets, valids):
+        vb = v.astype(bool)
+        p.append(np.asarray(pr)[vb].ravel())
+        t.append(np.asarray(tg)[vb].astype(np.float64).ravel())
+    p = np.concatenate(p) if p else np.array([])
+    t = np.concatenate(t) if t else np.array([])
+    if p.size == 0:
+        return float("nan")
+    bins = np.linspace(0.0, 1.0, n_bins + 1)
+    idx = np.clip(np.digitize(p, bins) - 1, 0, n_bins - 1)
+    e = 0.0
+    for b in range(n_bins):
+        m = idx == b
+        if not m.any():
+            continue
+        e += (m.sum() / p.size) * abs(t[m].mean() - p[m].mean())   # |acc − conf|
+    return float(e)
+
+
 def au_pro(amaps, masks, valids, num_th=200, fpr_limit=0.3):
     """Per-region-overlap AUC up to fpr_limit. amaps/masks/valids: (N,H,W)."""
     region_vals, normal_vals = [], []

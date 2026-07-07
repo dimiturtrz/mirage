@@ -30,7 +30,8 @@ from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
 
-CH = ("rgb",)
+CH = ("rgb",)      # channels; overridable via --channels (set in main)
+BATCH = 16
 
 
 def _split_idx(labels):
@@ -71,8 +72,8 @@ def fit_synth(c, epochs, seed, dev, curriculum=False):
     for _ in range(epochs):
         model.train()
         order = torch.randperm(n, device=dev)
-        for i in range(0, n, 16):
-            b = order[i:i + 16]
+        for i in range(0, n, BATCH):
+            b = order[i:i + BATCH]
             x, v = good.x[b], good.valid[b]
             kinds = ctrl.sample(len(b)) if ctrl else KINDS
             aug, mask = synthesize(x, v, rng, channels=CH, kinds=kinds)
@@ -85,7 +86,9 @@ def fit_synth(c, epochs, seed, dev, curriculum=False):
 
 
 def fit_real(c, epochs, seed, dev):
-    """Train on REAL defect masks (calib half of test). The real->real ceiling."""
+    """Train on REAL defect masks (calib half of test). The real->real ceiling — note it's a
+    *scarce-label* ceiling (only ~half of an already-small defect set), not an oracle; that's the
+    honest supervised bar for this detector, and why the unsupervised memory bank can beat it."""
     torch.manual_seed(seed)
     test = load_split(split="test", cats=[c], channels=CH, device=dev)
     ci, _ = _split_idx(test.df["label"].to_numpy())
@@ -97,16 +100,18 @@ def fit_real(c, epochs, seed, dev):
     for _ in range(epochs):
         model.train()
         order = torch.randperm(n, device=dev)
-        for i in range(0, n, 16):
-            b = order[i:i + 16]
+        for i in range(0, n, BATCH):
+            b = order[i:i + BATCH]
             _step(model, opt, x[b], v[b], g[b])
     return model
 
 
 @torch.no_grad()
-def _adabn(model, x, passes=2, batch=16):
+def _adabn(model, x, passes=2, batch=BATCH):
     """AdaBN (Li 2017): reset BN running stats, recompute them on the target (real) images via
-    forward passes in train mode (momentum=None -> cumulative average). No labels, no backward."""
+    forward passes in train mode (momentum=None -> cumulative average). No labels, no backward.
+    Transductive — it adapts on the eval images it will then score (standard test-time adaptation;
+    uses their statistics only, never their labels)."""
     for m in model.modules():
         if isinstance(m, nn.BatchNorm2d):
             m.reset_running_stats()
@@ -129,7 +134,7 @@ def fit_synth_da(c, epochs, seed, dev, curriculum=False):
 
 
 @torch.no_grad()
-def score(model, c, dev, batch=16):
+def score(model, c, dev, batch=BATCH):
     """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
     test = load_split(split="test", cats=[c], channels=CH, device=dev)
     labels = test.df["label"].to_numpy()
@@ -156,9 +161,12 @@ def main():
     ap.add_argument("--epochs", type=int, default=100)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--arms", nargs="*", default=["real", "synth", "synth_da"])
+    ap.add_argument("--channels", nargs="*", default=["rgb"])
     ap.add_argument("--curriculum", action="store_true")
     args = ap.parse_args()
     torch.set_float32_matmul_precision("high")
+    global CH
+    CH = tuple(args.channels)
     dev = "cuda"
 
     def score_fn(m, c):

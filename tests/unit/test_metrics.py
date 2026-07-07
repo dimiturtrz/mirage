@@ -5,7 +5,7 @@ perfect/reversed/single-class. No dataset needed.
 """
 import numpy as np
 
-from surfscan.evaluation.metrics import au_pro, image_auroc
+from surfscan.evaluation.metrics import au_pro, ece, image_auroc
 
 
 def _masks(n=20, h=64, w=64):
@@ -35,3 +35,27 @@ def test_image_auroc():
     assert image_auroc(scores, labels) == 1.0             # perfect separation
     assert image_auroc(-scores, labels) == 0.0            # reversed
     assert np.isnan(image_auroc(scores, np.array([0, 0, 0, 0])))   # single class -> undefined
+
+
+def test_ece_perfect_calibration():
+    # probs == binary targets -> confidence matches accuracy in every bin -> ECE ~ 0
+    rng = np.random.RandomState(0)
+    valids = np.ones((5, 32, 32), bool)
+    targets = rng.rand(5, 32, 32) < 0.3
+    assert ece(targets.astype(float), targets, valids) < 1e-6
+
+
+def test_ece_overconfident_under_shift():
+    # predict 0.95 everywhere but ~1% of pixels are actually defective -> big confidence-accuracy gap
+    valids = np.ones((5, 32, 32), bool)
+    targets = np.zeros((5, 32, 32), bool)
+    targets[:, :3, :3] = True
+    assert ece(np.full((5, 32, 32), 0.95), targets, valids) > 0.8
+
+
+def test_ece_calibrated_but_uncertain():
+    # predict 0.5 everywhere with ~50% positives -> confidence == accuracy -> low ECE
+    rng = np.random.RandomState(1)
+    valids = np.ones((6, 32, 32), bool)
+    targets = rng.rand(6, 32, 32) < 0.5
+    assert ece(np.full((6, 32, 32), 0.5), targets, valids) < 0.05

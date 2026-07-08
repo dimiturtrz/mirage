@@ -93,9 +93,11 @@ def build(p=None, cats=None, workers=None, *, rebuild=False) -> Path:  # pragma:
 
 def load(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None) -> pl.DataFrame:  # pragma: no cover  disk
     """Ensure consolidated, return one polars frame (the cloud) with an absolute `path` column."""
+    if size is None:                                    # callers may pass size=None -> use the default store
+        size = pp.SIZE
     out = dataset_dir(size, nb, std)
     if not (out / "meta.csv").exists():
-        build(size, nb, std, cats=cats, workers=workers)
+        build(pp.PP(size=size, nb=nb, std=std), cats=cats, workers=workers)   # build takes a PP, not size/nb/std
     df = pl.read_csv(out / "meta.csv", infer_schema_length=10000)
     return df.with_columns((pl.lit(str(out / "data")) + "/" + pl.col("file")).alias("path"))
 

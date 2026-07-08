@@ -6,7 +6,7 @@ ImageNet backbone / feature embedding is a network dependency, tested separately
 """
 import torch
 
-from surfscan.models.coreset import FitCfg, greedy_coreset
+from surfscan.models.coreset import FitCfg, bank_linear, bank_nn_dist, greedy_coreset
 
 
 def test_greedy_coreset_shape_and_distinct():
@@ -30,3 +30,23 @@ def test_greedy_coreset_spans_both_clusters():
 def test_fitcfg_defaults():
     cfg = FitCfg()
     assert cfg.coreset == 0.1 and cfg.method == "greedy" and cfg.seed == 0
+
+
+def test_bank_nn_dist_matches_cdist():
+    # the matmul-offload form must be identical to the direct cdist().min() it replaces
+    feats = torch.randn(37, 16)
+    bank = torch.randn(64, 16)
+    ref = torch.cdist(feats, bank).min(1).values
+    got = bank_nn_dist(feats, bank)
+    assert got.shape == (37,)
+    assert torch.allclose(got, ref, atol=1e-4)
+
+
+def test_bank_linear_is_the_distance_field():
+    # Linear(W=-2B, bias=||b||^2) + ||x||^2 reproduces squared distance ||x-b||^2 exactly
+    feats = torch.randn(5, 8)
+    bank = torch.randn(12, 8)
+    w, b = bank_linear(bank)
+    assert w.shape == (12, 8) and b.shape == (12,)
+    field = feats @ w.T + b + (feats * feats).sum(1, keepdim=True)   # (N,M) reconstructed sq-dist
+    assert torch.allclose(field, torch.cdist(feats, bank) ** 2, atol=1e-3)

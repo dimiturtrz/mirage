@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 import torchvision
 
-from surfscan.models.coreset import FitCfg, greedy_coreset
+from surfscan.models.coreset import FitCfg, bank_nn_dist, greedy_coreset
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
@@ -77,8 +77,8 @@ class PatchCore:
     @torch.no_grad()
     def score_maps(self, x, batch=8, qchunk=8192):
         """-> (N,H,W) anomaly maps = nearest-neighbor distance to the bank, upsampled to input size.
-        The query patches are cdist'd against the bank in qchunk-row blocks so the (n*h*w, M) distance
-        matrix never materializes in full — at high resolution that matrix is what spills VRAM."""
+        Scored via bank_nn_dist (the matmul-offload form) in qchunk-row blocks so the (n*h*w, M) field
+        never materializes in full — at high resolution that matrix is what spills VRAM."""
         H, W = x.shape[-2:]
         out = []
         for i in range(0, len(x), batch):
@@ -87,7 +87,7 @@ class PatchCore:
             q = e.reshape(-1, e.shape[-1])                          # (n*h*w, C)
             nn = torch.empty(len(q), device=q.device)
             for j in range(0, len(q), qchunk):
-                nn[j:j + qchunk] = torch.cdist(q[j:j + qchunk], self.bank).min(1).values
+                nn[j:j + qchunk] = bank_nn_dist(q[j:j + qchunk], self.bank)
             nn = nn.reshape(n, h, w)
             m = F.interpolate(nn[:, None], size=(H, W), mode="bilinear", align_corners=False)[:, 0]
             out.append(m.cpu())

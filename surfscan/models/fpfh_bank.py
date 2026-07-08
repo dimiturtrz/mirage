@@ -19,7 +19,7 @@ def _normals(pts, knn):
     return pc
 
 
-def fpfh_for_sample(xyz, valid, normal_knn=30, fpfh_knn=100, clean=False, graze=0.3):
+def fpfh_for_sample(xyz, valid, normal_knn=30, fpfh_knn=100, *, clean=False, graze=0.3):
     """-> (n,33) FPFH descriptors + (n,2) pixel (row,col) for each valid point.
 
     clean: drop grazing-angle points (surface nearly perpendicular to the view ray) — that's the

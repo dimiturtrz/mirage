@@ -10,7 +10,7 @@ import torch
 
 
 @torch.no_grad()
-def anomaly_maps(model, data, batch=64, amp=True):
+def anomaly_maps(model, data, batch=64, *, amp=True):
     """-> (N,H,W) per-pixel squared-reconstruction-error maps, zeroed outside the object."""
     model.eval()
     out = []
@@ -25,7 +25,7 @@ def anomaly_maps(model, data, batch=64, amp=True):
 
 
 @torch.no_grad()
-def inpaint_maps(model, data, grid=8, batch=16, amp=True):
+def inpaint_maps(model, data, grid=8, batch=16, *, amp=True):
     """Anomaly maps for the inpainting model: mask each grid cell, fill from the model's
     prediction, assemble an 'inpainted' image; anomaly = (input - inpainted)^2."""
     model.eval()

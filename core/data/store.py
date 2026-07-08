@@ -63,7 +63,7 @@ def _schema():
     return {k: dt(k) for k in META_FIELDS}
 
 
-def build(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None, rebuild=False) -> Path:
+def build(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None, *, rebuild=False) -> Path:
     """Consolidate into processed/mvtec3d/<paramkey>/. Process-if-missing; (re)writes meta.csv."""
     out = dataset_dir(size, nb, std)
     data_dir = out / "data"

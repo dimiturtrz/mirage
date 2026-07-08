@@ -41,7 +41,7 @@ class PatchCore:
         self._feats = {}
         net = getattr(torchvision.models, backbone)(weights="DEFAULT").to(device).eval()
         for p in net.parameters():
-            p.requires_grad_(False)
+            p.requires_grad_(requires_grad=False)
         for name in layers:
             getattr(net, name).register_forward_hook(self._save(name))
         self.net = net

@@ -41,14 +41,11 @@ def main():
         pc, fbank = state
         test = load_split(split="test", cats=[c], channels=["rgb"], device=dev)
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
-        masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
         pc_maps = pc.score_maps(test.x)
         _, test_arr = store.arrays(c, "test")
         fp_maps = np.stack([fbank.score_map(a["xyz"], a["valid"]) for a in test_arr])
         fused = (_zscore(pc_maps, valids) + _zscore(fp_maps, valids)) * valids
-        scores = scoring.image_scores(fused, valids)
-        return (fused, valids, masks, scores,
-                test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
+        return scoring.score_arrays(fused, test)
 
     harness.run("fused_rgb_fpfh", Method(fit, score), cats=args.cats)
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import optim
@@ -67,10 +66,7 @@ def main():
         H, W = test.x.shape[-2:]
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
         amaps = _score_maps(ext, ae, test.x, (H, W)) * valids
-        masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
-        scores = scoring.image_scores(amaps, valids)
-        return (amaps, valids, masks, scores,
-                test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
+        return scoring.score_arrays(amaps, test)
 
     harness.run("feat_recon", Method(fit, score), cats=args.cats)
 

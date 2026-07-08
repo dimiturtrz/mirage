@@ -12,17 +12,17 @@ from __future__ import annotations
 import argparse
 
 import numpy as np
-import torch
 
+from core.compute import pick_device
 from core.data.dataset import load_split
 from surfscan import tracking
 from surfscan.evaluation import harness, scoring
 from surfscan.training.hparams import HParams
 
 
-def evaluate(run_id, cats=None):
+def evaluate(run_id, cats=None, device="cuda"):
     hp = HParams(**tracking.load_config(run_id))
-    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    dev = device
     model = tracking.load_model(run_id).to(dev)            # the built model + weights, from MLflow
 
     def fit(_c):
@@ -46,7 +46,7 @@ def main():
     ap.add_argument("--run-id", required=True)
     ap.add_argument("--cats", nargs="*", default=None)
     args = ap.parse_args()
-    evaluate(args.run_id, cats=args.cats)
+    evaluate(args.run_id, cats=args.cats, device=pick_device())
 
 
 if __name__ == "__main__":

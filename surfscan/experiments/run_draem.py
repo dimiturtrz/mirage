@@ -14,6 +14,7 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
+from core.compute import autocast, pick_device
 from core.data.dataset import load_split
 from core.data.defects import (
     synthesize as synth_realistic,  # channel-aware coherent defects
@@ -36,7 +37,7 @@ def main():
     args = ap.parse_args()
     torch.set_float32_matmul_precision("high")
     torch.manual_seed(args.seed)
-    dev = "cuda"
+    dev = pick_device()
     rng = np.random.RandomState(args.seed)
 
     def fit(c):
@@ -52,7 +53,7 @@ def main():
                 x, v = train.x[b], train.valid[b]
                 aug, mask = (synth_realistic(x, v, rng, channels=args.channels)
                              if args.synth == "realistic" else synth_perlin(x, v, rng))
-                with torch.autocast("cuda", dtype=torch.bfloat16):
+                with autocast(x):
                     rec, logits = model(aug.to(memory_format=torch.channels_last))
                     rl = (((rec - x) ** 2) * v).sum() / (v.sum() * x.shape[1] + 1e-8)
                     dl = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)

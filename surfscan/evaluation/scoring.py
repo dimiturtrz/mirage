@@ -8,11 +8,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-
-def _autocast(x, amp):
-    """bf16 autocast on cuda; a no-op on cpu (so the same scoring path runs on an edge/CPU device)."""
-    dev = x.device.type
-    return torch.autocast(dev, dtype=torch.bfloat16, enabled=amp and dev == "cuda")
+from core.compute import autocast
 
 
 @torch.no_grad()
@@ -23,7 +19,7 @@ def anomaly_maps(model, data, batch=64, *, amp=True):
     for i in range(0, len(data), batch):
         x = data.x[i:i + batch].to(memory_format=torch.channels_last)
         m = data.valid[i:i + batch]
-        with _autocast(x, amp):
+        with autocast(x, amp=amp):
             recon, _, _ = model(x)
         err = ((recon.float() - x.float()) ** 2).sum(1, keepdim=True) * m   # N,1,H,W
         out.append(err.squeeze(1).cpu())
@@ -48,7 +44,7 @@ def inpaint_maps(model, data, grid=8, batch=16, *, amp=True):
                 xs = slice(gx * patch, (gx + 1) * patch)
                 xm = x.clone()
                 xm[..., ys, xs] = 0
-                with _autocast(xm, amp):
+                with autocast(xm, amp=amp):
                     r = model(xm.to(memory_format=torch.channels_last))
                 inpainted[..., ys, xs] = r.float()[..., ys, xs]
         err = ((x - inpainted) ** 2).sum(1, keepdim=True) * m

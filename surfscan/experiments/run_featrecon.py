@@ -14,6 +14,7 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
+from core.compute import pick_device
 from core.data.dataset import load_split
 from core.method import Method
 from surfscan.evaluation import harness, scoring
@@ -44,16 +45,17 @@ def main():
     ap.add_argument("--epochs", type=int, default=100)
     args = ap.parse_args()
     torch.set_float32_matmul_precision("high")
-    ext = FeatExtractor(device="cuda")
+    dev = pick_device()
+    ext = FeatExtractor(device=dev)
 
     def fit(c):
-        train = load_split(split="train", label=0, cats=[c], channels=["rgb"], device="cuda")
+        train = load_split(split="train", label=0, cats=[c], channels=["rgb"], device=dev)
         tf = _feats(ext, train.x)
-        ae = FeatAE(ch=tf.shape[1]).cuda()
+        ae = FeatAE(ch=tf.shape[1]).to(dev)
         opt = optim.AdamW(ae.parameters(), lr=2e-3)
         for _ in range(args.epochs):
             ae.train()
-            idx = torch.randperm(len(tf), device="cuda")
+            idx = torch.randperm(len(tf), device=dev)
             for i in range(0, len(tf), 32):
                 b = tf[idx[i:i + 32]]
                 loss = F.mse_loss(ae(b), b)
@@ -61,7 +63,7 @@ def main():
         return ae
 
     def score(ae, c):
-        test = load_split(split="test", cats=[c], channels=["rgb"], device="cuda")
+        test = load_split(split="test", cats=[c], channels=["rgb"], device=dev)
         H, W = test.x.shape[-2:]
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
         amaps = _score_maps(ext, ae, test.x, (H, W)) * valids

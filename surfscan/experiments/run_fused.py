@@ -10,6 +10,7 @@ import argparse
 
 import numpy as np
 
+from core.compute import pick_device
 from core.data import store
 from core.data.dataset import load_split
 from core.method import Method
@@ -27,17 +28,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cats", nargs="*", default=None)
     args = ap.parse_args()
+    dev = pick_device()
 
     def fit(c):
-        train_rgb = load_split(split="train", label=0, cats=[c], channels=["rgb"], device="cuda")
-        pc = PatchCore().fit(train_rgb.x)
+        train_rgb = load_split(split="train", label=0, cats=[c], channels=["rgb"], device=dev)
+        pc = PatchCore(device=dev).fit(train_rgb.x)
         _, train_arr = store.arrays(c, "train", 0)
-        fbank = FpfhBank().fit([(a["xyz"], a["valid"]) for a in train_arr])
+        fbank = FpfhBank(device=dev).fit([(a["xyz"], a["valid"]) for a in train_arr])
         return pc, fbank
 
     def score(state, c):
         pc, fbank = state
-        test = load_split(split="test", cats=[c], channels=["rgb"], device="cuda")
+        test = load_split(split="test", cats=[c], channels=["rgb"], device=dev)
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
         masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
         pc_maps = pc.score_maps(test.x)

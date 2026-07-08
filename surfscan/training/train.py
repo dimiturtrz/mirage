@@ -16,6 +16,7 @@ import time
 import torch
 from torch import optim
 
+from core.compute import autocast, pick_device
 from core.data.dataset import load_split
 from core.obs import get
 from surfscan import tracking
@@ -56,12 +57,12 @@ _REGISTRY = {
 }
 
 
-def train(hp: HParams, run_name: str | None = None) -> str:
+def train(hp: HParams, run_name: str | None = None, device: str = "cuda") -> str:
     build, step = _REGISTRY[hp.model_type]
     run_name = run_name or hp.model_type
     torch.manual_seed(hp.seed)
     torch.set_float32_matmul_precision("high")          # TF32 matmuls
-    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    dev = device
 
     data = load_split(split="train", label=0, cats=hp.cats, channels=hp.channels, device=dev, size=hp.size)
     n = len(data)
@@ -84,7 +85,7 @@ def train(hp: HParams, run_name: str | None = None) -> str:
                 b = idx[i:i + hp.batch]
                 x = data.x[b].to(memory_format=torch.channels_last)
                 m = data.valid[b]
-                with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
+                with autocast(x, amp=amp):
                     loss, extra = step(run_model, x, m, hp)
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
@@ -124,7 +125,7 @@ def main():
             setattr(hp, k, v)
     if args.no_compile:
         hp.compile = False
-    train(hp, args.run_name)
+    train(hp, args.run_name, device=pick_device())
 
 
 if __name__ == "__main__":

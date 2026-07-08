@@ -80,11 +80,11 @@ cp paths.example.yaml paths.yaml          # set `data:` to your data root
 uv run python -m core.data.store        # consolidate raw -> processed (needs the dataset)
 
 # the working detector, scored through the eval harness (logs params/metrics to MLflow):
-uv run python -m surfscan.experiments.run_patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories
+uv run python -m surfscan.run patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories
 uv run mlflow ui --backend-store-uri sqlite:///mlflow.db   # compare every method run in the browser
 
 # see it: the defect glows under the working detector (vs the VAE's backwards residual):
-uv run python -m surfscan.visualization.show --cat bagel --split test --defect hole --idx 0 --processed --patchcore
+uv run python -m surfscan.viz show --cat bagel --split test --defect hole --idx 0 --processed --patchcore
 ```
 Experiment tracking is **MLflow** (canonical store: `mlflow.db` + `mlartifacts/`, gitignored) — every
 method/training run logs params, metrics (per-category + per-defect), the aggregate, and trained models.

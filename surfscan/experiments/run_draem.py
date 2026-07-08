@@ -3,11 +3,9 @@
 Per category: train recon+disc on good samples with synthetic proxy anomalies, score the test
 split by the discriminator output. Default channel = xyz (the geometry signal).
 
-Run:  python -m surfscan.experiments.run_draem [--cats bagel ...] [--epochs 150] [--channels xyz]
+Run:  python -m surfscan.run draem [--cats bagel ...] [--epochs 150] [--channels xyz]
 """
 from __future__ import annotations
-
-import argparse
 
 import numpy as np
 import torch
@@ -20,6 +18,7 @@ from core.data.defects import (
     synthesize as synth_realistic,  # channel-aware coherent defects
 )
 from core.method import Method
+from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import Draem
 from surfscan.models.draem import (
@@ -27,14 +26,15 @@ from surfscan.models.draem import (
 )
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cats", nargs="*", default=None)
+def _args(ap):
+    add_cats(ap)
     ap.add_argument("--channels", nargs="*", default=["xyz"])
     ap.add_argument("--epochs", type=int, default=150)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--synth", default="realistic", choices=["realistic", "perlin"])
-    args = ap.parse_args()
+
+
+def _run(args):
     torch.set_float32_matmul_precision("high")
     torch.manual_seed(args.seed)
     dev = pick_device()
@@ -75,5 +75,4 @@ def main():
     harness.run(f"draem_{args.synth}_{'_'.join(args.channels)}", Method(fit, score), cats=args.cats)
 
 
-if __name__ == "__main__":
-    main()
+SPEC = Spec("draem", _args, _run)

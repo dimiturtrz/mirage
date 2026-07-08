@@ -5,16 +5,15 @@ A trained model is just a (fit_fn, score_fn) pair: fit returns the loaded model,
 reconstruction residual into anomaly maps. So evaluation is one spine (harness.run); this is the
 recon-model adapter to it. The test metrics land next to the run's loss curves (same run_id).
 
-Run:  python -m surfscan.evaluation.evaluate --run-id <mlflow-run-id> [--cats bagel]
+Run:  python -m surfscan.report evaluate --run-id <mlflow-run-id> [--cats bagel]
       [--image-score residual|mahalanobis]   # mahalanobis: latent-distance image score (VAE only)
 """
 from __future__ import annotations
 
-import argparse
-
 from core.compute import pick_device
 from core.data.dataset import load_split
 from surfscan import tracking
+from surfscan.dispatch import Spec
 from surfscan.evaluation import harness, scoring
 from surfscan.training.hparams import HParams
 
@@ -40,14 +39,14 @@ def evaluate(run_id, cats=None, device="cuda", image_score="residual"):
     return harness.run(hp.model_type, fit, score, cats=cats or hp.cats, run_id=run_id)
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def _args(ap):
     ap.add_argument("--run-id", required=True)
     ap.add_argument("--cats", nargs="*", default=None)
     ap.add_argument("--image-score", default="residual", choices=["residual", "mahalanobis"])
-    args = ap.parse_args()
+
+
+def _run(args):  # pragma: no cover  CLI glue; evaluate() is the logic (mlflow-omitted whole-file)
     evaluate(args.run_id, cats=args.cats, device=pick_device(), image_score=args.image_score)
 
 
-if __name__ == "__main__":
-    main()
+SPEC = Spec("evaluate", _args, _run)

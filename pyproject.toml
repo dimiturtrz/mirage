@@ -92,11 +92,14 @@ ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer"
 #   experiments/ = GPU+data CLI runners ; visualization/ = render/IO
 #   patchcore, feat_recon = import torchvision (backbone download) — greedy_coreset->coreset.py, FeatAE->feat_ae.py
 #   evaluate = mlflow model load + GPU inference glue — aggregate (harness) + scoring are the tested cores
+#   run/viz = entry shells that import the torchvision method/render registries (absent in CI) — the pure
+#             dispatch wiring lives in dispatch.py (tested); report.py stays measured (no torchvision).
 # Honesty rule: never omit a module to DODGE pure logic — extract the core and test it (as above), then omit the shell.
 source = ["core", "surfscan"]
 omit = ["surfscan/experiments/*", "surfscan/visualization/*",
         "surfscan/models/patchcore.py", "surfscan/models/feat_recon.py",
-        "surfscan/evaluation/evaluate.py"]
+        "surfscan/evaluation/evaluate.py",
+        "surfscan/run.py", "surfscan/viz.py"]
 
 [tool.coverage.report]
 show_missing = true

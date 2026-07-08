@@ -47,7 +47,7 @@ The acoustic engine adapts generation difficulty per epoch from the trainer's sc
 instead of a fixed uniform mix. Single-kind batches so the scalar loss attributes cleanly to one kind.
 **As ported it REGRESSED** (see RESULTS + the diagnosis below) — kept as an honest negative, not a win.
 
-## RESULTS (all-10, rgb, 100 epochs, 3 seeds) — `python -m surfscan.experiments.triad_summary`
+## RESULTS (all-10, rgb, 100 epochs, 3 seeds) — `python -m surfscan.report triad-summary`
 
 | arm | au_pro (3-seed) | img_auroc | ECE |
 |---|---|---|---|

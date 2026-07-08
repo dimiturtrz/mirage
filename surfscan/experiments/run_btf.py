@@ -2,25 +2,25 @@
 
 Uses the eval harness. Fit a normal-FPFH bank per category, score the test split. No training.
 
-Run:  python -m surfscan.experiments.run_btf [--cats bagel ...]
+Run:  python -m surfscan.run btf [--cats bagel ...]
 """
 from __future__ import annotations
-
-import argparse
 
 import numpy as np
 
 from core.data import store
 from core.method import Method
+from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness, scoring
 from surfscan.models.fpfh_bank import FpfhBank
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cats", nargs="*", default=None)
+def _args(ap):
+    add_cats(ap)
     ap.add_argument("--size", type=int, default=None, help="store resolution (default 256; 512 = native-ish)")
-    args = ap.parse_args()
+
+
+def _run(args):
     size = args.size or 256
 
     def fit(c):
@@ -39,5 +39,4 @@ def main():
     harness.run("btf_fpfh", Method(fit, score), cats=args.cats)
 
 
-if __name__ == "__main__":
-    main()
+SPEC = Spec("btf", _args, _run)

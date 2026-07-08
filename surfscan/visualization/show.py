@@ -8,15 +8,14 @@ The whole point of running this: feel in your hands that a "sample" is a
 Lift the grid to points, paint with the photo, spin it. That's 2.5D.
 
 Run (after `uv sync`):
-    uv run python -m surfscan.visualization.show --cat bagel --split test --defect hole --idx 0 --mask
-    uv run python -m surfscan.visualization.show --cat bagel --split train --defect good --idx 0   # a normal one
+    uv run python -m surfscan.viz show --cat bagel --split test --defect hole --idx 0 --mask
+    uv run python -m surfscan.viz show --cat bagel --split train --defect good --idx 0   # a normal one
 
 Opens the Open3D 3D window straight away (drag = rotate, scroll = zoom,
 right-drag = pan, q = quit); the defect is painted red with --mask. Add
 --rgb to also pop the flat photo + mask first (matplotlib, blocks until
 closed). --no-3d with --rgb = photo only.
 """
-import argparse
 import json
 from pathlib import Path
 
@@ -34,6 +33,7 @@ from core.data import preprocess as pp
 from core.data import store
 from core.data.dataset import load_split
 from core.obs import get
+from surfscan.dispatch import Spec
 from surfscan.models.patchcore import FitCfg, PatchCore
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import HParams
@@ -162,8 +162,7 @@ def _colorize(pc, args, rgb, xyz, valid):
     return False
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def _args(ap):
     ap.add_argument("--data-root", default=None,
                     help="MVTec 3D-AD root (default: <paths.yaml data>/raw/mvtec_3d_anomaly_detection)")
     ap.add_argument("--cat", default="bagel")
@@ -193,8 +192,9 @@ def main():
     ap.add_argument("--recon", type=Path, default=None,
                     help="run dir: show the model's RECONSTRUCTED surface (its rebuilt xyz), colored by the "
                          "original rgb. See what it actually rebuilds. Requires --processed.")
-    args = ap.parse_args()
 
+
+def _run(args):
     if args.processed:
         rgb, xyz, gt, valid = load_processed(args.cat, args.split, args.defect, args.idx, args.size)
     else:
@@ -231,5 +231,4 @@ def main():
                                       point_show_normal=show_normals)
 
 
-if __name__ == "__main__":
-    main()
+SPEC = Spec("show", _args, _run)

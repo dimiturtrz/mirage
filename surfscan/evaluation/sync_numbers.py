@@ -6,7 +6,7 @@ Each generated table sits between HTML markers:
     ...auto-generated, do not hand-edit...
     <!-- /results:methods -->
 
-Run after updating RESULTS.json:  python -m surfscan.evaluation.sync_numbers
+Run after updating RESULTS.json:  python -m surfscan.report sync
 The surrounding prose/footnotes stay hand-written; only the tables are generated. The root README is a
 curated portfolio face (CLAUDE.md) — deliberately NOT templated here.
 """
@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 
 from core.obs import get
+from surfscan.dispatch import Spec
 
 log = get()
 
@@ -72,5 +73,4 @@ def sync() -> None:  # pragma: no cover  reads/writes RESULTS.md (disk); methods
     log.info(f"synced -> {doc.relative_to(ROOT)}")
 
 
-if __name__ == "__main__":
-    sync()
+SPEC = Spec("sync", lambda _ap: None, lambda _args: sync())

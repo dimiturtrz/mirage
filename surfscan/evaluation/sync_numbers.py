@@ -63,7 +63,7 @@ def sync() -> None:
         if not pat.search(text):
             print(f"  (no <!-- results:{key} --> marker in RESULTS.md — skipped)")
             continue
-        text = pat.sub(lambda mt: f"{mt.group(1)}\n{render()}\n{mt.group(2)}", text)
+        text = pat.sub(lambda mt, render=render: f"{mt.group(1)}\n{render()}\n{mt.group(2)}", text)
     doc.write_text(text, encoding="utf-8")
     print(f"synced -> {doc.relative_to(ROOT)}")
 

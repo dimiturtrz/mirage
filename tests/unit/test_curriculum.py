@@ -22,7 +22,7 @@ def test_weak_kind_upweighted():
         c.observe(("dent",), 2.0)                     # 'dent' = high loss = weak
         for k in ("scratch", "contamination", "bump"):
             c.observe((k,), 0.1)
-    w = dict(zip(KINDS, c._weights()))
+    w = dict(zip(KINDS, c._weights(), strict=True))
     assert w["dent"] > w["scratch"]                   # detector's weak kind sampled more
     assert abs(sum(w.values()) - 1.0) < 1e-9
 

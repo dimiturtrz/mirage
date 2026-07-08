@@ -17,7 +17,7 @@ from surfscan.evaluation import metrics
 def by_defect(amaps, scores, masks, valids, labels, defects):
     labels = np.asarray(labels)
     defects = np.asarray(defects)
-    types = sorted({d for d, l in zip(defects, labels) if l == 1})
+    types = sorted({d for d, l in zip(defects, labels, strict=True) if l == 1})
     rows = []
     for t in types:
         is_t = (defects == t) & (labels == 1)

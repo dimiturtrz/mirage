@@ -25,7 +25,7 @@ def ece(probs, targets, valids, n_bins=15):
     number — under sim-to-real shift a synth-trained model is typically over-confident (ECE ↑).
     amaps/masks/valids: (N,H,W)."""
     p, t = [], []
-    for pr, tg, v in zip(probs, targets, valids):
+    for pr, tg, v in zip(probs, targets, valids, strict=True):
         vb = v.astype(bool)
         p.append(np.asarray(pr)[vb].ravel())
         t.append(np.asarray(tg)[vb].astype(np.float64).ravel())
@@ -48,7 +48,7 @@ def au_pro(amaps, masks, valids, num_th=200, fpr_limit=0.3):
     """Per-region-overlap AUC up to fpr_limit. amaps/masks/valids: (N,H,W)."""
     region_vals, normal_vals = [], []
     gmin, gmax = np.inf, -np.inf
-    for a, m, v in zip(amaps, masks, valids):
+    for a, m, v in zip(amaps, masks, valids, strict=True):
         m = m.astype(bool); v = v.astype(bool)
         if m.any():
             lab = label(m)

@@ -47,4 +47,4 @@ class KindCurriculum:
 
     def weights(self) -> dict:
         """Current per-kind sampling probabilities (for logging/inspection)."""
-        return dict(zip(self.kinds, self._weights().tolist()))
+        return dict(zip(self.kinds, self._weights().tolist(), strict=True))

@@ -53,7 +53,7 @@ def inpaint_maps(model, data, grid=8, batch=16, amp=True):
 def image_scores(amaps, valids, k=128):
     """Image-level score = mean of the top-k pixel residuals over valid pixels."""
     s = np.zeros(len(amaps), dtype=np.float64)
-    for i, (a, v) in enumerate(zip(amaps, valids)):
+    for i, (a, v) in enumerate(zip(amaps, valids, strict=True)):
         vals = a[v.astype(bool)]
         if vals.size == 0:
             continue

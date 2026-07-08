@@ -53,7 +53,6 @@ class FeatReconMethod:
         self.ext = FeatExtractor(device=dev)
 
     def fit(self, cat):
-        torch.set_float32_matmul_precision("high")
         train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=self.dev)
         tf = _feats(self.ext, train.x)
         ae = FeatAE(ch=tf.shape[1]).to(self.dev)

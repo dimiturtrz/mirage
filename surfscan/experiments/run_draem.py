@@ -47,7 +47,6 @@ class DraemMethod:
         return f"draem_{self.cfg.synth}_{'_'.join(self.cfg.channels)}"
 
     def fit(self, cat):
-        torch.set_float32_matmul_precision("high")
         torch.manual_seed(self.cfg.seed)
         rng = np.random.RandomState(self.cfg.seed)
         train = load_split(split="train", label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)

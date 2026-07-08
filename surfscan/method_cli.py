@@ -11,7 +11,7 @@ method; only the final `pick_device()` + `harness.run` in the run closure is the
 from __future__ import annotations
 
 from core.cli_config import add_config_args, build_config
-from core.compute import pick_device
+from core.compute import enable_tf32, pick_device
 from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness
 
@@ -29,6 +29,7 @@ def method_spec(name: str, method_cls, cfg_cls) -> Spec:
         add_config_args(ap, cfg_cls)
 
     def run(args):  # pragma: no cover  device pick + mlflow harness boundary; build_method is the core
+        enable_tf32()
         run_name, method = build_method(method_cls, cfg_cls, args, pick_device())
         harness.run(run_name or name, method, cats=args.cats)
 

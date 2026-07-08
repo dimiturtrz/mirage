@@ -28,7 +28,7 @@ import torch.nn.functional as F
 from torch import optim
 
 from core.cli_config import add_config_args, build_config
-from core.compute import autocast, pick_device
+from core.compute import autocast, enable_tf32, pick_device
 from core.data.dataset import load_split
 from core.data.defects import KINDS, synthesize
 from core.method import Method
@@ -170,7 +170,7 @@ def _args(ap):
 
 
 def _run(args):
-    torch.set_float32_matmul_precision("high")
+    enable_tf32()
     cfg = build_config(TriadCfg, args)
     dev = pick_device()
 

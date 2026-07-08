@@ -8,6 +8,8 @@ cached as one npz per sample.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import open3d as o3d
 from scipy.ndimage import binary_erosion
@@ -42,9 +44,20 @@ def _bbox(valid):
     return ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
 
 
-def preprocess(rgb, xyz, gt, size=SIZE, nb=SO_NB, std=SO_STD, scale=SCALE, clip=CLIP):
+@dataclass(frozen=True)
+class PP:
+    size: int = SIZE
+    nb: int = SO_NB
+    std: float = SO_STD
+    scale: float = SCALE
+    clip: float = CLIP
+
+
+def preprocess(rgb, xyz, gt, p=None):
+    p = p or PP()
+    size, scale, clip = p.size, p.scale, p.clip
     valid = np.any(xyz != 0, axis=-1)                 # background = exactly (0,0,0)
-    valid = _remove_flying_pixels(xyz, valid, nb, std)
+    valid = _remove_flying_pixels(xyz, valid, p.nb, p.std)
     if gt is None:
         gt = np.zeros(valid.shape, np.uint8)
 

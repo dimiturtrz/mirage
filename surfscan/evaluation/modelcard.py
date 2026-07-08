@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import argparse
 
+from core.obs import get
 from surfscan.evaluation.results import ROOT, _latest  # DRY: reuse the mlflow lookup
+
+log = get()
 
 CARD = ROOT / "docs" / "MODEL_CARD.md"
 
@@ -49,7 +52,7 @@ def build(run_name: str) -> None:
         "",
     ]
     CARD.write_text("\n".join(out), encoding="utf-8")
-    print(f"wrote {CARD.relative_to(ROOT)}")
+    log.info(f"wrote {CARD.relative_to(ROOT)}")
 
 
 def main():

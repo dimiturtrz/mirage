@@ -16,6 +16,10 @@ import json
 import re
 from pathlib import Path
 
+from core.obs import get
+
+log = get()
+
 ROOT = Path(__file__).resolve().parents[2]
 R = json.loads((ROOT / "docs" / "RESULTS.json").read_text(encoding="utf-8"))
 
@@ -61,11 +65,11 @@ def sync() -> None:
     for key, render in _BLOCKS.items():
         pat = re.compile(rf"(<!-- results:{key} -->).*?(<!-- /results:{key} -->)", re.DOTALL)
         if not pat.search(text):
-            print(f"  (no <!-- results:{key} --> marker in RESULTS.md — skipped)")
+            log.info(f"  (no <!-- results:{key} --> marker in RESULTS.md — skipped)")
             continue
         text = pat.sub(lambda mt, render=render: f"{mt.group(1)}\n{render()}\n{mt.group(2)}", text)
     doc.write_text(text, encoding="utf-8")
-    print(f"synced -> {doc.relative_to(ROOT)}")
+    log.info(f"synced -> {doc.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

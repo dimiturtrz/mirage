@@ -24,6 +24,9 @@ import tifffile
 from PIL import Image
 
 from core import config
+from core.obs import get
+
+log = get()
 
 
 def load_sample(root, cat, split, defect, idx):
@@ -154,11 +157,11 @@ def main():
         root = args.data_root or config.mvtec_root()
         rgb, xyz, gt = load_sample(root, args.cat, args.split, args.defect, args.idx)
         valid = np.any(xyz != 0, axis=-1)
-    print(f"rgb {rgb.shape} {rgb.dtype} | xyz {xyz.shape} {xyz.dtype} | "
+    log.info(f"rgb {rgb.shape} {rgb.dtype} | xyz {xyz.shape} {xyz.dtype} | "
           f"gt {None if gt is None else gt.shape}")
-    print(f"object pixels: {valid.sum():,} / {valid.size:,}  ({100 * valid.mean():.1f}%)")
+    log.info(f"object pixels: {valid.sum():,} / {valid.size:,}  ({100 * valid.mean():.1f}%)")
     if gt is not None:
-        print(f"defect pixels: {(gt > 0).sum():,}  ({100 * (gt > 0).mean():.2f}% of frame)")
+        log.info(f"defect pixels: {(gt > 0).sum():,}  ({100 * (gt > 0).mean():.2f}% of frame)")
 
     # 1) (optional) the flat photo + mask — image-land. Opt-in via --rgb; it blocks
     #    until closed, so default is straight to the 3D cloud (which is already
@@ -187,7 +190,7 @@ def main():
         if not args.processed:
             raise SystemExit("--recon needs --processed (the model eats the normalized processed input)")
         xyz = recon_xyz(args.recon, rgb, xyz)        # show the rebuilt surface instead of the input
-        print("showing the model's RECONSTRUCTED surface (colored by original rgb)")
+        log.info("showing the model's RECONSTRUCTED surface (colored by original rgb)")
     pts, cols = to_point_cloud(rgb, xyz, valid, gt if args.mask else None)
     pc = o3d.geometry.PointCloud()
     pc.points = o3d.utility.Vector3dVector(pts)
@@ -204,7 +207,7 @@ def main():
         e = (e / (np.percentile(e, 99) + 1e-9)).clip(0, 1)
         pc.colors = o3d.utility.Vector3dVector(cm.inferno(e)[:, :3])
         tag = "patchcore" if args.patchcore else "recon residual"
-        print(f"{tag}: median {np.median(err[valid.astype(bool)]):.4f}  "
+        log.info(f"{tag}: median {np.median(err[valid.astype(bool)]):.4f}  "
               f"p99 {np.percentile(err[valid.astype(bool)], 99):.4f}")
     elif args.curvature:
         # surface variation = smallest / sum of the neighbor-covariance eigenvalues (L2 bonus):
@@ -215,7 +218,7 @@ def main():
         import matplotlib.cm as cm
         sv_n = (sv / (np.percentile(sv, 99) + 1e-12)).clip(0, 1)  # robust scale (ignore top 1%)
         pc.colors = o3d.utility.Vector3dVector(cm.inferno(sv_n)[:, :3])
-        print(f"surface variation: median {np.median(sv):.4f}  p99 {np.percentile(sv, 99):.4f}")
+        log.info(f"surface variation: median {np.median(sv):.4f}  p99 {np.percentile(sv, 99):.4f}")
     elif args.normals:
         # normal = PCA smallest-eigenvector of the local neighborhood (L2). KNN search is
         # scale-free (works on raw meters or normalized units); orient toward the scanner.
@@ -226,7 +229,7 @@ def main():
             pc.colors = o3d.utility.Vector3dVector((n * 0.5 + 0.5).clip(0, 1))
         show_normals = args.arrows              # arrows are opt-in (50k of them = visual noise)
 
-    print("3D: drag = rotate, scroll = zoom, q = quit")
+    log.info("3D: drag = rotate, scroll = zoom, q = quit")
     o3d.visualization.draw_geometries([pc], window_name="MVTec 3D-AD sample",
                                       point_show_normal=show_normals)
 

@@ -12,7 +12,10 @@ from pathlib import Path
 
 import numpy as np
 
+from core.obs import get
 from surfscan.visualization.show import load_processed, patchcore_map
+
+log = get()
 
 OUT = Path(__file__).resolve().parents[2] / "pointcloud-viewer" / "data"
 
@@ -36,7 +39,7 @@ def export_one(cat, split, defect, idx, n=15000, seed=0):
         "anomaly": an.round(3).tolist(),
         "gt": g.tolist(),
     }))
-    print(f"  wrote {sid}  ({len(pts)} pts)")
+    log.info(f"  wrote {sid}  ({len(pts)} pts)")
     return sid
 
 
@@ -49,7 +52,7 @@ def main():
         cat, split, defect, idx = spec.split(":")
         ids.append(export_one(cat, split, defect, int(idx)))
     (OUT / "manifest.json").write_text(json.dumps({"samples": ids}, indent=2))
-    print(f"manifest: {len(ids)} samples -> {OUT}")
+    log.info(f"manifest: {len(ids)} samples -> {OUT}")
 
 
 if __name__ == "__main__":

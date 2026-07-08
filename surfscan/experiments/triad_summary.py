@@ -14,6 +14,10 @@ from collections import defaultdict
 import mlflow
 import numpy as np
 
+from core.obs import get
+
+log = get()
+
 ARMS = ["triad_real", "triad_synth", "triad_synth_da", "triad_synth_curric"]
 
 
@@ -41,23 +45,23 @@ def _stat(rows):
 def summarize(uri="sqlite:///mlflow.db"):
     by = collect(uri)
     stats = {arm: _stat(list(by[arm].values())) for arm in ARMS if by.get(arm)}
-    print(f"{'arm':22s} {'seeds':5s} {'au_pro':>16s} {'img_auroc':>10s} {'ECE':>8s}")
+    log.info(f"{'arm':22s} {'seeds':5s} {'au_pro':>16s} {'img_auroc':>10s} {'ECE':>8s}")
     for arm in ARMS:
         s = stats.get(arm)
         if s:
-            print(f"{arm:22s} {s['n']:5d} {s['au_pro']:8.3f} +/-{s['au_pro_std']:.3f} "
+            log.info(f"{arm:22s} {s['n']:5d} {s['au_pro']:8.3f} +/-{s['au_pro_std']:.3f} "
                   f"{s['img_auroc']:10.3f} {s['ece']:8.4f}")
     r, sy = stats.get("triad_real"), stats.get("triad_synth")
     if r and sy:
         gap = r["au_pro"] - sy["au_pro"]
-        print(f"\n>>> SIM-TO-REAL GAP (au_pro): {r['au_pro']:.3f} - {sy['au_pro']:.3f} = {gap:+.3f}")
+        log.info(f"\n>>> SIM-TO-REAL GAP (au_pro): {r['au_pro']:.3f} - {sy['au_pro']:.3f} = {gap:+.3f}")
         da = stats.get("triad_synth_da")
         if da:
-            print(f">>> DA CLOSURE (AdaBN): {da['au_pro']:.3f} (+{da['au_pro'] - sy['au_pro']:.3f} vs synth; "
+            log.info(f">>> DA CLOSURE (AdaBN): {da['au_pro']:.3f} (+{da['au_pro'] - sy['au_pro']:.3f} vs synth; "
                   f"ECE {sy['ece']:.4f} -> {da['ece']:.4f})")
         cu = stats.get("triad_synth_curric")
         if cu:
-            print(f">>> CURRICULUM: {cu['au_pro']:.3f} (+{cu['au_pro'] - sy['au_pro']:.3f} vs uniform synth)")
+            log.info(f">>> CURRICULUM: {cu['au_pro']:.3f} (+{cu['au_pro'] - sy['au_pro']:.3f} vs uniform synth)")
     return stats
 
 

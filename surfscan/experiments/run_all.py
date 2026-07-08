@@ -12,10 +12,13 @@ import argparse
 import numpy as np
 
 from core.data import mvtec
+from core.obs import get
 from surfscan import tracking
 from surfscan.evaluation.evaluate import evaluate
 from surfscan.training.hparams import HParams
 from surfscan.training.train import train
+
+log = get()
 
 
 def main():
@@ -27,17 +30,17 @@ def main():
     cats = args.cats or mvtec.categories()
     rows = []
     for c in cats:
-        print(f"\n===== {c} =====")
+        log.info(f"\n===== {c} =====")
         hp = HParams(cats=[c], epochs=args.epochs, compile=False)   # compile off: recompiling per category isn't worth it
         run_id = train(hp, run_name=f"vae_{c}")
         rows.append(evaluate(run_id, cats=[c])["per_category"][0])
 
     auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
     aupro = float(np.nanmean([r["au_pro"] for r in rows]))
-    print("\n===== AGGREGATE (per-category models) =====")
+    log.info("\n===== AGGREGATE (per-category models) =====")
     for r in rows:
-        print(f"  {r['category']:12s}  img_auroc {r['img_auroc']:.3f}   au_pro {r['au_pro']:.3f}")
-    print(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
+        log.info(f"  {r['category']:12s}  img_auroc {r['img_auroc']:.3f}   au_pro {r['au_pro']:.3f}")
+    log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
 
     with tracking.run("surfscan", "vae_all", params={"method": "vae_per_category", "cats": ",".join(cats)}):
         tracking.metrics({"img_auroc_mean": auroc, "au_pro_mean": aupro})

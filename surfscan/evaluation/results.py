@@ -46,6 +46,12 @@ def _apply(obj: dict, row: dict, pairs) -> None:
             obj[field] = v
 
 
+def _table_mean(rows: list[dict]) -> dict:
+    """The per-category table's MEAN row, derived from its rows so it can never drift from them."""
+    n = len(rows)
+    return {k: round(sum(r[k] for r in rows) / n, 3) for k in ("img_auroc", "au_pro")}
+
+
 def refresh() -> None:  # pragma: no cover  reads RESULTS.json + mlflow; _get/_apply are the pure core
     R = json.loads(RJSON.read_text(encoding="utf-8"))
     done, skipped = [], []
@@ -57,10 +63,11 @@ def refresh() -> None:  # pragma: no cover  reads RESULTS.json + mlflow; _get/_a
         if row is None:
             skipped.append(rn); continue
         _apply(m, row, (("au_pro_mean", "au_pro"), ("img_auroc_mean", "img_auroc")))
-        if m.get("deployable"):                                   # per-category table
+        if m.get("deployable"):                                   # per-category table + its derived mean
             for c in R["patchcore_per_category"]:
                 _apply(c, row, ((f"au_pro/{c['category']}", "au_pro"),
                                 (f"img_auroc/{c['category']}", "img_auroc")))
+            R["patchcore_mean"] = _table_mean(R["patchcore_per_category"])
         done.append(m["name"])
 
     RJSON.write_text(json.dumps(R, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

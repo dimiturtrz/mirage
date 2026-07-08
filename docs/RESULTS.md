@@ -12,7 +12,7 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | DRAEM (synthesis-discriminative, crude Perlin) · bagel — ours | xyz | 0.610 | 0.360 |
 |   ↳ realistic-synth v3 (normal-displaced, on DRAEM) · bagel — ours | xyz | 0.790 | 0.320 |
 | BTF (FPFH memory bank) — ours | geometry | 0.675 | 0.653 |
-| **PatchCore (feature memory bank)** — ours | rgb | 0.819 | 0.908 |
+| **PatchCore (feature memory bank)** — ours | rgb | 0.838 | 0.902 |
 | Feature-recon / RD4AD-lite — ours | rgb | 0.807 | 0.908 |
 | Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.782 | 0.904 |
 | SOTA (DCRDF-Net) ⚠ | rgb + 3D | ~0.97 | ~0.99 |
@@ -59,17 +59,17 @@ based, not reconstruction — here, measured.
 <!-- results:per_category -->
 | category | img-AUROC | AU-PRO |
 |---|---|---|
-| bagel | 0.943 | 0.928 |
-| cable_gland | 0.806 | 0.728 |
-| carrot | 0.944 | 0.987 |
-| cookie | 0.708 | 0.822 |
-| dowel | 0.897 | 0.974 |
-| peach | 0.828 | 0.960 |
-| potato | 0.860 | 0.986 |
-| rope | 0.909 | 0.971 |
-| tire | 0.604 | 0.936 |
-| foam | 0.691 | 0.789 |
-| **MEAN** | **0.819** | **0.908** |
+| bagel | 0.938 | 0.900 |
+| cable_gland | 0.838 | 0.790 |
+| carrot | 0.946 | 0.982 |
+| cookie | 0.813 | 0.877 |
+| dowel | 0.916 | 0.970 |
+| peach | 0.883 | 0.935 |
+| potato | 0.860 | 0.969 |
+| rope | 0.908 | 0.974 |
+| tire | 0.650 | 0.920 |
+| foam | 0.633 | 0.700 |
+| **MEAN** | **0.839** | **0.902** |
 <!-- /results:per_category -->
 
 ## Stage 1 — sim-to-real triad (the measured gap number)

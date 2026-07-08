@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import mlflow
+import mlflow.pytorch
 
 _ROOT = Path(__file__).resolve().parents[1]
 mlflow.set_tracking_uri(f"sqlite:///{(_ROOT / 'mlflow.db').as_posix()}")
@@ -69,13 +70,10 @@ def artifact_json(name, obj):
 
 
 def log_model(model):
-    import mlflow.pytorch
-    # pickle (not the pt2 traced graph) -> saves the whole nn.Module; load_model rebuilds it.
     mlflow.pytorch.log_model(model, name="model", serialization_format="pickle")
 
 
 def load_model(run_id):
-    import mlflow.pytorch
     return mlflow.pytorch.load_model(f"runs:/{run_id}/model")
 
 

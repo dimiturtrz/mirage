@@ -75,15 +75,20 @@ class PatchCore:
         return self
 
     @torch.no_grad()
-    def score_maps(self, x, batch=8):
-        """-> (N,H,W) anomaly maps = nearest-neighbor distance to the bank, upsampled to input size."""
+    def score_maps(self, x, batch=8, qchunk=8192):
+        """-> (N,H,W) anomaly maps = nearest-neighbor distance to the bank, upsampled to input size.
+        The query patches are cdist'd against the bank in qchunk-row blocks so the (n*h*w, M) distance
+        matrix never materializes in full — at high resolution that matrix is what spills VRAM."""
         H, W = x.shape[-2:]
         out = []
         for i in range(0, len(x), batch):
             e, (h, w) = self._embed(x[i:i + batch])                # n,h*w,C
             n = e.shape[0]
-            d = torch.cdist(e.reshape(-1, e.shape[-1]), self.bank)  # (n*h*w, M)
-            nn = d.min(1).values.reshape(n, h, w)
+            q = e.reshape(-1, e.shape[-1])                          # (n*h*w, C)
+            nn = torch.empty(len(q), device=q.device)
+            for j in range(0, len(q), qchunk):
+                nn[j:j + qchunk] = torch.cdist(q[j:j + qchunk], self.bank).min(1).values
+            nn = nn.reshape(n, h, w)
             m = F.interpolate(nn[:, None], size=(H, W), mode="bilinear", align_corners=False)[:, 0]
             out.append(m.cpu())
         return torch.cat(out).numpy()

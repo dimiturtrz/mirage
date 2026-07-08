@@ -61,14 +61,14 @@ jobs:
       # One instrumented run = the test gate AND the coverage data. Config in [tool.coverage.*].
       - name: Tests + coverage (tests block)
         run: uv run pytest tests --cov --cov-report=term-missing -q
-      # Coverage floor — ENFORCED regression guard. Current ~73% (device injected from the root, so the
-      # train loop + scoring + coreset run on the CPU runner). The remainder is torchvision-backbone /
-      # mlflow code that can't be unit-tested on CPU without mock-theater. Floor sits below current with
-      # headroom so a real drop blocks the merge.
-      - name: Coverage floor — enforced (>=68, blocks)
-        run: uv run coverage report --fail-under=68
-      # ADVISORY stretch target — 80 warns, never blocks (structural ceiling noted above; 0dp).
-      - name: Coverage target — advisory (>=80, warns)
+      # Coverage floor — ENFORCED regression guard. Now measures LOGIC coverage (~99%): dependency
+      # boundaries (torchvision backbone / mlflow / disk / GPU / CLI) are pragma'd or omitted per
+      # [tool.coverage] with the pure cores extracted + tested. Floor sits below current with headroom
+      # so a real drop blocks the merge.
+      - name: Coverage floor — enforced (>=95, blocks)
+        run: uv run coverage report --fail-under=95
+      # ADVISORY stretch target — 99 warns, never blocks (the last few are trivial edge branches).
+      - name: Coverage target — advisory (>=99, warns)
         if: always()
         continue-on-error: true
-        run: uv run coverage report --fail-under=80 || echo "::warning::coverage below the 80% stretch target"
+        run: uv run coverage report --fail-under=99 || echo "::warning::coverage below the 99% stretch target"

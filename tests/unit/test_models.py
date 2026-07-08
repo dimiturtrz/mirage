@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from surfscan.models.draem import Draem, UNet, synthesize
+from surfscan.models.feat_ae import FeatAE
 from surfscan.models.inpaint import InpaintAE
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import ModelCfg
@@ -38,6 +39,11 @@ def test_draem_forward():
 def test_unet_forward():
     x = torch.randn(2, 3, 64, 64)
     assert UNet(3, 1, base=8)(x).shape == (2, 1, 64, 64)
+
+
+def test_featae_forward_roundtrips_shape():
+    x = torch.randn(2, 16, 32, 32)                # a C=16 feature map
+    assert FeatAE(ch=16, hidden=32)(x).shape == x.shape
 
 
 def test_draem_synthesize_on_object():

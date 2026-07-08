@@ -57,7 +57,7 @@ def aggregate(method, fit_fn, score_fn, cats):
             "mean": {"img_auroc": auroc, "au_pro": aupro}, "ece": calib, "per_defect": defect_rows}
 
 
-def _log(res):
+def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
     rows = res["per_category"]
     tracking.metrics({"img_auroc_mean": res["mean"]["img_auroc"], "au_pro_mean": res["mean"]["au_pro"]})
     if res.get("ece") is not None:
@@ -68,7 +68,7 @@ def _log(res):
     tracking.artifact_json("aggregate.json", res)
 
 
-def run(method, m, cats=None, run_id=None, params=None):
+def run(method, m, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper; aggregate is pure
     cats = cats or mvtec.categories()
     res = aggregate(method, m.fit, m.score, cats)
     if run_id:                                       # log into an existing run (e.g. the train run)

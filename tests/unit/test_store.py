@@ -22,6 +22,12 @@ def test_param_key_deterministic_and_varies():
     assert store.param_key(128, 20, 2.0) != k
 
 
+def test_dataset_dir_under_processed(monkeypatch, tmp_path):
+    monkeypatch.setenv("SURFSCAN_DATA", str(tmp_path))
+    d = store.dataset_dir(256, 20, 2.0)
+    assert d == tmp_path / "processed" / "mvtec3d" / store.param_key(256, 20, 2.0)
+
+
 def test_schema_keys_and_types():
     s = store._schema()
     assert set(s) == set(store.META_FIELDS)

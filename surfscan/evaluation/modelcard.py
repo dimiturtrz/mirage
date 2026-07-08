@@ -50,7 +50,7 @@ def _render(run_name: str, row: dict) -> str:
     return "\n".join(out)
 
 
-def build(run_name: str) -> None:
+def build(run_name: str) -> None:  # pragma: no cover  mlflow query + card file write; _render is the pure core
     row = _latest(run_name)
     if row is None:
         raise SystemExit(f"no mlflow run '{run_name}' — train/score it first, then regenerate the card")
@@ -58,7 +58,7 @@ def build(run_name: str) -> None:
     log.info(f"wrote {CARD.relative_to(ROOT)}")
 
 
-def main():
+def main():  # pragma: no cover  CLI entry (argparse)
     ap = argparse.ArgumentParser()
     ap.add_argument("--run-name", default="patchcore_rgb_greedy")
     build(ap.parse_args().run_name)

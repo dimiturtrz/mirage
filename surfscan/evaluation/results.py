@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RJSON = ROOT / "docs" / "RESULTS.json"
 
 
-def _latest(run_name: str):
+def _latest(run_name: str):  # pragma: no cover  mlflow run query (network/db)
     df = mlflow.search_runs(
         experiment_names=["surfscan"],
         filter_string=f"tags.`mlflow.runName` = '{run_name}'",
@@ -45,7 +45,7 @@ def _apply(obj: dict, row: dict, pairs) -> None:
             obj[field] = v
 
 
-def refresh() -> None:
+def refresh() -> None:  # pragma: no cover  reads RESULTS.json + mlflow; _get/_apply are the pure core
     R = json.loads(RJSON.read_text(encoding="utf-8"))
     done, skipped = [], []
     for m in R["methods"]:

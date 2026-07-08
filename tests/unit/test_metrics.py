@@ -59,3 +59,11 @@ def test_ece_calibrated_but_uncertain():
     valids = np.ones((6, 32, 32), bool)
     targets = rng.rand(6, 32, 32) < 0.5
     assert ece(np.full((6, 32, 32), 0.5), targets, valids) < 0.05
+
+
+def test_metrics_nan_on_no_valid_pixels():
+    # no valid pixels anywhere -> both metrics are undefined, not a crash
+    a = np.zeros((2, 8, 8))
+    empty = np.zeros((2, 8, 8), bool)
+    assert np.isnan(ece(a, empty, empty))
+    assert np.isnan(au_pro(a, empty, empty))

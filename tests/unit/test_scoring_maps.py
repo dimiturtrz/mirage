@@ -3,9 +3,10 @@
 A tiny model + fake data (N,C,H,W tensors on CPU) exercise the scoring path (autocast no-ops off cuda).
 Equivalence class: output is (N,H,W), non-negative (squared error), background zeroed by the valid mask.
 """
+import numpy as np
 import torch
 
-from surfscan.evaluation.scoring import anomaly_maps, inpaint_maps
+from surfscan.evaluation.scoring import anomaly_maps, inpaint_maps, latents, mahalanobis
 from surfscan.models.inpaint import InpaintAE
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import ModelCfg
@@ -43,3 +44,18 @@ def test_inpaint_maps_cpu():
     a = inpaint_maps(InpaintAE(_cfg()), data, grid=4, batch=2)
     assert a.shape == (3, 32, 32)
     assert (a >= 0).all()
+
+
+def test_latents_shape_cpu():
+    data = _Data(torch.randn(5, 3, 32, 32), torch.ones(5, 1, 32, 32))
+    z = latents(ConvVAE(_cfg()), data, batch=2)
+    assert z.shape == (5, 16)                         # N x latent
+
+
+def test_mahalanobis_far_scores_higher():
+    rng = np.random.RandomState(0)
+    train = rng.randn(200, 8)                         # normal latent cloud ~ N(0, I)
+    test = np.stack([np.zeros(8), np.full(8, 6.0)])   # a near point + a far point
+    d = mahalanobis(train, test)
+    assert d.shape == (2,)
+    assert d[1] > d[0] and d[0] < 2.0                 # far off-cloud >> at the mean

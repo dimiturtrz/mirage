@@ -1,12 +1,17 @@
 """Turn a reconstruction model into anomaly scores.
 
-Per-pixel reconstruction residual -> a pixel anomaly map; the top-k residuals per image ->
-an image-level score. (Latent Mahalanobis is the second score, bead synthscape-6v3 — added next.)
+Two image-level scores from a reconstruction model:
+  - residual: per-pixel squared-recon-error -> a pixel anomaly map; top-k residuals -> an image score.
+  - latent Mahalanobis: distance of the encoder latent to the Gaussian of NORMAL latents. A defect the
+    decoder happens to rebuild well (low residual) can still sit off the normal-latent cloud — this
+    catches it. Ledoit-Wolf shrinkage keeps the precision well-conditioned when the normal latents are
+    fewer than the latent dim.
 """
 from __future__ import annotations
 
 import numpy as np
 import torch
+from sklearn.covariance import LedoitWolf
 
 from core.compute import autocast
 
@@ -61,3 +66,23 @@ def image_scores(amaps, valids, k=128):
             continue
         s[i] = np.sort(vals)[-min(k, vals.size):].mean()
     return s
+
+
+@torch.no_grad()
+def latents(model, data, batch=64, *, amp=True):
+    """-> (N,D) encoder latent means (VAE mu) — the input to latent-distance scoring."""
+    model.eval()
+    out = []
+    for i in range(0, len(data), batch):
+        x = data.x[i:i + batch].to(memory_format=torch.channels_last)
+        with autocast(x, amp=amp):
+            mu, _ = model.encode(x)
+        out.append(mu.float().cpu())
+    return torch.cat(out).numpy()
+
+
+def mahalanobis(train_lat, test_lat):
+    """Fit a Gaussian on the NORMAL (train) latents; score each test latent by its Mahalanobis
+    distance to it. Ledoit-Wolf shrinkage -> a well-conditioned precision even when n_normal < D."""
+    lw = LedoitWolf().fit(train_lat)
+    return np.sqrt(lw.mahalanobis(test_lat))          # lw centers on the fitted (normal) mean

@@ -11,13 +11,13 @@ field only to the depth that explains *our data and our claims*.
 | **3D sensing (structured light)** | metrology / optics | how the Zivid scanner makes a position map; **sensor noise** (flying pixels, grazing-angle) | *enough to explain the data + its failure modes* |
 | **Computer vision / deep features** | CV / ML | CNN backbones, **frozen pretrained features**, feature space, patch features | home turf (carries from prior work) |
 | **Anomaly detection theory** | ML | train-on-normal, the paradigms (**reconstruction · memory-bank · synthesis-discriminative**) | core — the contribution's subject |
-| **Statistics / eval** | stats | ROC/PRC, **AU-PRO**, calibration (ECE), the honest comparison | working fluency — the honesty layer |
+| **Statistics / eval** | stats | ROC/PRC, **AU-PRO**, calibration (ECE), the like-for-like comparison | working fluency — the rigor layer |
 | **Synthesis / sim-to-real** | graphics + ML | defect generation, the domain gap, digital-twin reconstruction (single-view) | the Stage-1 contribution |
 | **Linear algebra / ML foundations** | maths | PCA (normals!), nearest-neighbour, distances | working fluency, not proofs |
 
 The lane is **3D industrial inspection** = geometry + 3D sensing (what the data is) × deep features + anomaly
-theory (how to detect) × stats (how to judge honestly) × synthesis (the sim-to-real engine). The
-deliverable lives in the detection + honest-eval + synthesis layers; take geometry/sensing to the depth
+theory (how to detect) × stats (how to judge rigorously) × synthesis (the sim-to-real engine). The
+deliverable lives in the detection + robust-eval + synthesis layers; take geometry/sensing to the depth
 that makes the data and its failure modes legible.
 
 ## Target competency (the bar) — three layers
@@ -29,7 +29,7 @@ FPFH as a handcrafted geometric descriptor; the structured-light sensor's noise.
 data and why the geometry is hard — not to write a renderer.*
 
 **D) Detection stack** (the real work): the three anomaly paradigms and **why feature-space beats pixel
-space** · PatchCore (memory bank) · multimodal RGB+3D fusion (the SOTA) · **honest evaluation** (AU-PRO,
+space** · PatchCore (memory bank) · multimodal RGB+3D fusion (the SOTA) · **robust evaluation** (AU-PRO,
 per-defect diagnostics, calibration) · the sim-to-real engine (synthesis, the gap, the twin). This is the
 contribution.
 
@@ -61,7 +61,7 @@ industrial-inspection slice. It collapses to ~four courses:
 | #8 sim-to-real + reconstruction | **Multi-View Geometry** · Computer Graphics | **Hartley & Zisserman**; Marschner–Shirley |
 
 Four buckets: **CS231n** (deep features/anomaly ML → #4,5,7) · **CS231A/Szeliski** (3D vision → #1,2,8) ·
-**CS468** (geometry → #3) · a **stats/eval** thread (#6 + honesty). Depth = "explains our data and
+**CS468** (geometry → #3) · a **stats/eval** thread (#6 + rigor). Depth = "explains our data and
 claims," not exam depth.
 
 ## The circuit (see learning/README)

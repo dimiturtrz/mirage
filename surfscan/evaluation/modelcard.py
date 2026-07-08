@@ -41,7 +41,7 @@ def _render(run_name: str, row: dict) -> str:
         out += [f"| {k} | {v} |" for k, v in sorted(params.items())]
         out.append("")
     out += [
-        "## Honest limits",
+        "## Known limits",
         "- rgb-only; the gap to SOTA (~0.96 M3DM) is multimodal geometry fusion + greedy coreset — "
         "named and measured, not bank/resolution tuning.",
         "",

@@ -1,6 +1,6 @@
 # Project Instructions for AI Agents — mirage
 
-A physics-based synthetic-data engine for 3D perception: generate defect scenes, detect anomalies, measure the sim-to-real gap honestly. Edge-deployable. Personal learning project.
+A physics-based synthetic-data engine for 3D perception: generate defect scenes, detect anomalies, measure the sim-to-real gap rigorously. Edge-deployable. Personal learning project.
 
 **Source of truth = [`docs/PLAN.md`](docs/PLAN.md).** Read it before proposing work. Sibling project (same philosophy, different domain): [systole](../cardiac-seg/).
 
@@ -52,12 +52,12 @@ bd close <id>         # Complete work
 
 ## Non-negotiable conventions (from docs/PLAN.md)
 
-- **Engine-first.** The center is the synthetic-data generation engine + honest sim-to-real eval — NOT a "3D perception stack." Anomaly = the task; calibration + sim-to-real eval = the contribution; 3D point clouds = the deliberate ramp (new skill, say so).
+- **Engine-first.** The center is the synthetic-data generation engine + robust sim-to-real eval — NOT a "3D perception stack." Anomaly = the task; calibration + sim-to-real eval = the contribution; 3D point clouds = the deliberate ramp (new skill, say so).
 - **Use, don't reimplement.** MMDetection3D / OpenPCDet / Open3D / anomaly methods are dependencies, not rebuilds.
 - **Headline metrics decided up front** — AUPRO/AUROC (real ceiling) · sim-to-real gap (pp) · ECE (calibration under shift). The triad (real / synth-only / synth+DA) IS the result, not a leaderboard number.
 - **Carried, not reinvented** — calibration+eval harness, closed-loop curriculum, train-vs-deploy parity tests come from prior acoustic work; retarget them, don't rebuild.
 - **No speculative folders.** A piece (`pipeline/`, `pointcloud-viewer/`, `synth-gen-viz/`) is added only when it's real.
-- **Honesty rules.** Cite prior art; verify every ⚠️ in PLAN.md against a primary source before it lands in README; claim edge deploy (real), never production-scale serving; 3D is a ramp.
+- **Integrity rules.** Cite prior art; verify every ⚠️ in PLAN.md against a primary source before it lands in README; claim edge deploy (real), never production-scale serving; 3D is a ramp.
 - **Build private → flip public at Stage 0** (MVTec 3D-AD + eval harness presentable). First commit = that.
 
 ## Build & Test

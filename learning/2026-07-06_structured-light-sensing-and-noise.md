@@ -60,7 +60,7 @@ These are the failure modes to *name on sight* — each looks defect-like to a n
   dropouts into the synthetic render. This is the concrete reason the twin is hard and the reason
   "physics-based" in the pitch is not decoration.
 - **A calibrated detector must down-weight noisy regions.** Depth error is `z²`- and angle-dependent →
-  the *same* geometric deviation is more trustworthy near/flat than far/grazing. Honest scoring should
+  the *same* geometric deviation is more trustworthy near/flat than far/grazing. Robust scoring should
   know that (ties to calibration, lesson 6).
 
 ## One-line takeaways

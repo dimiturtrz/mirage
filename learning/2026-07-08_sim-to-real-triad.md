@@ -1,7 +1,7 @@
-# The sim-to-real triad — the first honest gap number (Stage 1)
+# The sim-to-real triad — the first measured gap number (Stage 1)
 
 Field-map topic #8. Stage 0 asked *can we detect defects?* (yes — PatchCore 0.91). Stage 1 asks the
-harder, honest question: **if you train a detector on SYNTHETIC defects, how much does it lose on REAL
+harder, real question: **if you train a detector on SYNTHETIC defects, how much does it lose on REAL
 ones — and can you close it?** "I modeled it" never stands in for "I measured it transferred." This note
 is that measurement.
 
@@ -23,7 +23,7 @@ labels came from — so the drop IS the sim-to-real gap, not an architecture art
 never touches real defects at all (trains on the good *train* split + synthesized labels).
 
 ## The gap (`real - synth`)
-Training on synthetic defects loses a large, real chunk of localization vs real labels. It's the honest
+Training on synthetic defects loses a large, real chunk of localization vs real labels. It's the measured
 headline — the number the easy demo (train on real, report a flattering score) hides.
 
 ## AdaBN — the domain-adaptation arm (closure)
@@ -45,7 +45,7 @@ The acoustic engine adapts generation difficulty per epoch from the trainer's sc
 `KindCurriculum`: track an EMA of training loss per defect **kind**, sample the next batch's kind
 ∝ softmax(standardized loss) — the generator chases whatever kind the detector is currently worst on,
 instead of a fixed uniform mix. Single-kind batches so the scalar loss attributes cleanly to one kind.
-**As ported it REGRESSED** (see RESULTS + the diagnosis below) — kept as an honest negative, not a win.
+**As ported it REGRESSED** (see RESULTS + the diagnosis below) — kept as a reported negative, not a win.
 
 ## RESULTS (all-10, rgb, 100 epochs, 3 seeds) — `python -m surfscan.report triad-summary`
 
@@ -58,11 +58,11 @@ instead of a fixed uniform mix. Single-kind batches so the scalar loss attribute
 
 - **Sim-to-real GAP ≈ 0.27 au_pro (27 pp).** Ceiling rock-stable (±0.007), synth wider (±0.049).
 - **AdaBN closes ~46%** (+0.12) **and restores calibration** (ECE 0.037 → 0.013 ≈ ceiling). But it
-  *hurts image-detection* (img 0.64 → 0.58) — helps where the pixels are, costs whole-image scoring. An
-  honest trade, reported not hidden.
+  *hurts image-detection* (img 0.64 → 0.58) — helps where the pixels are, costs whole-image scoring. A
+  measured trade, reported not hidden.
 - **Real ceiling 0.80 < PatchCore 0.91 (unsupervised).** Supervised-from-scarce-labels loses to the
   memory bank — the real arm is a *scarce-label* ceiling (~half a small defect set), not an oracle.
-- **Curriculum REGRESSED — the honest negative.** Kind-chasing curriculum scored **0.487 (−0.051 vs
+- **Curriculum REGRESSED — the reported negative.** Kind-chasing curriculum scored **0.487 (−0.051 vs
   uniform synth) and *doubled* ECE (0.037 → 0.083)** — worse on both axes, across all 3 seeds. The
   differentiator, as ported, hurt.
 
@@ -78,7 +78,7 @@ Fix directions (Stage-1.5, not now): adapt **difficulty** (defect subtlety/contr
 per-kind sampling so it can't collapse onto the noisiest class; or attribute loss per-kind *within* mixed
 batches. The acoustic engine adapted SNR (a difficulty knob) — kind is the wrong analog.
 
-## The honest takeaways
+## The measured takeaways
 - The gap is **big and measured**, not modeled-and-assumed. That's the Stage-1 deliverable.
 - A cheap, label-free DA method (AdaBN) recovers ~half of it **and** fixes calibration — the calibration
   win is arguably the more interesting result than the localization one.

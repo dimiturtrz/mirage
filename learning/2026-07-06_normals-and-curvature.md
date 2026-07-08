@@ -84,4 +84,4 @@ Normals are a **neighbourhood** estimate → they **amplify sensor noise**:
 
 ---
 ## Quiz log
-*(appended when quizzed — questions, my answers, honest score)*
+*(appended when quizzed — questions, my answers, self-scored)*

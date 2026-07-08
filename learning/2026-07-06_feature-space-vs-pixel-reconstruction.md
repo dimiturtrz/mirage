@@ -56,4 +56,4 @@ measure deviation in matters more than the algorithm that measures it.*
 
 ---
 ## Quiz log
-*(appended when quizzed — questions, my answers, honest score)*
+*(appended when quizzed — questions, my answers, self-scored)*

@@ -9,8 +9,9 @@ import argparse
 import numpy as np
 
 from core.data.dataset import load_split
+from core.method import Method
 from surfscan.evaluation import harness, scoring
-from surfscan.models.patchcore import PatchCore
+from surfscan.models.patchcore import FitCfg, PatchCore
 
 
 def main():
@@ -23,7 +24,7 @@ def main():
 
     def fit(c):
         train = load_split(split="train", label=0, cats=[c], channels=["rgb"], device="cuda", size=args.size)
-        return PatchCore().fit(train.x, coreset=args.coreset, method=args.coreset_method)
+        return PatchCore().fit(train.x, FitCfg(coreset=args.coreset, method=args.coreset_method))
 
     def score(pc, c):
         test = load_split(split="test", cats=[c], channels=["rgb"], device="cuda", size=args.size)
@@ -34,7 +35,7 @@ def main():
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run(f"patchcore_rgb_{args.coreset_method}", fit, score, cats=args.cats)
+    harness.run(f"patchcore_rgb_{args.coreset_method}", Method(fit, score), cats=args.cats)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ import numpy as np
 
 from core.data import store
 from core.data.dataset import load_split
+from core.method import Method
 from surfscan.evaluation import harness, scoring
 from surfscan.models.fpfh_bank import FpfhBank
 from surfscan.models.patchcore import PatchCore
@@ -47,7 +48,7 @@ def main():
         return (fused, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run("fused_rgb_fpfh", fit, score, cats=args.cats)
+    harness.run("fused_rgb_fpfh", Method(fit, score), cats=args.cats)
 
 
 if __name__ == "__main__":

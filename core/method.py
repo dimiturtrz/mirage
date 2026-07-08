@@ -29,3 +29,9 @@ class ScoreArrays(NamedTuple):
 
 FitFn = Callable[[str], Any]                 # fit(category) -> state
 ScoreFn = Callable[[Any, str], ScoreArrays]  # score(state, category) -> ScoreArrays
+
+
+class Method(NamedTuple):
+    """The (fit, score) pair the harness scores — one interface object per detector."""
+    fit: FitFn
+    score: ScoreFn

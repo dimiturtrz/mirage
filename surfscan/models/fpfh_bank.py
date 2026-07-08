@@ -6,6 +6,8 @@ local-surface descriptors to normal. See learning/2026-06-25_fpfh-and-neighborho
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import open3d as o3d
 import torch
@@ -19,7 +21,16 @@ def _normals(pts, knn):
     return pc
 
 
-def fpfh_for_sample(xyz, valid, normal_knn=30, fpfh_knn=100, *, clean=False, graze=0.3):
+@dataclass(frozen=True)
+class FpfhCfg:
+    normal_knn: int = 30
+    fpfh_knn: int = 100
+    clean: bool = False
+    graze: float = 0.3
+
+
+def fpfh_for_sample(xyz, valid, cfg=None):
+    cfg = cfg or FpfhCfg()
     """-> (n,33) FPFH descriptors + (n,2) pixel (row,col) for each valid point.
 
     clean: drop grazing-angle points (surface nearly perpendicular to the view ray) — that's the
@@ -27,14 +38,14 @@ def fpfh_for_sample(xyz, valid, normal_knn=30, fpfh_knn=100, *, clean=False, gra
     """
     coords = np.argwhere(valid)
     pts = xyz[valid].astype(np.float64)
-    pc = _normals(pts, normal_knn)
-    if clean:
+    pc = _normals(pts, cfg.normal_knn)
+    if cfg.clean:
         n = np.asarray(pc.normals)
         view = -pts / (np.linalg.norm(pts, axis=1, keepdims=True) + 1e-9)   # scanner at origin
-        keep = np.abs((n * view).sum(1)) > graze                            # ~1 = facing, ~0 = grazing
+        keep = np.abs((n * view).sum(1)) > cfg.graze                            # ~1 = facing, ~0 = grazing
         pts, coords = pts[keep], coords[keep]
-        pc = _normals(pts, normal_knn)
-    f = o3d.pipelines.registration.compute_fpfh_feature(pc, o3d.geometry.KDTreeSearchParamKNN(fpfh_knn))
+        pc = _normals(pts, cfg.normal_knn)
+    f = o3d.pipelines.registration.compute_fpfh_feature(pc, o3d.geometry.KDTreeSearchParamKNN(cfg.fpfh_knn))
     return np.asarray(f.data).T.astype(np.float32), coords
 
 

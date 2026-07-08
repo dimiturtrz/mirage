@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from torch import optim
 
 from core.data.dataset import load_split
+from core.method import Method
 from surfscan.evaluation import harness, scoring
 from surfscan.models.feat_recon import FeatAE, FeatExtractor
 
@@ -24,7 +25,8 @@ def _feats(ext, x, batch=32):
     return torch.cat([ext(x[i:i + batch]).float() for i in range(0, len(x), batch)])
 
 
-def _score_maps(ext, ae, x, H, W, batch=32):
+def _score_maps(ext, ae, x, hw, batch=32):
+    H, W = hw
     out = []
     ae.eval()
     for i in range(0, len(x), batch):
@@ -62,13 +64,13 @@ def main():
         test = load_split(split="test", cats=[c], channels=["rgb"], device="cuda")
         H, W = test.x.shape[-2:]
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
-        amaps = _score_maps(ext, ae, test.x, H, W) * valids
+        amaps = _score_maps(ext, ae, test.x, (H, W)) * valids
         masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
         scores = scoring.image_scores(amaps, valids)
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run("feat_recon", fit, score, cats=args.cats)
+    harness.run("feat_recon", Method(fit, score), cats=args.cats)
 
 
 if __name__ == "__main__":

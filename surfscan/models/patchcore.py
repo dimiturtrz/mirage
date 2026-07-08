@@ -12,6 +12,8 @@ No training — just feature extraction + kNN. Run on the rgb channel (image-lik
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
 import torch.nn.functional as F
 import torchvision
@@ -32,6 +34,15 @@ def _greedy_coreset(feats, n, seed):
         sel[i] = min_d.argmax()
         torch.minimum(min_d, torch.cdist(feats, feats[sel[i:i + 1]]).squeeze(1), out=min_d)
     return feats[sel]
+
+
+@dataclass(frozen=True)
+class FitCfg:
+    batch: int = 16
+    coreset: float = 0.1
+    method: str = "greedy"
+    seed: int = 0
+    pool_cap: int = 200_000
 
 
 class PatchCore:
@@ -68,19 +79,20 @@ class PatchCore:
         return f.permute(0, 2, 3, 1).reshape(n, h * w, c), (h, w)
 
     @torch.no_grad()
-    def fit(self, x, batch=16, coreset=0.1, method="greedy", seed=0, pool_cap=200_000):
+    def fit(self, x, cfg=None):
+        cfg = cfg or FitCfg()
         feats = []
-        for i in range(0, len(x), batch):
-            e, _ = self._embed(x[i:i + batch])
+        for i in range(0, len(x), cfg.batch):
+            e, _ = self._embed(x[i:i + cfg.batch])
             feats.append(e.reshape(-1, e.shape[-1]))
         feats = torch.cat(feats)                                    # M,C
-        target = max(1, int(len(feats) * coreset))
-        g = torch.Generator(device=feats.device).manual_seed(seed)
-        if method == "greedy":
+        target = max(1, int(len(feats) * cfg.coreset))
+        g = torch.Generator(device=feats.device).manual_seed(cfg.seed)
+        if cfg.method == "greedy":
             pool = feats
-            if len(pool) > pool_cap:                                # cap the pool so greedy stays tractable
-                pool = pool[torch.randperm(len(pool), generator=g, device=feats.device)[:pool_cap]]
-            self.bank = _greedy_coreset(pool, min(target, len(pool)), seed)
+            if len(pool) > cfg.pool_cap:                                # cap the pool so greedy stays tractable
+                pool = pool[torch.randperm(len(pool), generator=g, device=feats.device)[:cfg.pool_cap]]
+            self.bank = _greedy_coreset(pool, min(target, len(pool)), cfg.seed)
         else:
             self.bank = feats[torch.randperm(len(feats), generator=g, device=feats.device)[:target]]
         return self

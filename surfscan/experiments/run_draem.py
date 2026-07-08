@@ -18,6 +18,7 @@ from core.data.dataset import load_split
 from core.data.defects import (
     synthesize as synth_realistic,  # channel-aware coherent defects
 )
+from core.method import Method
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import Draem
 from surfscan.models.draem import (
@@ -75,7 +76,7 @@ def main():
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    harness.run(f"draem_{args.synth}_{'_'.join(args.channels)}", fit, score, cats=args.cats)
+    harness.run(f"draem_{args.synth}_{'_'.join(args.channels)}", Method(fit, score), cats=args.cats)
 
 
 if __name__ == "__main__":

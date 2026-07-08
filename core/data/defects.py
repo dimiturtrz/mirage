@@ -32,8 +32,9 @@ def _u(rng, lo, hi, b, device):
     return torch.as_tensor(rng.uniform(lo, hi, b), dtype=torch.float32, device=device)[:, None, None]
 
 
-def _profiles(b, h, w, rng, device, is_scratch):
+def _profiles(shape, rng, device, is_scratch):
     """Batched smooth profiles (B,H,W): elliptical blob, or thin scratch where is_scratch."""
+    b, h, w = shape
     yy, xx = torch.meshgrid(torch.arange(h, device=device), torch.arange(w, device=device), indexing="ij")
     yy, xx = yy.float()[None], xx.float()[None]
     cy, cx = _u(rng, 0.2, 0.8, b, device) * h, _u(rng, 0.2, 0.8, b, device) * w
@@ -67,7 +68,7 @@ def synthesize(x, valid, rng, channels=("rgb",), kinds=KINDS):
     is_bump = torch.as_tensor(kind == "bump", device=dev)[:, None, None]
     is_contam = torch.as_tensor(kind == "contamination", device=dev)[:, None, None, None]
 
-    prof = _profiles(B, H, W, rng, dev, is_scratch) * (valid[:, 0] > _ON)   # (B,H,W), on-object
+    prof = _profiles((B, H, W), rng, dev, is_scratch) * (valid[:, 0] > _ON)   # (B,H,W), on-object
     m = prof > _THR
     pa = prof * m                                                          # smooth inside, 0 outside m
     aug = x.clone()

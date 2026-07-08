@@ -63,9 +63,10 @@ def _schema():
     return {k: dt(k) for k in META_FIELDS}
 
 
-def build(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None, *, rebuild=False) -> Path:
+def build(p=None, cats=None, workers=None, *, rebuild=False) -> Path:
     """Consolidate into processed/mvtec3d/<paramkey>/. Process-if-missing; (re)writes meta.csv."""
-    out = dataset_dir(size, nb, std)
+    p = p or pp.PP()
+    out = dataset_dir(p.size, p.nb, p.std)
     data_dir = out / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     samples = mvtec.samples(cats=cats)
@@ -73,7 +74,7 @@ def build(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None, *, 
 
     def _one(s: mvtec.Sample):
         rgb, xyz, gt = mvtec.load_raw(s)
-        arr = pp.preprocess(rgb, xyz, gt, pp.PP(size=size, nb=nb, std=std))
+        arr = pp.preprocess(rgb, xyz, gt, p)
         np.savez_compressed(data_dir / f"{s.sample_id}.npz", **arr)
 
     if todo:
@@ -122,7 +123,7 @@ if __name__ == "__main__":
     ap.add_argument("--size", type=int, default=pp.SIZE)
     ap.add_argument("--rebuild", action="store_true")
     args = ap.parse_args()
-    build(size=args.size, cats=args.cats, rebuild=args.rebuild)  # process-if-missing + rewrite meta
+    build(pp.PP(size=args.size), cats=args.cats, rebuild=args.rebuild)  # process-if-missing + rewrite meta
     df = load(size=args.size, cats=args.cats)
     log.info(f"=== mvtec3d cloud: {len(df)} samples ===")
     log.info(df.group_by("split", "label").agg(pl.len().alias("n")).sort("split", "label"))

@@ -11,6 +11,7 @@ import argparse
 import numpy as np
 
 from core.data import store
+from core.method import Method
 from surfscan.evaluation import harness, scoring
 from surfscan.models.fpfh_bank import FpfhBank
 
@@ -35,7 +36,7 @@ def main():
         return (amaps, valids, masks, scores,
                 dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
-    harness.run("btf_fpfh", fit, score, cats=args.cats)
+    harness.run("btf_fpfh", Method(fit, score), cats=args.cats)
 
 
 if __name__ == "__main__":

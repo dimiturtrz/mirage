@@ -1,68 +1,73 @@
 """DRAEM over categories -> aggregate. Synthesis-recon, Stage-0, self-contained. Uses the harness.
 
 Per category: train recon+disc on good samples with synthetic proxy anomalies, score the test
-split by the discriminator output. Default channel = xyz (the geometry signal).
+split by the discriminator output. Default channel = xyz (the geometry signal). The training loop is
+the shared `Trainer`; the method supplies the per-batch synth+forward+loss as its step_fn.
 
 Run:  python -m surfscan.run draem [--cats bagel ...] [--epochs 150] [--channels xyz]
 """
 from __future__ import annotations
+
+from dataclasses import dataclass, field
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import optim
 
-from core.compute import autocast, pick_device
+from core.compute import autocast
 from core.data.dataset import load_split
 from core.data.defects import (
     synthesize as synth_realistic,  # channel-aware coherent defects
 )
-from core.method import Method
-from surfscan.dispatch import Spec, add_cats
-from surfscan.evaluation import harness, scoring
+from surfscan.evaluation import scoring
+from surfscan.method_cli import method_spec
 from surfscan.models.draem import Draem
 from surfscan.models.draem import (
     synthesize as synth_perlin,  # the original crude Perlin (control)
 )
+from surfscan.training.trainer import Trainer
 
 
-def _args(ap):
-    add_cats(ap)
-    ap.add_argument("--channels", nargs="*", default=["xyz"])
-    ap.add_argument("--epochs", type=int, default=150)
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--synth", default="realistic", choices=["realistic", "perlin"])
+@dataclass(frozen=True)
+class DraemCfg:
+    channels: list[str] = field(default_factory=lambda: ["xyz"])
+    epochs: int = 150
+    seed: int = 0
+    synth: str = field(default="realistic", metadata={"choices": ["realistic", "perlin"]})
 
 
-def _run(args):
-    torch.set_float32_matmul_precision("high")
-    torch.manual_seed(args.seed)
-    dev = pick_device()
-    rng = np.random.RandomState(args.seed)
+class DraemMethod:
+    def __init__(self, cfg: DraemCfg, dev):
+        self.cfg = cfg
+        self.dev = dev
 
-    def fit(c):
-        train = load_split(split="train", label=0, cats=[c], channels=args.channels, device=dev)
-        model = Draem(ch=train.in_ch).to(dev, memory_format=torch.channels_last)
+    @property
+    def run_name(self) -> str:
+        return f"draem_{self.cfg.synth}_{'_'.join(self.cfg.channels)}"
+
+    def fit(self, cat):
+        torch.set_float32_matmul_precision("high")
+        torch.manual_seed(self.cfg.seed)
+        rng = np.random.RandomState(self.cfg.seed)
+        train = load_split(split="train", label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
+        model = Draem(ch=train.in_ch).to(self.dev, memory_format=torch.channels_last)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
-        n = len(train)
-        for _ in range(args.epochs):
-            model.train()
-            idx = torch.randperm(n, device=dev)
-            for i in range(0, n, 16):
-                b = idx[i:i + 16]
-                x, v = train.x[b], train.valid[b]
-                aug, mask = (synth_realistic(x, v, rng, channels=args.channels)
-                             if args.synth == "realistic" else synth_perlin(x, v, rng))
-                with autocast(x):
-                    rec, logits = model(aug.to(memory_format=torch.channels_last))
-                    rl = (((rec - x) ** 2) * v).sum() / (v.sum() * x.shape[1] + 1e-8)
-                    dl = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)
-                    loss = rl + dl
-                opt.zero_grad(set_to_none=True); loss.backward(); opt.step()
-        return model
 
-    def score(model, c):
-        test = load_split(split="test", cats=[c], channels=args.channels, device=dev)
+        def step(idx):
+            x, v = train.x[idx], train.valid[idx]
+            aug, mask = (synth_realistic(x, v, rng, channels=self.cfg.channels)
+                         if self.cfg.synth == "realistic" else synth_perlin(x, v, rng))
+            with autocast(x):
+                rec, logits = model(aug.to(memory_format=torch.channels_last))
+                rl = (((rec - x) ** 2) * v).sum() / (v.sum() * x.shape[1] + 1e-8)
+                dl = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)
+                return rl + dl
+
+        return Trainer(model, opt, self.dev, batch=16).fit(len(train), self.cfg.epochs, step)
+
+    def score(self, model, cat):
+        test = load_split(split="test", cats=[cat], channels=self.cfg.channels, device=self.dev)
         model.eval()
         amaps = []
         with torch.no_grad():
@@ -72,7 +77,5 @@ def _run(args):
                 amaps.append((torch.sigmoid(logits.float()) * v).squeeze(1).cpu())
         return scoring.score_arrays(torch.cat(amaps).numpy(), test)
 
-    harness.run(f"draem_{args.synth}_{'_'.join(args.channels)}", Method(fit, score), cats=args.cats)
 
-
-SPEC = Spec("draem", _args, _run)
+SPEC = method_spec("draem", DraemMethod, DraemCfg)

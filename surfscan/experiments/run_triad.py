@@ -24,6 +24,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
 
+from core.compute import autocast, pick_device
 from core.data.dataset import load_split
 from core.data.defects import KINDS, synthesize
 from core.method import Method
@@ -55,7 +56,7 @@ def _new(in_ch, dev):
 
 
 def _step(model, opt, x, v, m):
-    with torch.autocast("cuda", dtype=torch.bfloat16):
+    with autocast(x):
         logits = model(x.to(memory_format=torch.channels_last))
         loss = F.binary_cross_entropy_with_logits(logits.float(), m, weight=v)
     opt.zero_grad(set_to_none=True)
@@ -123,7 +124,7 @@ def _adabn(model, x, passes=2, batch=BATCH):
     model.train()
     for _ in range(passes):
         for i in range(0, x.shape[0], batch):
-            with torch.autocast("cuda", dtype=torch.bfloat16):
+            with autocast(x):
                 model(x[i:i + batch].to(memory_format=torch.channels_last))
     model.eval()
     return model
@@ -149,7 +150,7 @@ def score(model, c, dev, batch=BATCH):
     model.eval()
     amaps = []
     for i in range(0, x.shape[0], batch):
-        with torch.autocast("cuda", dtype=torch.bfloat16):
+        with autocast(x):
             logits = model(x[i:i + batch].to(memory_format=torch.channels_last))
         amaps.append((torch.sigmoid(logits.float()) * v[i:i + batch]).squeeze(1).cpu())
     amaps = torch.cat(amaps).numpy()
@@ -171,7 +172,7 @@ def main():
     torch.set_float32_matmul_precision("high")
     global CH
     CH = tuple(args.channels)
-    dev = "cuda"
+    dev = pick_device()
 
     def score_fn(m, c):
         return score(m, c, dev)

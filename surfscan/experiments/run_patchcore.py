@@ -8,6 +8,7 @@ import argparse
 
 import numpy as np
 
+from core.compute import pick_device
 from core.data.dataset import load_split
 from core.method import Method
 from surfscan.evaluation import harness, scoring
@@ -21,13 +22,14 @@ def main():
     ap.add_argument("--coreset-method", default="greedy", choices=["greedy", "random"])
     ap.add_argument("--size", type=int, default=None, help="processed store resolution (default 256)")
     args = ap.parse_args()
+    dev = pick_device()
 
     def fit(c):
-        train = load_split(split="train", label=0, cats=[c], channels=["rgb"], device="cuda", size=args.size)
-        return PatchCore().fit(train.x, FitCfg(coreset=args.coreset, method=args.coreset_method))
+        train = load_split(split="train", label=0, cats=[c], channels=["rgb"], device=dev, size=args.size)
+        return PatchCore(device=dev).fit(train.x, FitCfg(coreset=args.coreset, method=args.coreset_method))
 
     def score(pc, c):
-        test = load_split(split="test", cats=[c], channels=["rgb"], device="cuda", size=args.size)
+        test = load_split(split="test", cats=[c], channels=["rgb"], device=dev, size=args.size)
         amaps = pc.score_maps(test.x)
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
         masks = test.gt.squeeze(1).cpu().numpy().astype(bool)

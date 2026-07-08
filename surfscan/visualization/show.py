@@ -29,6 +29,7 @@ import torch
 from PIL import Image
 
 from core import config
+from core.compute import pick_device
 from core.data import preprocess as pp
 from core.data import store
 from core.data.dataset import load_split
@@ -63,13 +64,13 @@ def load_processed(cat, split, defect, idx, size=None):
     return a["rgb"], a["xyz"], a["gt"], a["valid"]
 
 
-def _run_model(run, rgb, xyz):
+def _run_model(run, rgb, xyz, device=None):
     """Load a trained model + run it on one sample -> (input x [1,C,H,W], recon [1,C,H,W]), numpy."""
     run = Path(run)
     hp = HParams(**json.loads((run / "config.json").read_text()))
     chans = [(xyz if c == "xyz" else rgb).transpose(2, 0, 1) for c in hp.channels]
     x = np.concatenate(chans, 0)[None].astype("float32")          # 1,C,H,W
-    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    dev = device or pick_device()
     model = ConvVAE(hp.model_cfg(x.shape[1])).to(dev)
     model.load_state_dict(torch.load(run / "model.pt", map_location=dev))
     model.eval()
@@ -91,10 +92,10 @@ def recon_xyz(run, rgb, xyz):
     return recon[0, :3].transpose(1, 2, 0)                        # C,H,W -> H,W,3 (xyz channels)
 
 
-def patchcore_map(cat, rgb, valid, coreset=0.1):
+def patchcore_map(cat, rgb, valid, coreset=0.1, device=None):
     """The WORKING detector's anomaly map: fit a PatchCore bank on this category's train-good (rgb),
     score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
-    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    dev = device or pick_device()
     train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
     pc = PatchCore(device=dev).fit(train.x, FitCfg(coreset=coreset))
     x = torch.from_numpy(rgb.transpose(2, 0, 1)[None]).to(dev)

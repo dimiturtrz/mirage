@@ -1,12 +1,19 @@
 name: ci
 
-# Gate for the dev -> main flow: `tests` + `lint` must pass on every PR (and on pushes to dev/main).
-# Enforced as required status checks via branch protection on main (merge blocked until green).
+# Gate for the dev -> main flow: `tests` + `lint` must pass on every PR (and on pushes to main).
+# pull_request validates the dev->main PR (the MERGE PREVIEW) and reruns on every push to the PR head;
+# push:[main] is the post-merge safety net. A dev push isn't a push to main, so one event handles a
+# given commit — no double-run.
 on:
   push:
-    branches: [dev, main]
+    branches: [main]
   pull_request:
-    branches: [dev, main]
+    branches: [main]
+
+# a newer push to the same branch cancels the older in-flight run
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -16,23 +23,32 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      # ENFORCED (blocks the merge): the FULL curated select is now at zero on core+surfscan — the
-      # ratchet is complete. This runs the whole pyproject [tool.ruff.lint].select as the merge gate.
+      # ENFORCED (blocks the merge): the FULL curated select is at zero on core+surfscan — the ruff
+      # ratchet is complete. Runs the whole pyproject [tool.ruff.lint].select as the merge gate.
       - name: Lint — enforced (full curated select, at zero)
         run: uvx ruff@0.15.13 check core surfscan
-      # ADVISORY (never blocks): full check over the whole tree — surfaces the families still being
-      # cleaned so the count is visible in CI. Becomes the enforced gate once it hits zero.
+      # ADVISORY (never blocks): full check over the whole tree.
       - name: Lint — advisory full (non-blocking)
         run: uvx ruff@0.15.13 check . --statistics || true
       # ADVISORY: `ruff format` not applied yet — shows the pending reformat, does not block.
       - name: Format — advisory (non-blocking)
         run: uvx ruff@0.15.13 format --check . || true
+      # Vulture — dead code, the axis ruff can't see. Config (paths/ignores) in [tool.vulture].
+      # BLOCKS at conf>=80 (near-certain: redundant conditions, unreachable, unused locals — precision
+      # high enough to fail the merge; currently zero).
+      - name: Dead code — enforced (vulture conf>=80)
+        run: uvx vulture@2.16 --min-confidence 80
+      # WARNS at conf>=60 (dead functions/classes — real signal, but eats no-fan-in FPs so it can't
+      # block). continue-on-error keeps the job green; output reshaped to ::warning:: PR annotations.
+      - name: Dead code — advisory (vulture conf>=60, warns)
+        continue-on-error: true
+        run: |
+          uvx vulture@2.16 --min-confidence 60 | sed -E 's#^([^:]+):([0-9]+): (.*)$#::warning file=\1,line=\2::\3#'
 
   tests:
     runs-on: ubuntu-latest
-    # no dataset on the runner -> point the data root at an empty POSIX dir so the data-gated tests
-    # skip cleanly (adapters glob an absent raw/ -> no subjects -> pytest.skip) instead of erroring on
-    # a missing paths.yaml. A plain POSIX path needs no Windows->mount translation.
+    # no dataset on the runner -> point the data root at an empty POSIX dir so data-gated tests skip
+    # cleanly instead of erroring on a missing paths.yaml.
     env:
       SURFSCAN_DATA: /tmp/surfscan-nodata
     steps:
@@ -40,7 +56,14 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Install dependencies (locked, + dev extra for pytest)
+      - name: Install dependencies (locked, + dev extra for pytest + coverage)
         run: uv sync --frozen --extra dev
-      - name: Unit tests
-        run: uv run pytest tests/unit -q
+      # One instrumented run = the test gate AND the coverage data. Config in [tool.coverage.*].
+      - name: Tests + coverage (tests block)
+        run: uv run pytest tests --cov --cov-report=term-missing -q
+      # Coverage is ADVISORY for now (baseline ~36%; ratchet to a real floor is tracked separately).
+      # `always()` so it prints even if tests failed; `continue-on-error` keeps it non-blocking.
+      - name: Coverage target — advisory (>=80, warns)
+        if: always()
+        continue-on-error: true
+        run: uv run coverage report --fail-under=80 || echo "::warning::coverage below the 80% target (baseline ~36%)"

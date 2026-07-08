@@ -2,35 +2,162 @@
   "_comment": "The ONE canonical source of published Stage-0 numbers. docs/RESULTS.md tables are rendered from this by surfscan/evaluation/sync_numbers.py (between <!-- results:X --> markers) so a number lives in ONE place and the docs can't drift. Curated from the measured investigation; refresh the measured entries from mlflow when reruns land. The root README stays a curated portfolio face (not synced) per CLAUDE.md.",
   "harness": "image-AUROC (detection) + pixel-AU-PRO (localization), per-category models, our runs through one harness",
   "methods": [
-    {"name": "Reconstruction (VAE / +dropout / inpaint / fused)", "modality": "xyz (+rgb)", "paradigm": "reconstruct pixels → error", "img_auroc": 0.48, "au_pro": 0.095, "note": "≈ random localization", "mlflow_run": "vae_all"},
-    {"name": "DRAEM (synthesis-discriminative, crude Perlin) · bagel", "modality": "xyz", "paradigm": "synthesis-discriminative", "img_auroc": 0.61, "au_pro": 0.36, "note": "BAGEL-ONLY (not a 10-cat mean), 3-seed: 0.36±0.09 au_pro / 0.61 img (the earlier single-seed 0.48 was a lucky draw). My realistic synth v2 scored LOWER (0.18) because of BROKEN GEOMETRY (world-z not surface-normal displacement), NOT because realism hurts DRAEM. Fixed v3 (normal-displaced, core/geometry.py): 0.32±0.07 au_pro (tied) + 0.79 img (higher on all 3, decisively on 2). RESOLVED 2026-07-07."},
-    {"name": "  ↳ realistic-synth v3 (normal-displaced, on DRAEM) · bagel", "modality": "xyz", "paradigm": "synthesis-discriminative", "img_auroc": 0.79, "au_pro": 0.32, "note": "BAGEL-ONLY 3-seed. Surface-normal displacement (core/geometry.grid_normals) fixed the v2 z-axis bug: au_pro tied with Perlin (0.32±0.07 vs 0.36±0.09, bands overlap), img_auroc higher on all 3 seeds — decisively on 2, seed-1 a near dead-heat (mean 0.79 vs 0.61). See learning/2026-07-06_draem-synthesis-comparison.md."},
-    {"name": "BTF (FPFH memory bank)", "modality": "geometry", "paradigm": "memory bank", "img_auroc": 0.675, "au_pro": 0.653},
-    {"name": "PatchCore (feature memory bank)", "modality": "rgb", "paradigm": "memory bank — NN to normal features", "img_auroc": 0.819, "au_pro": 0.908, "deployable": true, "mlflow_run": "patchcore_rgb_greedy"},
-    {"name": "Feature-recon / RD4AD-lite", "modality": "rgb", "paradigm": "reconstruct features → error", "img_auroc": 0.807, "au_pro": 0.908},
-    {"name": "Fused (PatchCore-rgb + BTF)", "modality": "rgb + 3D", "paradigm": "memory-bank fusion", "img_auroc": 0.782, "au_pro": 0.904, "note": "net-neutral vs rgb-only until native-res FPFH"}
+    {
+      "name": "Reconstruction (VAE / +dropout / inpaint / fused)",
+      "modality": "xyz (+rgb)",
+      "paradigm": "reconstruct pixels → error",
+      "img_auroc": 0.48,
+      "au_pro": 0.095,
+      "note": "≈ random localization",
+      "mlflow_run": "vae_all"
+    },
+    {
+      "name": "DRAEM (synthesis-discriminative, crude Perlin) · bagel",
+      "modality": "xyz",
+      "paradigm": "synthesis-discriminative",
+      "img_auroc": 0.61,
+      "au_pro": 0.36,
+      "note": "BAGEL-ONLY (not a 10-cat mean), 3-seed: 0.36±0.09 au_pro / 0.61 img (the earlier single-seed 0.48 was a lucky draw). My realistic synth v2 scored LOWER (0.18) because of BROKEN GEOMETRY (world-z not surface-normal displacement), NOT because realism hurts DRAEM. Fixed v3 (normal-displaced, core/geometry.py): 0.32±0.07 au_pro (tied) + 0.79 img (higher on all 3, decisively on 2). RESOLVED 2026-07-07."
+    },
+    {
+      "name": "  ↳ realistic-synth v3 (normal-displaced, on DRAEM) · bagel",
+      "modality": "xyz",
+      "paradigm": "synthesis-discriminative",
+      "img_auroc": 0.79,
+      "au_pro": 0.32,
+      "note": "BAGEL-ONLY 3-seed. Surface-normal displacement (core/geometry.grid_normals) fixed the v2 z-axis bug: au_pro tied with Perlin (0.32±0.07 vs 0.36±0.09, bands overlap), img_auroc higher on all 3 seeds — decisively on 2, seed-1 a near dead-heat (mean 0.79 vs 0.61). See learning/2026-07-06_draem-synthesis-comparison.md."
+    },
+    {
+      "name": "BTF (FPFH memory bank)",
+      "modality": "geometry",
+      "paradigm": "memory bank",
+      "img_auroc": 0.675,
+      "au_pro": 0.653
+    },
+    {
+      "name": "PatchCore (feature memory bank)",
+      "modality": "rgb",
+      "paradigm": "memory bank — NN to normal features",
+      "img_auroc": 0.838,
+      "au_pro": 0.902,
+      "deployable": true,
+      "mlflow_run": "patchcore_rgb_greedy"
+    },
+    {
+      "name": "Feature-recon / RD4AD-lite",
+      "modality": "rgb",
+      "paradigm": "reconstruct features → error",
+      "img_auroc": 0.807,
+      "au_pro": 0.908
+    },
+    {
+      "name": "Fused (PatchCore-rgb + BTF)",
+      "modality": "rgb + 3D",
+      "paradigm": "memory-bank fusion",
+      "img_auroc": 0.782,
+      "au_pro": 0.904,
+      "note": "net-neutral vs rgb-only until native-res FPFH"
+    }
   ],
-  "sota": {"name": "DCRDF-Net", "modality": "rgb + 3D", "img_auroc": 0.971, "au_pro": 0.988, "cite": "DCRDF-Net 2026 (PMC12846035) — current top; M3DM CVPR2023 (0.945/0.964) is the classic reference. Field cluster 2025-26: MMRD 0.950/0.976 · Shape-Guided 0.947/0.976.", "verified": "2026-07-06"},
+  "sota": {
+    "name": "DCRDF-Net",
+    "modality": "rgb + 3D",
+    "img_auroc": 0.971,
+    "au_pro": 0.988,
+    "cite": "DCRDF-Net 2026 (PMC12846035) — current top; M3DM CVPR2023 (0.945/0.964) is the classic reference. Field cluster 2025-26: MMRD 0.950/0.976 · Shape-Guided 0.947/0.976.",
+    "verified": "2026-07-06"
+  },
   "patchcore_per_category": [
-    {"category": "bagel", "img_auroc": 0.943, "au_pro": 0.928},
-    {"category": "cable_gland", "img_auroc": 0.806, "au_pro": 0.728},
-    {"category": "carrot", "img_auroc": 0.944, "au_pro": 0.987},
-    {"category": "cookie", "img_auroc": 0.708, "au_pro": 0.822},
-    {"category": "dowel", "img_auroc": 0.897, "au_pro": 0.974},
-    {"category": "peach", "img_auroc": 0.828, "au_pro": 0.960},
-    {"category": "potato", "img_auroc": 0.860, "au_pro": 0.986},
-    {"category": "rope", "img_auroc": 0.909, "au_pro": 0.971},
-    {"category": "tire", "img_auroc": 0.604, "au_pro": 0.936},
-    {"category": "foam", "img_auroc": 0.691, "au_pro": 0.789}
+    {
+      "category": "bagel",
+      "img_auroc": 0.938,
+      "au_pro": 0.9
+    },
+    {
+      "category": "cable_gland",
+      "img_auroc": 0.838,
+      "au_pro": 0.79
+    },
+    {
+      "category": "carrot",
+      "img_auroc": 0.946,
+      "au_pro": 0.982
+    },
+    {
+      "category": "cookie",
+      "img_auroc": 0.813,
+      "au_pro": 0.877
+    },
+    {
+      "category": "dowel",
+      "img_auroc": 0.916,
+      "au_pro": 0.97
+    },
+    {
+      "category": "peach",
+      "img_auroc": 0.883,
+      "au_pro": 0.935
+    },
+    {
+      "category": "potato",
+      "img_auroc": 0.86,
+      "au_pro": 0.969
+    },
+    {
+      "category": "rope",
+      "img_auroc": 0.908,
+      "au_pro": 0.974
+    },
+    {
+      "category": "tire",
+      "img_auroc": 0.65,
+      "au_pro": 0.92
+    },
+    {
+      "category": "foam",
+      "img_auroc": 0.633,
+      "au_pro": 0.7
+    }
   ],
-  "patchcore_mean": {"img_auroc": 0.819, "au_pro": 0.908},
+  "patchcore_mean": {
+    "img_auroc": 0.839,
+    "au_pro": 0.902
+  },
   "stage1_triad": {
     "_comment": "Stage-1 sim-to-real triad: ONE supervised defect-seg U-Net, all-10 rgb, 100 ep, 3 seeds. Only the label SOURCE varies; shared real eval half. run_triad.py + triad_summary.py.",
     "arms": [
-      {"arm": "real → real (ceiling)", "au_pro": 0.804, "au_pro_std": 0.007, "img_auroc": 0.892, "ece": 0.011, "note": "scarce-label supervised ceiling (< PatchCore 0.91 unsupervised)"},
-      {"arm": "synth → real (the gap)", "au_pro": 0.537, "au_pro_std": 0.049, "img_auroc": 0.635, "ece": 0.037, "note": "train on synthetic defects, test real"},
-      {"arm": "synth+DA → real (AdaBN)", "au_pro": 0.660, "au_pro_std": 0.045, "img_auroc": 0.579, "ece": 0.013, "note": "AdaBN closes 46% of the gap + restores calibration; costs image-detection"},
-      {"arm": "synth + curriculum", "au_pro": 0.487, "au_pro_std": 0.057, "img_auroc": 0.617, "ece": 0.083, "note": "NEGATIVE: kind-chasing curriculum regressed on both au_pro and ECE"}
+      {
+        "arm": "real → real (ceiling)",
+        "au_pro": 0.804,
+        "au_pro_std": 0.007,
+        "img_auroc": 0.892,
+        "ece": 0.011,
+        "note": "scarce-label supervised ceiling (< PatchCore 0.91 unsupervised)"
+      },
+      {
+        "arm": "synth → real (the gap)",
+        "au_pro": 0.537,
+        "au_pro_std": 0.049,
+        "img_auroc": 0.635,
+        "ece": 0.037,
+        "note": "train on synthetic defects, test real"
+      },
+      {
+        "arm": "synth+DA → real (AdaBN)",
+        "au_pro": 0.66,
+        "au_pro_std": 0.045,
+        "img_auroc": 0.579,
+        "ece": 0.013,
+        "note": "AdaBN closes 46% of the gap + restores calibration; costs image-detection"
+      },
+      {
+        "arm": "synth + curriculum",
+        "au_pro": 0.487,
+        "au_pro_std": 0.057,
+        "img_auroc": 0.617,
+        "ece": 0.083,
+        "note": "NEGATIVE: kind-chasing curriculum regressed on both au_pro and ECE"
+      }
     ],
     "gap_pp": 0.267,
     "da_closure_pp": 0.123,

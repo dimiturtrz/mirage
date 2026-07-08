@@ -60,7 +60,7 @@ Where the facts clearly point (reader decides): PatchCore's **backbone** acceler
 
 - Exact Hailo-8 / 8L on-chip SRAM capacity in MiB (datasheets S9/S10 cited but not fetched — behind Hailo file portal; the "all-memory-on-die / DRAM-free" claim is confirmed but the number isn't quoted here).
 - Coral's absolute model-size ceiling beyond the 8 MiB cache: off-chip streaming works but the practical PatchCore-bank latency penalty is unquantified here.
-- Whether a *reduced* PatchCore (coreset subsampled to a small int8-quantized bank + approximate NN) could be coerced onto a commodity NPU — not researched; would need a separate pass.
+- Whether a *reduced* PatchCore (coreset subsampled to a small int8-quantized bank + approximate NN) could be coerced onto a commodity NPU — **now researched: see [2026-07-08_patchcore_bank_on_npu.md](2026-07-08_patchcore_bank_on_npu.md)**. Short answer: the distance field reduces to a native frozen Conv1x1 (W=−2B, bias=‖b‖²), but the argmin/top-k selection stays host-side on Coral/Hailo (RKNN k=1/ArgMin maybe on-device, TopK not); int8+PQ bank fits but costs ~9 pp img-AUROC; no prior art deploys the lookup on a fixed-function NPU.
 - RKNN result is v1.6.0-specific; op support is version-dependent and may have changed in newer Toolkit2 releases.
 
 ## Sources

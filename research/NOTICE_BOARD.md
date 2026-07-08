@@ -14,6 +14,7 @@
 | Sim-to-real 3D-anomaly benchmark | `2026-06-29_3d-anomaly-sota-and-sim2real-benchmark.md` | **SiM3D** (arXiv 2506.21549, 2025) IS the first synth→real 3D-anomaly benchmark — "no benchmark exists" claim was false; README + PLAN fixed to cite it + reframe contribution. |
 | Current MVTec 3D-AD SOTA (landscape) | `2026-07-06_mvtec3d-sota.md` | SOTA moved past M3DM: current top **DCRDF-Net 0.971/0.988** (2026); cluster MMRD/Shape-Guided ~0.95/0.976. M3DM (0.945/0.964) now mid-pack. Docs' stale "SOTA=M3DM" updated. Our gap ~8pp AU-PRO / ~15pp img (rgb-only vs multimodal fusion). |
 | Edge accelerator op-support (deploy) | `2026-07-08_edge_accelerator_landscape.md` | Coral/Hailo/RKNN are int8 fixed-graph conv accelerators: **PatchCore kNN-vs-stored-bank tail is inherently host-CPU** (top-k/cdist/fp32-bank not accelerated); pure-conv int8 AE maps cleanly onto all. Only Jetson/TensorRT (full ONNX, native TopK/Gather) runs both on-device. |
+| PatchCore bank on NPU — reducible? | `2026-07-08_patchcore_bank_on_npu.md` | **Matmul half reducible, argmin/top-k half not** on Coral/Hailo. Distance-vs-bank = frozen Conv1x1 (W=−2B, bias=‖b‖²) IS accelerator-native; but selection (top-k absent Coral/Hailo, RKNN TopK unsupported/ArgMin ok→k=1 maybe) truncates to host. Int8+PQ bank fits (334 KB @10k×256) but costs ~9 pp img-AUROC (0.95→0.86). **No prior art ran the lookup on a fixed-function NPU** — all edge PatchCore = host-CPU or Jetson-GPU. Field's on-NPU answer: bank-free conv model (EfficientAD/AE). |
 
 ## Progress Log
 
@@ -21,3 +22,6 @@
   corrected (SiM3D exists) in README + PLAN. Stage-0 results remain measured (not from literature).
 - **2026-07-06**: SOTA-verify pass. Current top = DCRDF-Net 0.971/0.988 (verified from primary);
   updated RESULTS.json/md + README from stale M3DM. TransFusion 0.992 is MVTec AD *2D*, not conflated.
+- **2026-07-08**: Edge-deploy research. Landscape (op-support) + PatchCore-bank-on-NPU follow-up.
+  Bank lookup reducible to backbone+distance-matmul on-NPU, but argmin/top-k stays host on Coral/Hailo;
+  no prior art puts it on a fixed-function NPU. Closes the "reduced-bank on NPU?" open Q from landscape.

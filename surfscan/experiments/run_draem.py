@@ -70,12 +70,7 @@ def main():
                 x, v = test.x[i:i + 16], test.valid[i:i + 16]
                 _, logits = model(x.to(memory_format=torch.channels_last))
                 amaps.append((torch.sigmoid(logits.float()) * v).squeeze(1).cpu())
-        amaps = torch.cat(amaps).numpy()
-        valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
-        masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
-        scores = scoring.image_scores(amaps, valids)
-        return (amaps, valids, masks, scores,
-                test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
+        return scoring.score_arrays(torch.cat(amaps).numpy(), test)
 
     harness.run(f"draem_{args.synth}_{'_'.join(args.channels)}", Method(fit, score), cats=args.cats)
 

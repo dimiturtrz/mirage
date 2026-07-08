@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import argparse
 
-import numpy as np
-
 from core.compute import pick_device
 from core.data.dataset import load_split
 from core.method import Method
@@ -30,12 +28,7 @@ def main():
 
     def score(pc, c):
         test = load_split(split="test", cats=[c], channels=["rgb"], device=dev, size=args.size)
-        amaps = pc.score_maps(test.x)
-        valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
-        masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
-        scores = scoring.image_scores(amaps, valids)
-        return (amaps, valids, masks, scores,
-                test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
+        return scoring.score_arrays(pc.score_maps(test.x), test)
 
     harness.run(f"patchcore_rgb_{args.coreset_method}", Method(fit, score), cats=args.cats)
 

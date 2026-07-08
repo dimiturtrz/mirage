@@ -4,9 +4,10 @@ A tiny model + fake data (N,C,H,W tensors on CPU) exercise the scoring path (aut
 Equivalence class: output is (N,H,W), non-negative (squared error), background zeroed by the valid mask.
 """
 import numpy as np
+import polars as pl
 import torch
 
-from surfscan.evaluation.scoring import anomaly_maps, inpaint_maps, latents, mahalanobis
+from surfscan.evaluation.scoring import anomaly_maps, inpaint_maps, latents, mahalanobis, score_arrays
 from surfscan.models.inpaint import InpaintAE
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import ModelCfg
@@ -59,3 +60,27 @@ def test_mahalanobis_far_scores_higher():
     d = mahalanobis(train, test)
     assert d.shape == (2,)
     assert d[1] > d[0] and d[0] < 2.0                 # far off-cloud >> at the mean
+
+
+class _Split:                                         # minimal stand-in for a GpuSplit
+    def __init__(self, valid, gt, labels, defects):
+        self.valid, self.gt = valid, gt
+        self.df = pl.DataFrame({"label": labels, "defect": defects})
+
+
+def test_score_arrays_assembles_tuple():
+    n = 3
+    valid = torch.ones(n, 1, 8, 8)
+    gt = torch.zeros(n, 1, 8, 8); gt[1, 0, 2:4, 2:4] = 1
+    amaps = np.random.RandomState(0).rand(n, 8, 8)
+    a, v, m, s, labels, defects = score_arrays(amaps, _Split(valid, gt, [0, 1, 0], ["good", "hole", "good"]))
+    assert v.shape == (n, 8, 8) and v.all() and v.dtype == bool
+    assert m[1].any() and not m[0].any()              # gt -> boolean mask, only sample 1 has a defect
+    assert s.shape == (n,) and labels.tolist() == [0, 1, 0] and list(defects) == ["good", "hole", "good"]
+
+
+def test_score_arrays_scores_override():
+    split = _Split(torch.ones(2, 1, 4, 4), torch.zeros(2, 1, 4, 4), [0, 1], ["good", "hole"])
+    custom = np.array([0.1, 0.9])
+    _, _, _, s, _, _ = score_arrays(np.zeros((2, 4, 4)), split, scores=custom)
+    assert (s == custom).all()                        # passed-in scores are used verbatim

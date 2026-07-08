@@ -68,6 +68,17 @@ def image_scores(amaps, valids, k=128):
     return s
 
 
+def score_arrays(amaps, test, scores=None):
+    """Assemble the harness ScoreArrays tuple from anomaly maps + a test split — the shared tail of
+    every method's score_fn (default image score = top-k residual; pass `scores` to override)."""
+    valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
+    masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
+    if scores is None:
+        scores = image_scores(amaps, valids)
+    return (amaps, valids, masks, scores,
+            test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
+
+
 @torch.no_grad()
 def latents(model, data, batch=64, *, amp=True):
     """-> (N,D) encoder latent means (VAE mu) — the input to latent-distance scoring."""

@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import argparse
 
-import numpy as np
-
 from core.compute import pick_device
 from core.data.dataset import load_split
 from surfscan import tracking
@@ -29,22 +27,15 @@ def evaluate(run_id, cats=None, device="cuda", image_score="residual"):
     def fit(_c):
         return model
 
-    def _image_scores(m, c, amaps, valids):
-        if image_score == "mahalanobis":                  # latent-distance score (VAE encoder mu)
-            good = load_split(split="train", label=0, cats=[c], channels=hp.channels, device=dev, size=hp.size)
-            test = load_split(split="test", cats=[c], channels=hp.channels, device=dev, size=hp.size)
-            return scoring.mahalanobis(scoring.latents(m, good), scoring.latents(m, test))
-        return scoring.image_scores(amaps, valids)
-
     def score(m, c):
         data = load_split(split="test", cats=[c], channels=hp.channels, device=dev, size=hp.size)
         amaps = (scoring.inpaint_maps(m, data, grid=hp.grid) if hp.model_type == "inpaint"
                  else scoring.anomaly_maps(m, data))
-        valids = data.valid.squeeze(1).cpu().numpy().astype(bool)
-        masks = data.gt.squeeze(1).cpu().numpy().astype(bool)
-        scores = _image_scores(m, c, amaps, valids)
-        return (amaps, valids, masks, scores,
-                data.df["label"].to_numpy(), np.array(data.df["defect"].to_list()))
+        scores = None
+        if image_score == "mahalanobis":                  # latent-distance score (VAE encoder mu)
+            good = load_split(split="train", label=0, cats=[c], channels=hp.channels, device=dev, size=hp.size)
+            scores = scoring.mahalanobis(scoring.latents(m, good), scoring.latents(m, data))
+        return scoring.score_arrays(amaps, data, scores=scores)
 
     return harness.run(hp.model_type, fit, score, cats=cats or hp.cats, run_id=run_id)
 

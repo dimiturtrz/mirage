@@ -37,3 +37,13 @@ def test_fpfh_bank_fit_and_score_cpu():
     amap = bank.score_map(xyz, valid)
     assert amap.shape == valid.shape
     assert (amap >= 0).all() and amap[~valid].sum() == 0           # NN distance, zero off-surface
+
+
+def test_score_maps_batch_matches_serial():
+    xyz, valid = _surface(20)
+    samples = [(xyz, valid), (xyz + 0.5, valid)]
+    bank = FpfhBank(device="cpu", per_sample=100, coreset=0.5, seed=0).fit([(xyz, valid)])
+    serial = np.stack([bank.score_map(x, v) for x, v in samples])
+    batch = bank.score_maps(samples)                              # parallel FPFH, same result
+    assert batch.shape == serial.shape
+    assert np.allclose(batch, serial)

@@ -16,6 +16,7 @@ import torch
 import torch.nn.functional as F
 import torchvision
 
+from core.compute import autocast
 from surfscan.models.coreset import FitCfg, bank_nn_dist, greedy_coreset
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
@@ -23,8 +24,9 @@ _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 
 
 class PatchCore:
-    def __init__(self, backbone="wide_resnet50_2", layers=("layer2", "layer3"), device="cuda"):
+    def __init__(self, backbone="wide_resnet50_2", layers=("layer2", "layer3"), device="cuda", *, amp=False):
         self.device = device
+        self.amp = amp                          # bf16 backbone forward (opt-in; fp32 default = reported number)
         self.layers = layers
         self._feats = {}
         net = getattr(torchvision.models, backbone)(weights="DEFAULT").to(device).eval()
@@ -46,8 +48,9 @@ class PatchCore:
         """x: N,3,H,W in [0,1] -> patch features (N, h*w, C) and (h, w)."""
         x = (x - self.mean) / self.std
         self._feats = {}
-        self.net(x)
-        fmaps = [self._feats[l] for l in self.layers]
+        with autocast(x, amp=self.amp):
+            self.net(x)
+        fmaps = [self._feats[l].float() for l in self.layers]      # bf16 backbone -> fp32 for the bank math
         h, w = fmaps[0].shape[-2:]                                  # align to the largest (shallowest) layer
         fmaps = [F.interpolate(f, size=(h, w), mode="bilinear", align_corners=False) for f in fmaps]
         f = torch.cat(fmaps, 1)                                     # N,C,h,w

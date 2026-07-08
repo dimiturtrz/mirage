@@ -35,7 +35,7 @@ class BtfMethod:
 
     def score(self, state, cat):
         dft, test = store.arrays(cat, "test", size=self.size)
-        amaps = np.stack([state.score_map(a["xyz"], a["valid"]) for a in test])
+        amaps = state.score_maps([(a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])
         scores = scoring.image_scores(amaps, valids)

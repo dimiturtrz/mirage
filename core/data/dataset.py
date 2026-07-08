@@ -19,7 +19,7 @@ def _stack_channels(a: dict, channels) -> np.ndarray:
     return np.concatenate([a[c].transpose(2, 0, 1) for c in channels], 0).astype(np.float32)
 
 
-class GpuSplit:
+class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack_channels is the pure core
     """All samples of a query as GPU-resident tensors:
     x [N,C,H,W] (the channels), valid [N,1,H,W], gt [N,1,H,W]."""
 
@@ -44,7 +44,7 @@ class GpuSplit:
         return self.x.shape[0]
 
 
-def load_split(split=None, label=None, cats=None, channels=("xyz",),  # noqa: PLR0913
+def load_split(split=None, label=None, cats=None, channels=("xyz",),  # noqa: PLR0913  # pragma: no cover  store query + GpuSplit (disk)
                device="cuda", size=None) -> GpuSplit:
     """Query the store (filter by split / label / category) -> GPU-resident tensors."""
     df = store.load(size=size or pp.SIZE)

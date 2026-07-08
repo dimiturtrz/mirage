@@ -16,10 +16,7 @@ from omegaconf import OmegaConf
 _REPO = Path(__file__).resolve().parent.parent
 
 
-def data_root() -> Path:
-    env = os.environ.get("SURFSCAN_DATA")
-    if env:
-        return Path(env)
+def _from_yaml() -> Path:  # pragma: no cover  reads paths.yaml (disk config)
     cfg = _REPO / "paths.yaml"
     if not cfg.exists():
         raise FileNotFoundError(
@@ -27,6 +24,11 @@ def data_root() -> Path:
             f"(or set the SURFSCAN_DATA env var)."
         )
     return Path(OmegaConf.load(cfg).data)
+
+
+def data_root() -> Path:
+    env = os.environ.get("SURFSCAN_DATA")
+    return Path(env) if env else _from_yaml()
 
 
 def raw_dir() -> Path:

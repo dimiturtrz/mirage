@@ -8,8 +8,9 @@ The clean test of "is it the reconstruction idea that's wrong, or the space it r
 from __future__ import annotations
 
 import torch
-import torch.nn as nn
 import torchvision
+
+from surfscan.models.feat_ae import FeatAE  # noqa: F401  — re-export; the pure AE core lives there
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
@@ -29,18 +30,3 @@ class FeatExtractor:
     def __call__(self, x):                      # x: N,3,H,W in [0,1] -> N,C,h,w features
         self.net((x - self.mean) / self.std)
         return self._feat
-
-
-class FeatAE(nn.Module):
-    """Small conv AE on a C×h×w feature map."""
-    def __init__(self, ch, hidden=128):
-        super().__init__()
-        self.enc = nn.Sequential(
-            nn.Conv2d(ch, hidden, 3, 2, 1), nn.BatchNorm2d(hidden), nn.SiLU(),
-            nn.Conv2d(hidden, hidden, 3, 2, 1), nn.BatchNorm2d(hidden), nn.SiLU())
-        self.dec = nn.Sequential(
-            nn.ConvTranspose2d(hidden, hidden, 4, 2, 1), nn.BatchNorm2d(hidden), nn.SiLU(),
-            nn.ConvTranspose2d(hidden, ch, 4, 2, 1))
-
-    def forward(self, x):
-        return self.dec(self.enc(x))

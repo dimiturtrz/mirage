@@ -5,7 +5,7 @@ smoke-level (guards the normals -> FPFH pipeline wiring).
 """
 import numpy as np
 
-from surfscan.models.fpfh_bank import FpfhCfg, fpfh_for_sample
+from surfscan.models.fpfh_bank import FpfhBank, FpfhCfg, fpfh_for_sample
 
 
 def _surface(g=20):
@@ -28,3 +28,12 @@ def test_fpfh_clean_subsets_points():
     f, coords = fpfh_for_sample(xyz, valid, FpfhCfg(normal_knn=8, fpfh_knn=10, clean=True, graze=0.1))
     assert f.shape[1] == 33
     assert 0 < f.shape[0] <= 400 and len(coords) == f.shape[0]
+
+
+def test_fpfh_bank_fit_and_score_cpu():
+    xyz, valid = _surface(20)
+    bank = FpfhBank(device="cpu", per_sample=100, coreset=0.5, seed=0).fit([(xyz, valid)])
+    assert bank.bank.shape[0] == 50 and bank.bank.shape[1] == 33   # 100 capped -> 0.5 coreset
+    amap = bank.score_map(xyz, valid)
+    assert amap.shape == valid.shape
+    assert (amap >= 0).all() and amap[~valid].sum() == 0           # NN distance, zero off-surface

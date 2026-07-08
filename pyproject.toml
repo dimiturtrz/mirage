@@ -87,12 +87,16 @@ ignore_names = ["model_config"]
 ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer", "@model_serializer", "@computed_field"]
 
 [tool.coverage.run]
-# measure LIBRARY logic. omit the GPU+data CLI runners (experiments/) + render/IO (visualization/) —
-# no import fan-in, need raw data/a display, so counting them just drags the % with un-unit-testable
-# code. evaluation/ (metrics, harness, diagnostics = the logic) stays IN. Honesty rule: never omit a
-# module to dodge testing pure logic — extract the pure core and test it.
+# measure LIBRARY logic. omit whole-file dependency boundaries — files with no unit-testable logic left
+# in-file because the pure core is extracted out and tested:
+#   experiments/ = GPU+data CLI runners ; visualization/ = render/IO
+#   patchcore, feat_recon = import torchvision (backbone download) — greedy_coreset->coreset.py, FeatAE->feat_ae.py
+#   evaluate = mlflow model load + GPU inference glue — aggregate (harness) + scoring are the tested cores
+# Honesty rule: never omit a module to DODGE pure logic — extract the core and test it (as above), then omit the shell.
 source = ["core", "surfscan"]
-omit = ["surfscan/experiments/*", "surfscan/visualization/*"]
+omit = ["surfscan/experiments/*", "surfscan/visualization/*",
+        "surfscan/models/patchcore.py", "surfscan/models/feat_recon.py",
+        "surfscan/evaluation/evaluate.py"]
 
 [tool.coverage.report]
 show_missing = true

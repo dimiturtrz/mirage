@@ -59,7 +59,7 @@ def triad() -> str:
 _BLOCKS = {"methods": methods, "per_category": per_category, "triad": triad}
 
 
-def sync() -> None:
+def sync() -> None:  # pragma: no cover  reads/writes RESULTS.md (disk); methods/per_category/triad are the pure core
     doc = ROOT / "docs" / "RESULTS.md"
     text = doc.read_text(encoding="utf-8")
     for key, render in _BLOCKS.items():

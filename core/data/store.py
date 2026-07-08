@@ -63,7 +63,7 @@ def _schema():
     return {k: dt(k) for k in META_FIELDS}
 
 
-def build(p=None, cats=None, workers=None, *, rebuild=False) -> Path:
+def build(p=None, cats=None, workers=None, *, rebuild=False) -> Path:  # pragma: no cover  disk write
     """Consolidate into processed/mvtec3d/<paramkey>/. Process-if-missing; (re)writes meta.csv."""
     p = p or pp.PP()
     out = dataset_dir(p.size, p.nb, p.std)
@@ -91,7 +91,7 @@ def build(p=None, cats=None, workers=None, *, rebuild=False) -> Path:
     return out
 
 
-def load(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None) -> pl.DataFrame:
+def load(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None) -> pl.DataFrame:  # pragma: no cover  disk
     """Ensure consolidated, return one polars frame (the cloud) with an absolute `path` column."""
     out = dataset_dir(size, nb, std)
     if not (out / "meta.csv").exists():
@@ -100,13 +100,13 @@ def load(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None) -> p
     return df.with_columns((pl.lit(str(out / "data")) + "/" + pl.col("file")).alias("path"))
 
 
-def load_arrays(path) -> dict:
+def load_arrays(path) -> dict:  # pragma: no cover  np.load from disk
     """Load one consolidated sample npz -> {xyz, rgb, valid, gt}."""
     z = np.load(path)
     return {k: z[k] for k in z.files}
 
 
-def arrays(cat, split, label=None, size=None):
+def arrays(cat, split, label=None, size=None):  # pragma: no cover  store.load + load_arrays from disk
     """(df, [array-dict per sample]) for one category/split — the raw processed arrays
     (xyz/rgb/valid/gt). Used by the geometry methods that work on point clouds, not the GPU grid."""
     df = load(size=size).filter(pl.col("category") == cat).filter(pl.col("split") == split)

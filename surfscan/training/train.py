@@ -105,7 +105,7 @@ def train(hp: HParams, run_name: str | None = None, device: str = "cuda") -> str
         return run_id
 
 
-def main():
+def main():  # pragma: no cover  CLI entry (argparse); train is the tested spine
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="vae", choices=list(_REGISTRY))
     ap.add_argument("--run-name", default=None)

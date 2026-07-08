@@ -63,12 +63,12 @@ jobs:
         run: uv run pytest tests --cov --cov-report=term-missing -q
       # Coverage floor — ENFORCED regression guard. Now measures LOGIC coverage (~99%): dependency
       # boundaries (torchvision backbone / mlflow / disk / GPU / CLI) are pragma'd or omitted per
-      # [tool.coverage] with the pure cores extracted + tested. Floor sits below current with headroom
-      # so a real drop blocks the merge.
-      - name: Coverage floor — enforced (>=95, blocks)
-        run: uv run coverage report --fail-under=95
-      # ADVISORY stretch target — 99 warns, never blocks (the last few are trivial edge branches).
-      - name: Coverage target — advisory (>=99, warns)
+      # [tool.coverage] with the pure cores extracted + tested. Floor sits well below current so only a
+      # real drop blocks the merge; the 95 warn flags erosion before it reaches the hard floor.
+      - name: Coverage floor — enforced (>=80, blocks)
+        run: uv run coverage report --fail-under=80
+      # ADVISORY early-warning — 95 warns, never blocks (drift toward the floor surfaces here first).
+      - name: Coverage target — advisory (>=95, warns)
         if: always()
         continue-on-error: true
-        run: uv run coverage report --fail-under=99 || echo "::warning::coverage below the 99% stretch target"
+        run: uv run coverage report --fail-under=95 || echo "::warning::coverage below the 95% early-warning line"

@@ -61,9 +61,13 @@ jobs:
       # One instrumented run = the test gate AND the coverage data. Config in [tool.coverage.*].
       - name: Tests + coverage (tests block)
         run: uv run pytest tests --cov --cov-report=term-missing -q
-      # Coverage is ADVISORY for now (baseline ~36%; ratchet to a real floor is tracked separately).
-      # `always()` so it prints even if tests failed; `continue-on-error` keeps it non-blocking.
+      # Coverage floor — ENFORCED regression guard. Current ~63% (pure-logic tests); the remainder is
+      # GPU-training / torchvision-backbone / mlflow code that can't be unit-tested on a CPU runner
+      # without mock-theater. Floor sits below current with headroom so a real drop blocks the merge.
+      - name: Coverage floor — enforced (>=55, blocks)
+        run: uv run coverage report --fail-under=55
+      # ADVISORY stretch target — 80 warns, never blocks (structural ceiling noted above; 0dp).
       - name: Coverage target — advisory (>=80, warns)
         if: always()
         continue-on-error: true
-        run: uv run coverage report --fail-under=80 || echo "::warning::coverage below the 80% target (baseline ~36%)"
+        run: uv run coverage report --fail-under=80 || echo "::warning::coverage below the 80% stretch target"

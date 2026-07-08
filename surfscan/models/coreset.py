@@ -1,7 +1,11 @@
-"""Coreset subsampling for the PatchCore memory bank — pure torch kNN, no backbone dependency.
+"""PatchCore memory-bank construction + scoring — pure torch, no backbone dependency.
 
-Split out from patchcore.py so the selection math imports (and tests) without torchvision: k-center
-greedy picks the point farthest from the current selection each step, giving a spread-out bank.
+Split out from patchcore.py so the bank math imports (and tests) without torchvision. Two parts:
+  - `greedy_coreset`: k-center greedy subsampling — pick the point farthest from the current selection.
+  - `bank_linear` / `bank_nn_dist`: the edge-deployable scoring form. Nearest-neighbour distance to a
+    fixed bank is `argmin_b ‖x−b‖² = argmin_b(‖b‖² − 2·x·b)`, so the distance field is a frozen linear
+    layer (`W = −2·B`, `bias = ‖b‖²`) — a Conv1×1 that runs on an edge accelerator — followed by a
+    min-reduce (the only host-side residue). See research/deep_dives/2026-07-08_patchcore_bank_on_npu.md.
 """
 from __future__ import annotations
 
@@ -31,3 +35,24 @@ def greedy_coreset(feats, n, seed):
         sel[i] = min_d.argmax()
         torch.minimum(min_d, torch.cdist(feats, feats[sel[i:i + 1]]).squeeze(1), out=min_d)
     return feats[sel]
+
+
+def bank_linear(bank):
+    """The frozen linear layer that computes the distance field `‖b‖² − 2·x·b` for a fixed bank:
+    -> (weight [M,D] = −2·B, bias [M] = ‖b‖²). Load into an nn.Linear(D, M) / Conv1×1 for export —
+    this is the accelerator-native half of the nearest-neighbour lookup."""
+    weight = -2.0 * bank
+    bias = (bank * bank).sum(1)
+    return weight, bias
+
+
+@torch.no_grad()
+def bank_nn_dist(feats, bank):
+    """Nearest-neighbour distance of each feat to the bank via the matmul form — identical to
+    `torch.cdist(feats, bank).min(1).values`, but as `Linear(x) + ‖x‖²` then a min-reduce, so the
+    heavy part is the accelerator-native frozen linear and only the min stays host-side."""
+    weight, bias = bank_linear(bank)
+    field = feats @ weight.T + bias                        # (N,M)  ‖b‖² − 2·x·b
+    xx = (feats * feats).sum(1)                            # (N,)   ‖x‖²
+    d2 = xx + field.min(1).values                         # (N,)   min squared distance
+    return d2.clamp_min(0).sqrt()

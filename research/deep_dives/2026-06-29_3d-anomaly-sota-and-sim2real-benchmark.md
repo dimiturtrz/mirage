@@ -1,7 +1,7 @@
 # 3D-anomaly SOTA number + sim-to-real benchmark — pre-public claim verification
 
 **Date:** 2026-06-29 · **Why:** two README claims needed a primary source before the public flip
-(honesty rule: verify every strong claim). Both checked.
+(integrity rule: verify every strong claim). Both checked.
 
 ## Claim 1 — "SOTA (M3DM) ~0.96 pixel AU-PRO" → ✓ STANDS
 M3DM (*Multimodal Industrial Anomaly Detection via Hybrid Fusion*, Wang et al., **CVPR 2023**) on
@@ -28,7 +28,7 @@ arXiv **2506.21549**, 2025) is exactly such a benchmark:
 
 So the flat "no benchmark exists" claim is false as written. **Fixed** in README + PLAN: cite SiM3D,
 reframe the opening as *barely-charted* and position mirage's contribution as the **physics-based
-defect-generation engine + closed-loop curriculum + honest gap measurement on commodity MVTec-style
+defect-generation engine + closed-loop curriculum + measured gap on commodity MVTec-style
 scans** — complementary to SiM3D (CAD-based detection benchmark), not pre-empted by it.
 
 Sources:

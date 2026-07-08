@@ -1,4 +1,4 @@
-"""Stage-1 sim-to-real triad — the honest gap number.
+"""Stage-1 sim-to-real triad — the measured gap number.
 
 ONE supervised defect-segmentation U-Net (DRAEM's disc net, no recon branch to confound), trained
 from three different sources and scored on ONE shared real eval set — so the only variable is where
@@ -97,7 +97,7 @@ def fit_synth(cat, cfg, dev, *, curriculum=False):
 def fit_real(cat, cfg, dev):
     """Train on REAL defect masks (calib half of test). The real->real ceiling — note it's a
     *scarce-label* ceiling (only ~half of an already-small defect set), not an oracle; that's the
-    honest supervised bar for this detector, and why the unsupervised memory bank can beat it."""
+    measured supervised bar for this detector, and why the unsupervised memory bank can beat it."""
     ch = tuple(cfg.channels)
     torch.manual_seed(cfg.seed)
     test = load_split(split="test", cats=[cat], channels=ch, device=dev)

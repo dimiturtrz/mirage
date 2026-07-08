@@ -1,7 +1,7 @@
 """Aggregate the sim-to-real triad across seeds -> the headline numbers.
 
 Reads the clean triad_* runs from MLflow (one run per arm per seed), groups by arm, and reports
-mean +/- std of au_pro / img_auroc / ECE. Then the two honest numbers: the sim-to-real GAP
+mean +/- std of au_pro / img_auroc / ECE. Then the two measured numbers: the sim-to-real GAP
 (real - synth) and the DA CLOSURE (synth+DA - synth), plus the curriculum delta if present.
 
     python -m surfscan.report triad-summary

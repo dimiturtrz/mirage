@@ -1,11 +1,11 @@
 # DRAEM synthesis comparison — my synth lost to Perlin (broken axis), fixed, now tied/better
 
 **Status: RESOLVED 2026-07-07** (see bottom). v2 lost because it displaced along world-z; v3 displaces
-along the surface normal → gap closed. The arc below is kept intact as the honesty record.
+along the surface normal → gap closed. The arc below is kept intact as the record, kept not hidden.
 
 **2026-07-06.** Built channel-aware "realistic" defect synthesis for Stage-1 classical, expecting it to
 beat DRAEM's crude Perlin. It lost. I first wrote this up as *"realism hurts DRAEM"* — that was
-**overreach**, caught on review. This note states the honest, narrow version.
+**overreach**, caught on review. This note states the narrow, faithfully-reported version.
 
 ## What was actually measured (bagel/xyz, 150 ep, 3 seeds each)
 | synthesis | au_pro (seeds 0/1/2) | mean |
@@ -29,9 +29,9 @@ dressed as a result.** My "realistic" synthesis is dubious enough that the loss 
 So "realistic" was a generous label for "smooth z-blob, wrong axis, arbitrary size." Losing to Perlin
 may just mean *my geometry is broken*, not that realism hurts DRAEM.
 
-## The second finding (this one holds — honesty fix)
+## The second finding (this one holds — robustness fix)
 Perlin **seed 0 = 0.481** reproduces the historical RESULTS.md "0.48" exactly; seeds 1,2 ≈ 0.30. **The
-published 0.48 was a single lucky seed;** honest multi-seed mean ~0.36. Corrected in the repo. Multi-seed
+published 0.48 was a single lucky seed;** robust multi-seed mean ~0.36. Corrected in the repo. Multi-seed
 before any synthesis claim — single-seed DRAEM swings ±0.09.
 
 ## To disentangle (owed)

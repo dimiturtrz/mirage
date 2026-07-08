@@ -21,7 +21,7 @@ def image_auroc(scores, labels):
 def ece(probs, targets, valids, n_bins=15):
     """Expected Calibration Error over valid object pixels. probs ∈ [0,1] (per-pixel defect
     probability), targets = binary defect mask, valids = object mask. Bins predictions and sums
-    |accuracy − confidence| weighted by bin population. The honest 'is the score a probability?'
+    |accuracy − confidence| weighted by bin population. The measured 'is the score a probability?'
     number — under sim-to-real shift a synth-trained model is typically over-confident (ECE ↑).
     amaps/masks/valids: (N,H,W)."""
     p, t = [], []

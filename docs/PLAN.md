@@ -4,38 +4,38 @@
 
 Working name `mirage` (synthetic that must survive contact with the real). Folder/repo may differ; rename freely.
 
-Sibling project — same build philosophy, different domain: **[systole](../cardiac-seg/)** (cardiac MRI segmentation → ejection fraction → honest cross-scanner eval). mirage is the same *engine-first, honest-eval* pattern, applied to 3D inspection. The structural and honesty conventions below are lifted from it deliberately.
+Sibling project — same build philosophy, different domain: **[systole](../cardiac-seg/)** (cardiac MRI segmentation → ejection fraction → robust cross-scanner eval). mirage is the same *engine-first, robust-eval* pattern, applied to 3D inspection. The structural and integrity conventions below are lifted from it deliberately.
 
-> **⚠️ Stage-0 outcome (the investigation overrode the plan below — read [`RESULTS.md`](RESULTS.md)).** This plan framed the model as a **reconstruction VAE**. It was tried and *measured to fail* (AU-PRO ≈ 0.095 ≈ random) — diagnosed: raw-residual tracks geometric *complexity*, not defect-ness. Three distinct paradigms got compared: **reconstruction** (rebuild → error: VAE/inpaint/**feature-recon**), **memory bank** (store normal features → nearest-neighbour distance: **PatchCore**/BTF — *not* reconstruction), **synthesis-discriminative** (DRAEM). The **working detector is a memory bank (PatchCore, 0.91)** — *not* reconstruction; the one reconstruction variant that recovered is **feature-recon** (rebuild *features*, also 0.91). So "reconstruction" below = the *original* plan and the *failed* path, not the deployable. The contribution stands: the honest investigation + (Stage 1) the synthetic engine.
+> **⚠️ Stage-0 outcome (the investigation overrode the plan below — read [`RESULTS.md`](RESULTS.md)).** This plan framed the model as a **reconstruction VAE**. It was tried and *measured to fail* (AU-PRO ≈ 0.095 ≈ random) — diagnosed: raw-residual tracks geometric *complexity*, not defect-ness. Three distinct paradigms got compared: **reconstruction** (rebuild → error: VAE/inpaint/**feature-recon**), **memory bank** (store normal features → nearest-neighbour distance: **PatchCore**/BTF — *not* reconstruction), **synthesis-discriminative** (DRAEM). The **working detector is a memory bank (PatchCore, 0.91)** — *not* reconstruction; the one reconstruction variant that recovered is **feature-recon** (rebuild *features*, also 0.91). So "reconstruction" below = the *original* plan and the *failed* path, not the deployable. The contribution stands: the measured investigation + (Stage 1) the synthetic engine.
 
 ---
 
 ## The center (what this actually is)
 **Not** a "3D perception stack." It's a **synthetic-data generation engine** for perception, applied to a new 3D modality. The engine is the through-line:
 
-**data discovery → synthetic scene generation → (closed-loop curriculum) → train/score → feed back → honest sim-to-real eval.**
+**data discovery → synthetic scene generation → (closed-loop curriculum) → train/score → feed back → robust sim-to-real eval.**
 
 That loop is carried over from prior acoustic-detection work (physics-based multichannel scene synthesis + closed-loop curriculum + calibration/eval rigor); the **3D modality is the deliberate stretch** — the same move systole made (leverage the data-engine + eval strength, learn the new field).
 
 - **Engine = the leverage** (signature strength). Physics/sim-grounded data generation; the realer the sim, the better the data.
 - **Anomaly = the task** (close to existing strength — unsupervised, train-on-normal → score-deviations).
-- **Honest sim-to-real eval + calibration = the contribution** (the field lacks it; it's the recurring strength).
+- **Robust sim-to-real eval + calibration = the contribution** (the field lacks it; it's the recurring strength).
 - **3D point cloud = the new domain** (the only genuinely new skill; treat as a ramp).
 
 ## What we're building (one line)
-A physics-based synthetic-defect generator for 3D inspection, an anomaly detector trained on it, and the honest measurement of how much that detector loses on real scans it never trained on — edge-deployable.
+A physics-based synthetic-defect generator for 3D inspection, an anomaly detector trained on it, and the measured amount that detector loses on real scans it never trained on — edge-deployable.
 
 ---
 
-## The spine: one honest, bounded capability
-systole's power is one through-line — *segment the heart → measure EF → show where it fails* — with the **honest-hard-part as the contribution** (does EF survive a scanner change?), not a leaderboard number. mirage mirrors this:
+## The spine: one bounded, rigorously-measured capability
+systole's power is one through-line — *segment the heart → measure EF → show where it fails* — with the **hard-part-measured as the contribution** (does EF survive a scanner change?), not a leaderboard number. mirage mirrors this:
 
-**generate synthetic defects → detect anomalies → quantify the sim-to-real gap honestly → show where it fails.**
+**generate synthetic defects → detect anomalies → quantify the sim-to-real gap rigorously → show where it fails.**
 
 ### Headline numbers — decided up front (systole's lesson)
 systole hits because the numbers are concrete and tied to a bar: *EF MAE 5.9%, bias −5.2%, LoA ±13, against a ±5% clinical bar.* mirage commits to its equivalents on day one:
 - **AU-PRO / AUROC** on MVTec 3D-AD held-out (real-trained ceiling) — the standard benchmark *is* the SOTA baseline to quarantine against, the role nnU-Net played in systole.
-- **Sim-to-real gap** in percentage points (synth-only vs real-trained) — the headline honest number.
+- **Sim-to-real gap** in percentage points (synth-only vs real-trained) — the headline measured number.
 - **Calibration** (ECE / reliability) under domain shift — the rare-class + calibration signature.
 Per-condition diagnostics (defect type, material, lighting) stratify the failure, the way systole stratified EF error by pathology/vendor. (Calibration + ECE + domain-shift detection are already in the toolbox — carried, not learned.)
 
@@ -46,15 +46,15 @@ The acoustic engine adapts generation difficulty per epoch from the trainer's pr
 
 ## The ramp (real spine first, then the engine)
 1. **Stage 0 — Static, real data.** Start on **MVTec 3D-AD** (real industrial 3D anomaly). Stand up the **reconstruction-VAE** anomaly model (rebuild normal → residual + latent distance = anomaly) + the **eval harness** (rare-class metrics, calibration, per-condition diagnostics) on real data. Prove the spine before synthetic. **First commit = MVTec 3D-AD + eval harness.** = systole's Gate 1 (presentable) = **the public-flip trigger.**
-2. **Stage 1 — Classical synthetic engine + sim-to-real (the differentiator, the center).** Inject defects directly on the *real* good scans in 2.5D (carve/displace xyz, add contamination/scratch in rgb) → labeled synth in MVTec format → train-synth / test-real. Real-pixel base transfers better than an imperfect sim, and directly fixes the DRAEM-on-crude-Perlin failure. **Isaac-free, driver-free — the first honest gap number.** Feeds the **triad** (real→real = ceiling · synth→real = gap · synth+DA→real = closure); reproduce ONE DA method + the carried **closed-loop curriculum**. **Honesty rule: "I modeled it" never stands in for "I measured it transferred."**
+2. **Stage 1 — Classical synthetic engine + sim-to-real (the differentiator, the center).** Inject defects directly on the *real* good scans in 2.5D (carve/displace xyz, add contamination/scratch in rgb) → labeled synth in MVTec format → train-synth / test-real. Real-pixel base transfers better than an imperfect sim, and directly fixes the DRAEM-on-crude-Perlin failure. **Isaac-free, driver-free — the first measured gap number.** Feeds the **triad** (real→real = ceiling · synth→real = gap · synth+DA→real = closure); reproduce ONE DA method + the carried **closed-loop curriculum**. **Integrity rule: "I modeled it" never stands in for "I measured it transferred."**
 **Stages 0–1 are the hardware-free spine — the contribution, and both done. Stages 2–3 are hardware-gated *roads*, not sequential milestones: parallel side-quests, each unlocked when its hardware is on hand, neither on the critical path to the portfolio result.**
 
-3. **Stage 2 — Digital twin + physical-world capture (hardware-gated road).** Two ways to the same richer-synth goal. *Render:* reconstruct a renderable 3D asset per category from the 244 single-view good instances (a *learned category-shape model* — not multi-view fusion), then render arbitrary good + defect views in Isaac/Replicator → its *own* sim-to-real number (twin vs classical = which transfers better, an honest result in itself). *Or capture the physical world directly:* a **robotic arm** for real multi-view good/defect scans + closed-loop acquisition — real hardware instead of render, same goal, and the robotics/3D-reconstruction job lane. Won't beat the good-only detector (0.908) — it's for the contribution + that lane. Gated on the render path (Isaac) **or** the arm.
-4. **Stage 3 — Edge deploy (hardware-gated road).** ONNX → an **edge accelerator** — target-agnostic export, compiled to whatever accelerator is on hand (else CPU/GPU parity as the honest fallback) + FPS/latency/memory benchmark. Target <1% AUROC/AU-PRO loss vs full precision. **Deploy-driven detector choice (a real, now-cited result — not plumbing):** the three commodity NPUs (Coral EdgeTPU · Hailo-8 · generic RKNN-class) are int8, fixed-graph conv/matmul accelerators with **no data-dependent gather / top-k / distance op on-device** — so PatchCore's kNN-vs-bank tail is **host-CPU on all three**, and its fp32 bank of 10⁴–10⁵ vectors breaks both the int8-everywhere rule and the ~8 MiB on-chip envelope; only the conv backbone accelerates. A **pure-conv int8 reconstruction** model (feature-recon / VAE — no bank) is the one design that maps cleanly onto *all four*. only **Jetson/TensorRT** (native TopK/Gather, GB LPDDR — a GPU SoC, not a commodity NPU) runs PatchCore end-to-end. Evidence + citations: [`edge_accelerator_landscape`](../research/deep_dives/2026-07-08_edge_accelerator_landscape.md). **Refinement (the follow-up pass, [`patchcore_bank_on_npu`](../research/deep_dives/2026-07-08_patchcore_bank_on_npu.md)):** the kNN *partly* reduces — distance-vs-bank is algebraically a frozen Conv1×1 (`W = −2·B, bias = ‖b‖²`) that runs on-NPU, leaving only the **argmin/top-k as the host-side residue** (a clean *heterogeneous split*: backbone + distance-matmul on-NPU, selection on host; RKNN's `ArgMin` may even close the k=1 case). A coreset+int8+PQ bank fits trivially (~334 KB) but PQ costs ~9 pp image-AUROC; and **no prior art has run the lookup on a fixed-function NPU** (all host-CPU or Jetson). So the honest call is a **tradeoff, not a clean recon-win**: a bank-free conv model (EfficientAD / AE — the `6v3` latent-Mahalanobis lane, a fixed small precision matrix = an accelerator-friendly linear) is the only *all-on-NPU* path but is **shift-fragile** (measured AUROC 0.925 → 0.529 under a continual/shift setting), whereas PatchCore-with-matmul-offload stays robust at the cost of a host-side selection step. **For a sim-to-real project where distribution shift IS the task, that robustness axis is load-bearing** — the answer weighs all-on-NPU-but-fragile against robust-but-heterogeneous; it does not just pick recon. **Resolution** is a detector-hardening lever (`9rp`), measured on the current GPU (AU-PRO vs VRAM/FPS) — its cost curve *feeds* this stage as a **cost input**, it is not a blocker for it.
+3. **Stage 2 — Digital twin + physical-world capture (hardware-gated road).** Two ways to the same richer-synth goal. *Render:* reconstruct a renderable 3D asset per category from the 244 single-view good instances (a *learned category-shape model* — not multi-view fusion), then render arbitrary good + defect views in Isaac/Replicator → its *own* sim-to-real number (twin vs classical = which transfers better, a reported result in itself). *Or capture the physical world directly:* a **robotic arm** for real multi-view good/defect scans + closed-loop acquisition — real hardware instead of render, same goal, and the robotics/3D-reconstruction job lane. Won't beat the good-only detector (0.908) — it's for the contribution + that lane. Gated on the render path (Isaac) **or** the arm.
+4. **Stage 3 — Edge deploy (hardware-gated road).** ONNX → an **edge accelerator** — target-agnostic export, compiled to whatever accelerator is on hand (else CPU/GPU parity as the reported fallback) + FPS/latency/memory benchmark. Target <1% AUROC/AU-PRO loss vs full precision. **Deploy-driven detector choice (a real, now-cited result — not plumbing):** the three commodity NPUs (Coral EdgeTPU · Hailo-8 · generic RKNN-class) are int8, fixed-graph conv/matmul accelerators with **no data-dependent gather / top-k / distance op on-device** — so PatchCore's kNN-vs-bank tail is **host-CPU on all three**, and its fp32 bank of 10⁴–10⁵ vectors breaks both the int8-everywhere rule and the ~8 MiB on-chip envelope; only the conv backbone accelerates. A **pure-conv int8 reconstruction** model (feature-recon / VAE — no bank) is the one design that maps cleanly onto *all four*. only **Jetson/TensorRT** (native TopK/Gather, GB LPDDR — a GPU SoC, not a commodity NPU) runs PatchCore end-to-end. Evidence + citations: [`edge_accelerator_landscape`](../research/deep_dives/2026-07-08_edge_accelerator_landscape.md). **Refinement (the follow-up pass, [`patchcore_bank_on_npu`](../research/deep_dives/2026-07-08_patchcore_bank_on_npu.md)):** the kNN *partly* reduces — distance-vs-bank is algebraically a frozen Conv1×1 (`W = −2·B, bias = ‖b‖²`) that runs on-NPU, leaving only the **argmin/top-k as the host-side residue** (a clean *heterogeneous split*: backbone + distance-matmul on-NPU, selection on host; RKNN's `ArgMin` may even close the k=1 case). A coreset+int8+PQ bank fits trivially (~334 KB) but PQ costs ~9 pp image-AUROC; and **no prior art has run the lookup on a fixed-function NPU** (all host-CPU or Jetson). So the measured call is a **tradeoff, not a clean recon-win**: a bank-free conv model (EfficientAD / AE — the `6v3` latent-Mahalanobis lane, a fixed small precision matrix = an accelerator-friendly linear) is the only *all-on-NPU* path but is **shift-fragile** (measured AUROC 0.925 → 0.529 under a continual/shift setting), whereas PatchCore-with-matmul-offload stays robust at the cost of a host-side selection step. **For a sim-to-real project where distribution shift IS the task, that robustness axis is load-bearing** — the answer weighs all-on-NPU-but-fragile against robust-but-heterogeneous; it does not just pick recon. **Resolution** is a detector-hardening lever (`9rp`), measured on the current GPU (AU-PRO vs VRAM/FPS) — its cost curve *feeds* this stage as a **cost input**, it is not a blocker for it.
 5. **After the spine — two expansion axes** (perception breadth · engine depth). Optional, sequenced *after* the public flip — not pulled forward. See **Expansion axes** below.
 
 ## Comparisons (the triad IS the contribution)
-Like systole's nnU-Net baseline, report three honestly:
+Like systole's nnU-Net baseline, report three faithfully:
 1. Real-trained ceiling (train real → test real)
 2. Synthetic-only (train synth → test real) = the gap
 3. Synthetic + DA (+ closed-loop curriculum) = gap closure
@@ -99,7 +99,7 @@ Mirror systole's `learning/<date>_<topic>.md` + glossary + on-demand self-quizze
 - **Closed-loop curriculum** — the generator↔trainer coupling, ported.
 - **Model cards + auto-ONNX-export at train-end** (per-run, parity-gated INT8).
 - **Cross-implementation parity tests** — the train-vs-deploy preprocessing-skew discipline (Python ↔ Rust ↔ FPGA bit-true) applies directly to ONNX/TensorRT export parity.
-- **README skeleton:** one-line → the honest question → three pieces → the number that matters first → stratified where-it-fails → honest limits → data → quickstart → tests → how-it's-built → license.
+- **README skeleton:** one-line → the hard question → three pieces → the number that matters first → stratified where-it-fails → known limits → data → quickstart → tests → how-it's-built → license.
 - **Test layout:** unit (equivalence-class) + integration (module-pairs).
 
 ---
@@ -121,12 +121,12 @@ Mirror systole's `learning/<date>_<topic>.md` + glossary + on-demand self-quizze
 - **Masked reconstruction loss** — compute loss only on valid (object) pixels; don't spend VAE capacity rebuilding background.
 - **Anomaly scoring** — per-pixel residual → pixel map (AU-PRO); top-residual aggregate → image AUROC; **+ latent Mahalanobis distance** (the VAE-latent trick); + ECE calibration.
 
-**Channels:** start geometry-only (xyz, 3ch); later add rgb (→6ch) for a **geometry-vs-rgb-vs-fused mini-triad** (fusion strength + an honest comparison).
+**Channels:** start geometry-only (xyz, 3ch); later add rgb (→6ch) for a **geometry-vs-rgb-vs-fused mini-triad** (fusion strength + a like-for-like comparison).
 
 ## Tech stack
 - **Data:** MVTec 3D-AD (real) → synthetic defects (Replicator/Isaac, or Blender/BlenderProc)
 - **Processing:** Open3D (PCL if C++ needed) — *new; the ramp target*
-- **Models** (updated by the Stage-0 investigation): the planned **reconstruction VAE** was built and *failed* (0.095); the **working detector is the feature memory bank — PatchCore (0.91), *not* reconstruction** (store normal patch features → nearest-neighbour distance, no decoder). **feature-recon** (rebuild *features*, 0.91) is the one reconstruction variant that recovered. BTF (FPFH memory bank) = geometry floor. Libraries (torchvision backbone, Open3D) for plumbing; the contribution is the harness + the honest comparison, not any one model.
+- **Models** (updated by the Stage-0 investigation): the planned **reconstruction VAE** was built and *failed* (0.095); the **working detector is the feature memory bank — PatchCore (0.91), *not* reconstruction** (store normal patch features → nearest-neighbour distance, no decoder). **feature-recon** (rebuild *features*, 0.91) is the one reconstruction variant that recovered. BTF (FPFH memory bank) = geometry floor. Libraries (torchvision backbone, Open3D) for plumbing; the contribution is the harness + the like-for-like comparison, not any one model.
 - **Deploy:** ONNX → TensorRT (→ Jetson); RPi/edge-accel experience carries
 - **Viewers:** three.js / vtk.js / Open3D-web (in-browser ONNX), TypeScript
 - **Eval:** custom harness — rare-class metrics, calibration-under-shift, sim-to-real gap, per-condition diagnostics ← **the contribution**
@@ -148,7 +148,7 @@ Generating with Replicator/Isaac Sim (not Isaac Lab) buys USD/Omniverse/Isaac li
 - **Memory-bank / feature methods** (the SOTA baselines to quarantine against, used not rebuilt): BTF (handcrafted FPFH + RGB) ⚠️, M3DM (multimodal RGB + point fusion) ⚠️, PatchCore-3D ⚠️. Top methods report image-AUROC ≈0.9+ and pixel-AU-PRO ≈0.9+ ⚠️.
 - **Reconstruction-based** (our family): autoencoder / dual-branch RGB-D reconstruction (e.g. arXiv 2311.06797) ⚠️. Typically *lags* memory-bank on the leaderboard ⚠️ — expected, and fine: the contribution is the engine + eval rigor, not the number (the systole nnU-Net-baseline move).
 - **Libs:** Anomalib (2D-centric, limited 3D) ⚠️; method repos (M3DM, BTF) used directly.
-- **White space (the opening):** sim-to-real for 3D anomaly is only now being charted — **SiM3D** (arXiv 2506.21549, 2025) is the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real, voxel AD) ✓verified 2026-06-29. Physics-based **defect-generation** + closed-loop curriculum + honest gap measurement on commodity MVTec-style scans remains largely unexplored — the differentiator. Quantization + domain-shift compound effect unmeasured (directly in the toolbox: distribution-shift detection + edge quantization).
+- **White space (the opening):** sim-to-real for 3D anomaly is only now being charted — **SiM3D** (arXiv 2506.21549, 2025) is the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real, voxel AD) ✓verified 2026-06-29. Physics-based **defect-generation** + closed-loop curriculum + measured gap on commodity MVTec-style scans remains largely unexplored — the differentiator. Quantization + domain-shift compound effect unmeasured (directly in the toolbox: distribution-shift detection + edge quantization).
 
 **Breadth / AV axis only (Axis 1, or a future pivot — NOT the core anomaly path):**
 - Detection/seg libs: MMDetection3D (6.5k★), OpenPCDet (5.6k★) ⚠️.
@@ -157,13 +157,13 @@ Generating with Replicator/Isaac Sim (not Isaac Lab) buys USD/Omniverse/Isaac li
 
 **Edge:** PyTorch → ONNX → TensorRT; target sub-1% metric (AUROC/AU-PRO) loss under quantization ⚠️.
 
-## SOTA stance / honesty rules
+## SOTA stance / integrity rules
 1. **Don't chase AUROC/AU-PRO SOTA.** Use SOTA libs, reproduce a SOTA-ish DA method, **contribute the eval rigor + the data engine** the field lacks.
 2. **Differentiator = the engine + the eval, not the model.** The detector is commodity; say so.
 3. **Cite prior art** (MVTec 3D-AD, M3DM/BTF, reconstruction-AD methods; CARLA/Isaac/MMDet3D only where the breadth/sim axes touch them) — informed, not naive.
 4. **Verify every ⚠️** against a primary source before it lands in the README.
-5. Thesis framing: *"a synthetic-data engine + the honest sim-to-real evaluation the field lacks,"* not *"I built synthetic→real detection."*
-6. **Honest-limits section, measured not assumed** (systole's "clinical-grade gap"): claim edge deploy (real), never production-scale serving; 3D is a ramp — say so; state the gaps as numbers.
+5. Thesis framing: *"a synthetic-data engine + the robust sim-to-real evaluation the field lacks,"* not *"I built synthetic→real detection."*
+6. **Known-limits section, measured not assumed** (systole's "clinical-grade gap"): claim edge deploy (real), never production-scale serving; 3D is a ramp — say so; state the gaps as numbers.
 7. Build private → **flip public at Stage 0** (MVTec + eval harness presentable, prior art cited); steady real commits after.
 
 ---

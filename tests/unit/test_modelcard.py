@@ -17,7 +17,7 @@ def test_render_full_row():
     assert "AU-PRO** 0.908" in md and "AUROC** 0.819" in md
     assert "| bagel | 0.943 | 0.928 |" in md
     assert "| coreset | 0.1 |" in md
-    assert "Honest limits" in md
+    assert "Known limits" in md
 
 
 def test_render_no_metrics():

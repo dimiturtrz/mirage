@@ -1,6 +1,6 @@
 # Results — anomaly detection on MVTec 3D-AD (Stage 0 detector + Stage 1 sim-to-real)
 
-Honest first-stage findings. **Per-category models** (the MVTec convention), scored through our own
+Measured first-stage findings. **Per-category models** (the MVTec convention), scored through our own
 eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (localization). These are
 *our* runs through *one* eval harness, **not** the papers' leaderboard numbers.
 
@@ -18,7 +18,7 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | SOTA (DCRDF-Net) ⚠ | rgb + 3D | ~0.97 | ~0.99 |
 <!-- /results:methods -->
 
-<sub>¹ fused all-10 (0.904) is **net-neutral** vs rgb-only (0.908): it *helps* where geometry is decent (bagel 0.928→0.937, carrot) but *hurts* where our weak BTF geometry is bad (cookie, foam). Our BTF is preprocessing-limited (below), so fusion can't pay until native-res FPFH lands — an honest negative: rgb-only is the current deployable.</sub>
+<sub>¹ fused all-10 (0.904) is **net-neutral** vs rgb-only (0.908): it *helps* where geometry is decent (bagel 0.928→0.937, carrot) but *hurts* where our weak BTF geometry is bad (cookie, foam). Our BTF is preprocessing-limited (below), so fusion can't pay until native-res FPFH lands — a reported negative: rgb-only is the current deployable.</sub>
 
 **The sharpened lesson:** two *independent* feature methods — a memory bank (PatchCore) and a
 reconstruction AE (feature-recon) — both land at **AU-PRO 0.908**, vs pixel-reconstruction 0.095.
@@ -29,7 +29,7 @@ normal complexity is already normalized) and it localizes fine. That's the clean
 the Stage-0 finding.
 
 ² **DRAEM** (synthesis-discriminative), bagel xyz, **3-seed** (noise discipline): crude Perlin
-**0.36 ± 0.09** au_pro — the earlier single-seed **0.48 was a lucky draw** (an honesty fix to our own
+**0.36 ± 0.09** au_pro — the earlier single-seed **0.48 was a lucky draw** (a robustness fix to our own
 number). My first "realistic" synth (v2) scored **lower, 0.18 ± 0.02** — but that was **broken geometry,
 not a law that realism hurts DRAEM:** v2 displaced defects along the **world-z axis, not the surface
 normal**, so on the bagel's curved sides a "dent" was a lateral shear. **Fixed (v3, normal-displaced;
@@ -72,7 +72,7 @@ based, not reconstruction — here, measured.
 | **MEAN** | **0.819** | **0.908** |
 <!-- /results:per_category -->
 
-## Stage 1 — sim-to-real triad (the honest gap number)
+## Stage 1 — sim-to-real triad (the measured gap number)
 The Stage-1 deliverable: *"I modeled it" never stands in for "I measured it transferred."* ONE supervised
 defect-segmentation U-Net, trained from three label sources, scored on ONE shared real eval half (all-10,
 rgb, 100 ep, **3 seeds**). Only the label source varies → the drop IS the sim-to-real gap. Full method +
@@ -90,15 +90,15 @@ diagnosis → [`learning/2026-07-08_sim-to-real-triad.md`](../learning/2026-07-0
 - **Sim-to-real gap ≈ 27 pp** (real 0.804 → synth 0.537 AU-PRO). Ceiling rock-stable (±0.007).
 - **AdaBN (one DA method) closes ~46%** (+0.12) **and restores calibration** (ECE 0.037 → 0.013 ≈ ceiling)
   — a cheap, label-free BN-stat realignment recovers both localization *and* trust. It *costs*
-  image-detection (img 0.64 → 0.58) — an honest trade.
+  image-detection (img 0.64 → 0.58) — a measured trade.
 - **Real ceiling 0.80 < PatchCore 0.91 (unsupervised):** supervised-from-scarce-labels loses to the memory
   bank. Synthetic data's payoff here is *volume* (real labels are scarce), not beating them.
-- **Closed-loop curriculum REGRESSED — the honest negative.** Kind-chasing scored 0.487 (−0.05 vs uniform)
+- **Closed-loop curriculum REGRESSED — the reported negative.** Kind-chasing scored 0.487 (−0.05 vs uniform)
   and *doubled* ECE (0.083). Diagnosed (chases the noisiest kind, not the most learnable; single-kind
   batches starve diversity) and kept in the repo — a refuted differentiator with a mechanism beats a
   quietly-dropped one. Fix (Stage-1.5): adapt *difficulty*, not *kind*.
 
-## Honest caveats (the measured gaps to SOTA)
+## Known caveats (the measured gaps to SOTA)
 - **PatchCore is rgb-only + *random* coreset** (not greedy). The gap to SOTA (~0.96) is exactly the
   **3D-feature fusion** (M3DM) + **greedy coreset** we haven't added yet.
 - **Our BTF underperforms paper-BTF** (~0.96): we run FPFH on the **256-resized / normalized /
@@ -109,10 +109,10 @@ diagnosis → [`learning/2026-07-08_sim-to-real-triad.md`](../learning/2026-07-0
   random = 0.17). Image score = mean of the top-k pixel residuals.
 
 ## The point (not a leaderboard number)
-The result is the **contrast + the honest mechanism**, the way systole reported its triad: the
+The result is the **contrast + the measured mechanism**, the way systole reported its triad: the
 intuitive method (reconstruction) *measured* failing, *diagnosed* (residual ≠ defect signal), and
 the working paradigm (feature memory bank) standing near SOTA at **0.91** with the remaining gap
-**named** (3D fusion · greedy coreset). The contribution is the eval rigor + the honest comparison,
+**named** (3D fusion · greedy coreset). The contribution is the eval rigor + the like-for-like comparison,
 not the single number.
 
 *Reproduce: `python -m surfscan.run vae` (reconstruction) · `... run patchcore` · `... run btf`.

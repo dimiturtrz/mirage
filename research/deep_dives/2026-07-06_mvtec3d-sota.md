@@ -31,7 +31,7 @@ Every top method is **multimodal RGB+3D fusion** (M3DM hybrid fusion, MMRD/Shape
 appearance). Our gap **is** that fusion — we're rgb-only + random coreset + geometry we degrade in
 preprocessing (grazing-noise / 256-resize). Named + measured, consistent with RESULTS.md's caveats.
 
-## Honesty notes
+## Integrity notes
 - "SOTA" is contested/shifting; single-paper "surpasses SOTA" claims are self-serving. Framed as
   "current top cluster," DCRDF-Net cited as the highest reported, M3DM as the well-established reference.
 - Not conflated: **TransFusion's 0.992 is on MVTec AD (2D)**, not MVTec 3D-AD — a different benchmark.

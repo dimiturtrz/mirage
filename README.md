@@ -1,6 +1,6 @@
 # mirage
 
-**Personal learning project — 3D surface-defect anomaly detection on MVTec 3D-AD, toward a physics-based synthetic-data engine and honest sim-to-real evaluation. Edge-deployable.**
+**Personal learning project — 3D surface-defect anomaly detection on MVTec 3D-AD, toward a physics-based synthetic-data engine and robust sim-to-real evaluation. Edge-deployable.**
 
 > Working name `mirage` (synthetic that must survive contact with the real). Repo folder may differ.
 
@@ -11,16 +11,16 @@ lit at the defect. Rotatable in-browser → [`pointcloud-viewer/`](pointcloud-vi
 [MVTec 3D-AD](https://www.mvtec.com/company/research/datasets/mvtec-3d-ad), CC BY-NC-SA.)*
 
 mirage detects **defects on 3D surface scans**, training only on *good* examples. Stage 0 stands up the
-detector + a rigorous eval harness on **real** data and runs an honest comparison of methods; the
+detector + a rigorous eval harness on **real** data and runs a like-for-like comparison of methods; the
 differentiator (Stage 1) is a **synthetic-defect generator** + the **sim-to-real gap** measurement the
 field lacks.
 
 It's also how I'm ramping into 3D perception: the data-engine + evaluation discipline carry over from
 prior acoustic-detection work; the 3D modality I learn as I go. Sibling project, same philosophy,
 different domain: [systole](https://github.com/dimiturtrz/cardiac-seg) (cardiac MRI → ejection fraction,
-honestly evaluated).
+rigorously evaluated).
 
-## Stage 0 result — the honest investigation
+## Stage 0 result — the measured investigation
 Not a leaderboard number — the *measured contrast*. Per-category models, scored through one verified
 eval harness (image-AUROC + pixel-AU-PRO). Full table + diagnostics → [`docs/RESULTS.md`](docs/RESULTS.md).
 
@@ -38,14 +38,14 @@ and two *different* paradigms get there: a **memory bank** (PatchCore: store nor
 nearest-neighbour distance — no rebuilding at all) and **reconstruction moved into feature space**
 (feature-recon). Both 0.91. The deployable is the memory bank. The gap to SOTA is named and measured:
 multimodal RGB+3D fusion (M3DM through current DCRDF-Net ~0.99), not bank/resolution tuning. The contribution is the eval rigor + the
-honest mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg) reported its triad.
+measured mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg) reported its triad.
 
-## The honest question (Stage 1, the differentiator)
+## The hard question (Stage 1, the differentiator)
 The easy demo trains on real defects and reports a flattering number. The real questions: can a model
 trained on **synthetic** defects detect **real** ones, *how much does it lose*, and is it **calibrated**
 under that shift? Sim-to-real for 3D anomaly is only now being charted — [SiM3D](https://arxiv.org/abs/2506.21549)
 (2025) is the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real). A physics-based
-*defect-generation* engine + closed-loop curriculum + an honest gap measurement on commodity MVTec-style
+*defect-generation* engine + closed-loop curriculum + a measured gap on commodity MVTec-style
 scans is still open ground — that's the contribution.
 
 ## Data

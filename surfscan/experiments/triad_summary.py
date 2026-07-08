@@ -4,17 +4,17 @@ Reads the clean triad_* runs from MLflow (one run per arm per seed), groups by a
 mean +/- std of au_pro / img_auroc / ECE. Then the two honest numbers: the sim-to-real GAP
 (real - synth) and the DA CLOSURE (synth+DA - synth), plus the curriculum delta if present.
 
-    python -m surfscan.experiments.triad_summary
+    python -m surfscan.report triad-summary
 """
 from __future__ import annotations
 
-import argparse
 from collections import defaultdict
 
 import mlflow
 import numpy as np
 
 from core.obs import get
+from surfscan.dispatch import Spec
 
 log = get()
 
@@ -65,7 +65,8 @@ def summarize(uri="sqlite:///mlflow.db"):
     return stats
 
 
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
+def _args(ap):
     ap.add_argument("--uri", default="sqlite:///mlflow.db")
-    summarize(ap.parse_args().uri)
+
+
+SPEC = Spec("triad-summary", _args, lambda args: summarize(args.uri))

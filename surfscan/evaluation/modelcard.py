@@ -1,13 +1,12 @@
 """Auto-generate docs/MODEL_CARD.md from an MLflow run — so the card always matches the shipped model
 (carried from systole's cardioseg/evaluation/modelcard.py). Run against the deployable's canonical run:
 
-    python -m surfscan.evaluation.modelcard --run-name patchcore_rgb_greedy
+    python -m surfscan.report modelcard --run-name patchcore_rgb_greedy
 """
 from __future__ import annotations
 
-import argparse
-
 from core.obs import get
+from surfscan.dispatch import Spec
 from surfscan.evaluation.results import ROOT, _latest  # DRY: reuse the mlflow lookup
 
 log = get()
@@ -23,7 +22,7 @@ def _render(run_name: str, row: dict) -> str:
     out = [
         f"# Model card — {run_name}",
         "",
-        "Auto-generated from its MLflow run by `surfscan.evaluation.modelcard` — regenerate after any "
+        "Auto-generated from its MLflow run by `surfscan.report modelcard` — regenerate after any "
         "rerun so the card can't drift from the shipped model.",
         "",
         "## Headline (our harness, MVTec 3D-AD)",
@@ -58,11 +57,12 @@ def build(run_name: str) -> None:  # pragma: no cover  mlflow query + card file 
     log.info(f"wrote {CARD.relative_to(ROOT)}")
 
 
-def main():  # pragma: no cover  CLI entry (argparse)
-    ap = argparse.ArgumentParser()
+def _args(ap):
     ap.add_argument("--run-name", default="patchcore_rgb_greedy")
-    build(ap.parse_args().run_name)
 
 
-if __name__ == "__main__":
-    main()
+def _run(args):  # pragma: no cover  CLI glue; _render is the pure tested core
+    build(args.run_name)
+
+
+SPEC = Spec("modelcard", _args, _run)

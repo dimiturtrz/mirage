@@ -2,11 +2,9 @@
 
 Score each test sample with both banks, z-score each map family over the valid test pixels, sum.
 
-Run:  python -m surfscan.experiments.run_fused [--cats bagel ...]
+Run:  python -m surfscan.run fused [--cats bagel ...]
 """
 from __future__ import annotations
-
-import argparse
 
 import numpy as np
 
@@ -14,6 +12,7 @@ from core.compute import pick_device
 from core.data import store
 from core.data.dataset import load_split
 from core.method import Method
+from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness, scoring
 from surfscan.models.fpfh_bank import FpfhBank
 from surfscan.models.patchcore import PatchCore
@@ -24,10 +23,11 @@ def _zscore(maps, valids):
     return (maps - v.mean()) / (v.std() + 1e-9)
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cats", nargs="*", default=None)
-    args = ap.parse_args()
+def _args(ap):
+    add_cats(ap)
+
+
+def _run(args):
     dev = pick_device()
 
     def fit(c):
@@ -50,5 +50,4 @@ def main():
     harness.run("fused_rgb_fpfh", Method(fit, score), cats=args.cats)
 
 
-if __name__ == "__main__":
-    main()
+SPEC = Spec("fused", _args, _run)

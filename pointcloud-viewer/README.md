@@ -10,7 +10,7 @@ Self-contained — one `index.html` (three.js via CDN, no build step). Data is *
 ## Run
 ```bash
 # 1. generate sample data (each fits a PatchCore bank + scores the sample):
-python -m surfscan.visualization.export_web --samples \
+python -m surfscan.viz export --samples \
     bagel:test:hole:0 bagel:train:good:0 cookie:test:crack:0 tire:test:cut:0 carrot:test:hole:0
 # -> pointcloud-viewer/data/<id>.json + manifest.json
 

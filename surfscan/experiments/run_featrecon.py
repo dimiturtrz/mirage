@@ -3,11 +3,9 @@
 Per category: extract frozen-backbone features for train-good, train a small AE to reconstruct
 them, score the test split by per-location feature-reconstruction error.
 
-Run:  python -m surfscan.experiments.run_featrecon [--cats bagel ...] [--epochs 100]
+Run:  python -m surfscan.run featrecon [--cats bagel ...] [--epochs 100]
 """
 from __future__ import annotations
-
-import argparse
 
 import torch
 import torch.nn.functional as F
@@ -16,6 +14,7 @@ from torch import optim
 from core.compute import pick_device
 from core.data.dataset import load_split
 from core.method import Method
+from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness, scoring
 from surfscan.models.feat_recon import FeatAE, FeatExtractor
 
@@ -38,11 +37,12 @@ def _score_maps(ext, ae, x, hw, batch=32):
     return torch.cat(out).numpy()
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cats", nargs="*", default=None)
+def _args(ap):
+    add_cats(ap)
     ap.add_argument("--epochs", type=int, default=100)
-    args = ap.parse_args()
+
+
+def _run(args):
     torch.set_float32_matmul_precision("high")
     dev = pick_device()
     ext = FeatExtractor(device=dev)
@@ -71,5 +71,4 @@ def main():
     harness.run("feat_recon", Method(fit, score), cats=args.cats)
 
 
-if __name__ == "__main__":
-    main()
+SPEC = Spec("featrecon", _args, _run)

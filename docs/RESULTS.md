@@ -115,7 +115,7 @@ the working paradigm (feature memory bank) standing near SOTA at **0.91** with t
 **named** (3D fusion · greedy coreset). The contribution is the eval rigor + the honest comparison,
 not the single number.
 
-*Reproduce: `python -m surfscan.experiments.run_all` (reconstruction) · `... run_patchcore` · `... run_btf`.
+*Reproduce: `python -m surfscan.run vae` (reconstruction) · `... run patchcore` · `... run btf`.
 ⚠ = verify against the primary source before any public claim.*
 
 

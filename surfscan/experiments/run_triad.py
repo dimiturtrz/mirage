@@ -11,12 +11,10 @@ the *labels* came from:
 gap (pp) = real->real AU-PRO  -  synth->real AU-PRO. "modeled it" never stands in for "measured it
 transferred" — this module is that measurement. rgb channel (the 0.91 ceiling's modality).
 
-Run:  python -m surfscan.experiments.run_triad [--cats bagel ...] [--epochs 100] [--seed 0]
+Run:  python -m surfscan.run triad [--cats bagel ...] [--epochs 100] [--seed 0]
       [--arms real synth synth_da] [--curriculum]
 """
 from __future__ import annotations
-
-import argparse
 
 import numpy as np
 import torch
@@ -29,13 +27,14 @@ from core.data.dataset import load_split
 from core.data.defects import KINDS, synthesize
 from core.method import Method
 from core.obs import get
+from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
 
 log = get()
 
-CH = ("rgb",)      # channels; overridable via --channels (set in main)
+CH = ("rgb",)      # channels; overridable via --channels (set in _run)
 BATCH = 16
 
 
@@ -160,15 +159,16 @@ def score(model, c, dev, batch=BATCH):
     return amaps, valids, masks, scores, labels[ei], defects[ei]
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cats", nargs="*", default=None)
+def _args(ap):
+    add_cats(ap)
     ap.add_argument("--epochs", type=int, default=100)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--arms", nargs="*", default=["real", "synth", "synth_da"])
     ap.add_argument("--channels", nargs="*", default=["rgb"])
     ap.add_argument("--curriculum", action="store_true")
-    args = ap.parse_args()
+
+
+def _run(args):
     torch.set_float32_matmul_precision("high")
     global CH
     CH = tuple(args.channels)
@@ -199,5 +199,4 @@ def main():
                   f"(+{closed:.3f} vs synth)")
 
 
-if __name__ == "__main__":
-    main()
+SPEC = Spec("triad", _args, _run)

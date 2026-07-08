@@ -4,9 +4,9 @@ place, and reruns flow into it automatically (carried from systole's cardioseg/e
 Each method carrying an "mlflow_run" is refreshed from that run's latest `au_pro_mean` / `img_auroc_mean`;
 the deployable's per-category table from its `au_pro/<cat>` + `img_auroc/<cat>` metrics. Curated fields
 (paradigm, notes, the SOTA cite) are preserved; entries without an "mlflow_run" stay hand-curated.
-Then render the docs:  python -m surfscan.evaluation.sync_numbers
+Then render the docs:  python -m surfscan.report sync
 
-    python -m surfscan.evaluation.results     # refresh RESULTS.json from mlflow, then run sync_numbers
+    python -m surfscan.report results     # refresh RESULTS.json from mlflow, then run `report sync`
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ import mlflow
 
 from core.obs import get
 from surfscan import tracking  # noqa: F401  — importing sets the mlflow tracking uri
+from surfscan.dispatch import Spec
 
 log = get()
 
@@ -66,8 +67,7 @@ def refresh() -> None:  # pragma: no cover  reads RESULTS.json + mlflow; _get/_a
     log.info(f"refreshed from mlflow: {done or '(nothing)'}")
     if skipped:
         log.info(f"  no run found (kept curated): {skipped}")
-    log.info("now render the docs:  python -m surfscan.evaluation.sync_numbers")
+    log.info("now render the docs:  python -m surfscan.report sync")
 
 
-if __name__ == "__main__":
-    refresh()
+SPEC = Spec("results", lambda _ap: None, lambda _args: refresh())

@@ -31,7 +31,7 @@ def main():
     rows = []
     for c in cats:
         log.info(f"\n===== {c} =====")
-        hp = HParams(cats=[c], epochs=args.epochs, compile=False)   # compile off: recompiling per category isn't worth it
+        hp = HParams(cats=[c], epochs=args.epochs, compile=False)
         run_id = train(hp, run_name=f"vae_{c}")
         rows.append(evaluate(run_id, cats=[c])["per_category"][0])
 

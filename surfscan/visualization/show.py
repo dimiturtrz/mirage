@@ -117,6 +117,51 @@ def to_point_cloud(rgb, xyz, valid, gt=None):
     return pts, cols
 
 
+def _show_photo(args, rgb, gt):
+    cols_n = 1 if gt is None else 2
+    fig, axes = plt.subplots(1, cols_n, figsize=(5 * cols_n, 5))
+    axes = np.atleast_1d(axes)
+    axes[0].imshow(rgb)
+    axes[0].set_title(f"{args.cat}/{args.split}/{args.defect}/{args.idx:03d} — RGB")
+    axes[0].axis("off")
+    if gt is not None:
+        axes[1].imshow(gt, cmap="gray")
+        axes[1].set_title("GT defect mask")
+        axes[1].axis("off")
+    plt.tight_layout()
+    plt.show()
+
+
+def _colorize(pc, args, rgb, xyz, valid):
+    """Recolor the cloud by the chosen mode (anomaly / curvature / normals); returns show_normals."""
+    if args.anomaly is not None or args.patchcore:
+        if not args.processed:
+            raise SystemExit("--anomaly/--patchcore need --processed (the model eats the processed input)")
+        err = (patchcore_map(args.cat, rgb, valid) if args.patchcore
+               else anomaly_map(args.anomaly, rgb, xyz, valid))
+        e = err[valid.astype(bool)]
+        e = (e / (np.percentile(e, 99) + 1e-9)).clip(0, 1)
+        pc.colors = o3d.utility.Vector3dVector(cm.inferno(e)[:, :3])
+        tag = "patchcore" if args.patchcore else "recon residual"
+        log.info(f"{tag}: median {np.median(err[valid.astype(bool)]):.4f}  "
+                 f"p99 {np.percentile(err[valid.astype(bool)], 99):.4f}")
+    elif args.curvature:
+        pc.estimate_covariances(search_param=o3d.geometry.KDTreeSearchParamKNN(30))
+        ev = np.linalg.eigvalsh(np.asarray(pc.covariances))
+        sv = ev[:, 0] / (ev.sum(1) + 1e-12)
+        sv_n = (sv / (np.percentile(sv, 99) + 1e-12)).clip(0, 1)
+        pc.colors = o3d.utility.Vector3dVector(cm.inferno(sv_n)[:, :3])
+        log.info(f"surface variation: median {np.median(sv):.4f}  p99 {np.percentile(sv, 99):.4f}")
+    elif args.normals:
+        pc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(30))
+        pc.orient_normals_towards_camera_location((0.0, 0.0, 0.0))
+        if not args.mask:
+            n = np.asarray(pc.normals)
+            pc.colors = o3d.utility.Vector3dVector((n * 0.5 + 0.5).clip(0, 1))
+        return args.arrows
+    return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-root", default=None,
@@ -162,22 +207,8 @@ def main():
     if gt is not None:
         log.info(f"defect pixels: {(gt > 0).sum():,}  ({100 * (gt > 0).mean():.2f}% of frame)")
 
-    # 1) (optional) the flat photo + mask — image-land. Opt-in via --rgb; it blocks
-    #    until closed, so default is straight to the 3D cloud (which is already
-    #    RGB-colored, and --mask shows the defect there too).
-    if args.rgb:
-        cols_n = 1 if gt is None else 2
-        fig, axes = plt.subplots(1, cols_n, figsize=(5 * cols_n, 5))
-        axes = np.atleast_1d(axes)
-        axes[0].imshow(rgb)
-        axes[0].set_title(f"{args.cat}/{args.split}/{args.defect}/{args.idx:03d} — RGB")
-        axes[0].axis("off")
-        if gt is not None:
-            axes[1].imshow(gt, cmap="gray")
-            axes[1].set_title("GT defect mask")
-            axes[1].axis("off")
-        plt.tight_layout()
-        plt.show()
+    if args.rgb:                                     # opt-in flat photo + mask (blocks until closed)
+        _show_photo(args, rgb, gt)
 
     if args.no_3d:
         return
@@ -193,36 +224,7 @@ def main():
     pc.points = o3d.utility.Vector3dVector(pts)
     pc.colors = o3d.utility.Vector3dVector(cols)
 
-    show_normals = False
-    if args.anomaly is not None or args.patchcore:
-        if not args.processed:
-            raise SystemExit("--anomaly/--patchcore need --processed (the model eats the processed input)")
-        err = (patchcore_map(args.cat, rgb, valid) if args.patchcore
-               else anomaly_map(args.anomaly, rgb, xyz, valid))
-        e = err[valid.astype(bool)]
-        e = (e / (np.percentile(e, 99) + 1e-9)).clip(0, 1)
-        pc.colors = o3d.utility.Vector3dVector(cm.inferno(e)[:, :3])
-        tag = "patchcore" if args.patchcore else "recon residual"
-        log.info(f"{tag}: median {np.median(err[valid.astype(bool)]):.4f}  "
-              f"p99 {np.percentile(err[valid.astype(bool)], 99):.4f}")
-    elif args.curvature:
-        # surface variation = smallest / sum of the neighbor-covariance eigenvalues (L2 bonus):
-        # ~0 on a clean planar patch, large where neighbors are a blob (edges/noise/defects).
-        pc.estimate_covariances(search_param=o3d.geometry.KDTreeSearchParamKNN(30))
-        ev = np.linalg.eigvalsh(np.asarray(pc.covariances))     # ascending: ev[:,0] = smallest
-        sv = ev[:, 0] / (ev.sum(1) + 1e-12)
-        sv_n = (sv / (np.percentile(sv, 99) + 1e-12)).clip(0, 1)  # robust scale (ignore top 1%)
-        pc.colors = o3d.utility.Vector3dVector(cm.inferno(sv_n)[:, :3])
-        log.info(f"surface variation: median {np.median(sv):.4f}  p99 {np.percentile(sv, 99):.4f}")
-    elif args.normals:
-        # normal = PCA smallest-eigenvector of the local neighborhood (L2). KNN search is
-        # scale-free (works on raw meters or normalized units); orient toward the scanner.
-        pc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(30))
-        pc.orient_normals_towards_camera_location((0.0, 0.0, 0.0))
-        if not args.mask:                       # color by normal direction: see the surface bend
-            n = np.asarray(pc.normals)
-            pc.colors = o3d.utility.Vector3dVector((n * 0.5 + 0.5).clip(0, 1))
-        show_normals = args.arrows              # arrows are opt-in (50k of them = visual noise)
+    show_normals = _colorize(pc, args, rgb, xyz, valid)
 
     log.info("3D: drag = rotate, scroll = zoom, q = quit")
     o3d.visualization.draw_geometries([pc], window_name="MVTec 3D-AD sample",

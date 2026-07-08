@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "pytest-cov"]
 export = ["onnxruntime"]   # ONNX export + parity check (train-vs-deploy skew, carried from acoustic)
 features = ["torchvision"] # PatchCore feature memory bank (pretrained backbone) — install cu128 build
 # models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
@@ -75,6 +75,34 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]              # re-exports are the package's public surface
 "tests/**" = ["PLR2004", "FBT"]       # literal fixtures + bool test flags are fine in tests
+
+[tool.vulture]
+# dead code — the axis ruff can't see. Scan core+surfscan (NOT tests: a prod symbol referenced only by
+# a test surfaces as dead here instead of being masked by its test fan-in — the trap that fools both
+# vulture and coverage). CI blocks at conf>=80 (near-certain), warns at conf>=60 (dead funcs, has FPs).
+paths = ["core", "surfscan"]
+exclude = ["sim"]
+min_confidence = 60
+ignore_names = ["model_config"]
+ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer", "@model_serializer", "@computed_field"]
+
+[tool.coverage.run]
+# measure LIBRARY logic. omit the GPU+data CLI runners (experiments/) + render/IO (visualization/) —
+# no import fan-in, need raw data/a display, so counting them just drags the % with un-unit-testable
+# code. evaluation/ (metrics, harness, diagnostics = the logic) stays IN. Honesty rule: never omit a
+# module to dodge testing pure logic — extract the pure core and test it.
+source = ["core", "surfscan"]
+omit = ["surfscan/experiments/*", "surfscan/visualization/*"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "^\\s*\\.\\.\\.$",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

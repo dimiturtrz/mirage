@@ -44,7 +44,3 @@ class KindCurriculum:
 
     def end_epoch(self) -> None:
         self.history.append({k: self.loss[k] for k in self.kinds})
-
-    def weights(self) -> dict:
-        """Current per-kind sampling probabilities (for logging/inspection)."""
-        return dict(zip(self.kinds, self._weights().tolist(), strict=True))

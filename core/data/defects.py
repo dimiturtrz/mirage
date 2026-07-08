@@ -25,6 +25,7 @@ from core.geometry import grid_normals
 
 KINDS = ("dent", "scratch", "contamination", "bump")
 _THR = 0.05
+_ON = 0.5           # valid-mask cutoff (0/1 float -> on-object bool)
 
 
 def _u(rng, lo, hi, b, device):
@@ -66,7 +67,7 @@ def synthesize(x, valid, rng, channels=("rgb",), kinds=KINDS):
     is_bump = torch.as_tensor(kind == "bump", device=dev)[:, None, None]
     is_contam = torch.as_tensor(kind == "contamination", device=dev)[:, None, None, None]
 
-    prof = _profiles(B, H, W, rng, dev, is_scratch) * (valid[:, 0] > 0.5)   # (B,H,W), on-object
+    prof = _profiles(B, H, W, rng, dev, is_scratch) * (valid[:, 0] > _ON)   # (B,H,W), on-object
     m = prof > _THR
     pa = prof * m                                                          # smooth inside, 0 outside m
     aug = x.clone()
@@ -76,7 +77,7 @@ def synthesize(x, valid, rng, channels=("rgb",), kinds=KINDS):
         xyz = aug[:, xc]                                                   # (B,3,H,W)
         n = grid_normals(xyz, valid)                                       # unit normals off the grid
         z = xyz[:, 2]
-        zm = torch.where(valid[:, 0] > 0.5, z, torch.full_like(z, float("nan")))
+        zm = torch.where(valid[:, 0] > _ON, z, torch.full_like(z, float("nan")))
         zr = (torch.nan_to_num(zm, nan=-1e9).amax((1, 2)) - torch.nan_to_num(zm, nan=1e9).amin((1, 2)))
         zr = zr.clamp(min=1e-6)[:, None, None]                            # object's own z-extent = scale
         sign = torch.where(is_bump, 1.0, -1.0)

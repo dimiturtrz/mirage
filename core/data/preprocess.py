@@ -15,6 +15,7 @@ from skimage.transform import resize as sk_resize
 
 # default preprocess params -> param_key, so recipes never collide in processed/
 SIZE = 256          # output grid (H = W = SIZE)
+_MASK_BIN = 0.5     # re-binarize a mask after float resize
 SO_NB = 20          # statistical-outlier removal: neighbor count
 SO_STD = 2.0        # statistical-outlier removal: std-ratio threshold
 SCALE = 0.05        # geometry scale in meters (fixed/physical, NOT dataset stats)
@@ -53,11 +54,11 @@ def preprocess(rgb, xyz, gt, size=SIZE, nb=SO_NB, std=SO_STD, scale=SCALE, clip=
     # resize to a fixed square grid (rgb/xyz bilinear; mask/gt nearest)
     rgb = sk_resize(rgb, (size, size), order=1, preserve_range=True, anti_aliasing=True).astype(np.float32) / 255.0
     xyz = sk_resize(xyz, (size, size), order=1, preserve_range=True, anti_aliasing=False).astype(np.float32)
-    valid = sk_resize(valid.astype(np.float32), (size, size), order=0, preserve_range=True) > 0.5
+    valid = sk_resize(valid.astype(np.float32), (size, size), order=0, preserve_range=True) > _MASK_BIN
     # erode 1px: bilinear xyz blends object-edge pixels with (0,0,0) background, corrupting their
     # geometry toward the origin; drop that boundary ring so only un-blended interior points remain.
     valid = binary_erosion(valid, iterations=1)
-    gt = (sk_resize(gt.astype(np.float32), (size, size), order=0, preserve_range=True) > 0.5).astype(np.uint8)
+    gt = (sk_resize(gt.astype(np.float32), (size, size), order=0, preserve_range=True) > _MASK_BIN).astype(np.uint8)
     gt = (gt & valid).astype(np.uint8)
 
     # geometry -> known physical scale: center on valid centroid, divide by fixed constant

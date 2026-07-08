@@ -17,16 +17,29 @@ right-drag = pan, q = quit); the defect is painted red with --mask. Add
 closed). --no-3d with --rgb = photo only.
 """
 import argparse
+import json
 from pathlib import Path
 
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 import numpy as np
+import open3d as o3d
 import tifffile
+import torch
 from PIL import Image
 
 from core import config
+from core.data import preprocess as pp
+from core.data import store
+from core.data.dataset import load_split
 from core.obs import get
+from surfscan.models.patchcore import PatchCore
+from surfscan.models.vae import ConvVAE
+from surfscan.training.hparams import HParams
 
 log = get()
+
+_RAW_RGB_CUTOFF = 1.5   # cols.max() above this => raw uint8 (not float [0,1])
 
 
 def load_sample(root, cat, split, defect, idx):
@@ -42,8 +55,6 @@ def load_sample(root, cat, split, defect, idx):
 def load_processed(cat, split, defect, idx, size=None):
     """Load one CLEANED sample from the processed store (rgb [0,1], xyz normalized,
     valid + gt)."""
-    from core.data import preprocess as pp
-    from core.data import store
     sid = f"{cat}_{split}_{defect}_{idx:03d}"
     path = store.dataset_dir(size=size or pp.SIZE) / "data" / f"{sid}.npz"
     if not path.exists():
@@ -54,13 +65,6 @@ def load_processed(cat, split, defect, idx, size=None):
 
 def _run_model(run, rgb, xyz):
     """Load a trained model + run it on one sample -> (input x [1,C,H,W], recon [1,C,H,W]), numpy."""
-    import json
-
-    import torch
-
-    from surfscan.models.vae import ConvVAE
-    from surfscan.training.hparams import HParams
-
     run = Path(run)
     hp = HParams(**json.loads((run / "config.json").read_text()))
     chans = [(xyz if c == "xyz" else rgb).transpose(2, 0, 1) for c in hp.channels]
@@ -91,11 +95,6 @@ def recon_xyz(run, rgb, xyz):
 def patchcore_map(cat, rgb, valid, coreset=0.1):
     """The WORKING detector's anomaly map: fit a PatchCore bank on this category's train-good (rgb),
     score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
-    import torch
-
-    from core.data.dataset import load_split
-    from surfscan.models.patchcore import PatchCore
-
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
     pc = PatchCore(device=dev).fit(train.x, coreset=coreset)
@@ -110,7 +109,7 @@ def to_point_cloud(rgb, xyz, valid, gt=None):
     """
     pts = xyz[valid]
     cols = rgb[valid].astype(np.float64)
-    if cols.size and cols.max() > 1.5:          # raw uint8 -> [0,1]
+    if cols.size and cols.max() > _RAW_RGB_CUTOFF:          # raw uint8 -> [0,1]
         cols /= 255.0
     if gt is not None:                          # paint the labelled defect region red
         cols = cols.copy()
@@ -167,7 +166,6 @@ def main():
     #    until closed, so default is straight to the 3D cloud (which is already
     #    RGB-colored, and --mask shows the defect there too).
     if args.rgb:
-        import matplotlib.pyplot as plt
         cols_n = 1 if gt is None else 2
         fig, axes = plt.subplots(1, cols_n, figsize=(5 * cols_n, 5))
         axes = np.atleast_1d(axes)
@@ -185,7 +183,6 @@ def main():
         return
 
     # 2) the colored 3D point cloud — same grid, now as geometry
-    import open3d as o3d
     if args.recon is not None:
         if not args.processed:
             raise SystemExit("--recon needs --processed (the model eats the normalized processed input)")
@@ -202,7 +199,6 @@ def main():
             raise SystemExit("--anomaly/--patchcore need --processed (the model eats the processed input)")
         err = (patchcore_map(args.cat, rgb, valid) if args.patchcore
                else anomaly_map(args.anomaly, rgb, xyz, valid))
-        import matplotlib.cm as cm
         e = err[valid.astype(bool)]
         e = (e / (np.percentile(e, 99) + 1e-9)).clip(0, 1)
         pc.colors = o3d.utility.Vector3dVector(cm.inferno(e)[:, :3])
@@ -215,7 +211,6 @@ def main():
         pc.estimate_covariances(search_param=o3d.geometry.KDTreeSearchParamKNN(30))
         ev = np.linalg.eigvalsh(np.asarray(pc.covariances))     # ascending: ev[:,0] = smallest
         sv = ev[:, 0] / (ev.sum(1) + 1e-12)
-        import matplotlib.cm as cm
         sv_n = (sv / (np.percentile(sv, 99) + 1e-12)).clip(0, 1)  # robust scale (ignore top 1%)
         pc.colors = o3d.utility.Vector3dVector(cm.inferno(sv_n)[:, :3])
         log.info(f"surface variation: median {np.median(sv):.4f}  p99 {np.percentile(sv, 99):.4f}")

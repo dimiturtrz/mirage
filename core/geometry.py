@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import torch
 
+_ON = 0.5              # valid-mask cutoff (0/1 float -> on-object bool)
+_H_AXIS, _W_AXIS = 2, 3   # grid axes of a (B,C,H,W) position map
+
 
 @torch.no_grad()
 def grid_normals(xyz, valid, eps: float = 1e-8):
@@ -28,20 +31,20 @@ def grid_normals(xyz, valid, eps: float = 1e-8):
     real scan (dropouts + their halos); one-sided fallback keeps normals defined wherever any
     neighbour exists, so a dent can land almost anywhere on the object.
     """
-    v = valid[:, 0] > 0.5                                              # (B,H,W) bool
+    v = valid[:, 0] > _ON                                             # (B,H,W) bool
 
     def tangent(axis):
         """central where both sides valid, else one-sided; returns (tangent (B,3,H,W), has (B,H,W))."""
         a = axis
-        step = (slice(None), slice(None)) + ((slice(1, None), slice(None)) if a == 2
+        step = (slice(None), slice(None)) + ((slice(1, None), slice(None)) if a == _H_AXIS
                                              else (slice(None), slice(1, None)))
-        prev = (slice(None), slice(None)) + ((slice(None, -1), slice(None)) if a == 2
+        prev = (slice(None), slice(None)) + ((slice(None, -1), slice(None)) if a == _H_AXIS
                                              else (slice(None), slice(None, -1)))
         d = xyz[step] - xyz[prev]                                      # forward diff, length H-1 (or W-1)
         vpair = v[step[:1] + step[2:]] & v[prev[:1] + prev[2:]]        # both endpoints on-object
         fwd = torch.zeros_like(xyz); bwd = torch.zeros_like(xyz)
         vf = torch.zeros_like(v); vb = torch.zeros_like(v)
-        if a == 2:                                                    # H axis
+        if a == _H_AXIS:                                                    # H axis
             fwd[:, :, :-1] = d;  vf[:, :-1] = vpair                   # fwd[i] = P[i+1]-P[i]
             bwd[:, :, 1:] = d;   vb[:, 1:] = vpair                    # bwd[i] = P[i]-P[i-1]
         else:                                                        # W axis
@@ -50,8 +53,8 @@ def grid_normals(xyz, valid, eps: float = 1e-8):
         t = torch.where(vf[:, None], fwd, 0.0) + torch.where(vb[:, None], bwd, 0.0)
         return t, (vf | vb)
 
-    t_v, has_v = tangent(2)
-    t_u, has_u = tangent(3)
+    t_v, has_v = tangent(_H_AXIS)
+    t_u, has_u = tangent(_W_AXIS)
     n = torch.cross(t_v, t_u, dim=1)                                  # (B,3,H,W)
     n = n / (n.norm(dim=1, keepdim=True) + eps)
 

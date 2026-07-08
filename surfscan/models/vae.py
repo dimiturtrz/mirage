@@ -16,7 +16,7 @@ def _enc_block(ci, co, p=0.0):
     return nn.Sequential(*layers)
 
 
-def _dec_block(ci, co, last=False, p=0.0):
+def _dec_block(ci, co, *, last=False, p=0.0):
     layers = [nn.ConvTranspose2d(ci, co, 4, 2, 1)]
     if not last:
         layers += [nn.BatchNorm2d(co), nn.SiLU()]

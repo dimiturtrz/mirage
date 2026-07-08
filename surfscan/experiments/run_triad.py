@@ -63,7 +63,7 @@ def _step(model, opt, x, v, m):
     return float(loss.detach())
 
 
-def fit_synth(c, epochs, seed, dev, curriculum=False):
+def fit_synth(c, epochs, seed, dev, *, curriculum=False):
     """Train on good scans + on-the-fly synthetic defects. The synth->real arm."""
     rng = np.random.RandomState(seed)
     torch.manual_seed(seed)
@@ -128,7 +128,7 @@ def _adabn(model, x, passes=2, batch=BATCH):
     return model
 
 
-def fit_synth_da(c, epochs, seed, dev, curriculum=False):
+def fit_synth_da(c, epochs, seed, dev, *, curriculum=False):
     """synth-trained, then AdaBN-adapted to the real eval images (unlabeled). The closure arm."""
     model = fit_synth(c, epochs, seed, dev, curriculum=curriculum)
     test = load_split(split="test", cats=[c], channels=CH, device=dev)

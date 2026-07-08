@@ -19,7 +19,7 @@ class FeatExtractor:
     def __init__(self, backbone="wide_resnet50_2", layer="layer2", device="cuda"):
         net = getattr(torchvision.models, backbone)(weights="DEFAULT").to(device).eval()
         for p in net.parameters():
-            p.requires_grad_(False)
+            p.requires_grad_(requires_grad=False)
         self._feat = None
         getattr(net, layer).register_forward_hook(lambda _m, _i, o: setattr(self, "_feat", o))
         self.net = net

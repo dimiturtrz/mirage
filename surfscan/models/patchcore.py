@@ -63,15 +63,15 @@ class PatchCore:
             e, _ = self._embed(x[i:i + cfg.batch])
             feats.append(e.reshape(-1, e.shape[-1]))
         feats = torch.cat(feats)                                    # M,C
-        target = max(1, int(len(feats) * cfg.coreset))
         g = torch.Generator(device=feats.device).manual_seed(cfg.seed)
+        pool = feats
+        if len(pool) > cfg.pool_cap:                                # cap the pool so greedy stays tractable
+            pool = pool[torch.randperm(len(pool), generator=g, device=feats.device)[:cfg.pool_cap]]
+        target = max(1, int(len(pool) * cfg.coreset))               # coreset of the capped pool -> bounded bank
         if cfg.method == "greedy":
-            pool = feats
-            if len(pool) > cfg.pool_cap:                                # cap the pool so greedy stays tractable
-                pool = pool[torch.randperm(len(pool), generator=g, device=feats.device)[:cfg.pool_cap]]
-            self.bank = greedy_coreset(pool, min(target, len(pool)), cfg.seed)
+            self.bank = greedy_coreset(pool, target, cfg.seed)
         else:
-            self.bank = feats[torch.randperm(len(feats), generator=g, device=feats.device)[:target]]
+            self.bank = pool[torch.randperm(len(pool), generator=g, device=pool.device)[:target]]
         return self
 
     @torch.no_grad()

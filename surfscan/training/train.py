@@ -16,7 +16,7 @@ import time
 import torch
 from torch import optim
 
-from core.compute import autocast, pick_device
+from core.compute import autocast, enable_tf32, pick_device
 from core.data.dataset import load_split
 from core.obs import get
 from surfscan import tracking
@@ -24,6 +24,7 @@ from surfscan.models.inpaint import InpaintAE, random_mask
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import HParams
 from surfscan.training.losses import kl_loss, masked_recon_loss
+from surfscan.training.trainer import Trainer
 
 log = get()
 
@@ -61,7 +62,7 @@ def train(hp: HParams, run_name: str | None = None, device: str = "cuda") -> str
     build, step = _REGISTRY[hp.model_type]
     run_name = run_name or hp.model_type
     torch.manual_seed(hp.seed)
-    torch.set_float32_matmul_precision("high")          # TF32 matmuls
+    enable_tf32()
     dev = device
 
     data = load_split(split="train", label=0, cats=hp.cats, channels=hp.channels, device=dev, size=hp.size)
@@ -71,33 +72,32 @@ def train(hp: HParams, run_name: str | None = None, device: str = "cuda") -> str
     opt = optim.AdamW(model.parameters(), lr=hp.lr)
     amp = dev == "cuda" and hp.bf16
 
+    # the SGD mechanics are the shared Trainer; the per-epoch metric aggregation + mlflow logging
+    # (this method's observability, not the loop) live in the step/after_epoch closures.
+    ep = {"i": 0, "t0": 0.0, "tot": 0.0, "nb": 0, "extra": {}}
+
+    def step_fn(idx):
+        x = data.x[idx].to(memory_format=torch.channels_last)
+        with autocast(x, amp=amp):
+            loss, extra = step(run_model, x, data.valid[idx], hp)
+        ep["tot"] += loss.item(); ep["nb"] += 1
+        for k, v in extra.items():
+            ep["extra"][k] = ep["extra"].get(k, 0.0) + v.item()
+        return loss
+
+    def after_epoch():
+        row = {"loss": ep["tot"] / ep["nb"], **{k: t / ep["nb"] for k, t in ep["extra"].items()}}
+        tracking.metrics(row, step=ep["i"])
+        if ep["i"] % max(1, hp.epochs // 20) == 0 or ep["i"] == hp.epochs - 1:
+            parts = "  ".join(f"{k} {v:.4f}" for k, v in row.items())
+            log.info(f"ep {ep['i']:3d}  {parts}  {time.time() - ep['t0']:.2f}s")
+        ep.update(i=ep["i"] + 1, t0=time.time(), tot=0.0, nb=0, extra={})
+
     with tracking.run("surfscan", run_name, params=hp.model_dump()) as run_id:
         log.info(f"train[{hp.model_type}]: {n} good | in_ch={data.in_ch} | dev={dev} | "
                  f"bf16={amp} | compile={hp.compile}")
-        for epoch in range(hp.epochs):
-            model.train()
-            idx = torch.randperm(n, device=dev)
-            tot = 0.0
-            nb = 0
-            extra_tot: dict[str, float] = {}
-            t0 = time.time()
-            for i in range(0, n, hp.batch):
-                b = idx[i:i + hp.batch]
-                x = data.x[b].to(memory_format=torch.channels_last)
-                m = data.valid[b]
-                with autocast(x, amp=amp):
-                    loss, extra = step(run_model, x, m, hp)
-                opt.zero_grad(set_to_none=True)
-                loss.backward()
-                opt.step()
-                tot += loss.item(); nb += 1
-                for k, v in extra.items():
-                    extra_tot[k] = extra_tot.get(k, 0.0) + v.item()
-            row = {"loss": tot / nb, **{k: t / nb for k, t in extra_tot.items()}}
-            tracking.metrics(row, step=epoch)
-            if epoch % max(1, hp.epochs // 20) == 0 or epoch == hp.epochs - 1:
-                parts = "  ".join(f"{k} {v:.4f}" for k, v in row.items())
-                log.info(f"ep {epoch:3d}  {parts}  {time.time()-t0:.2f}s")
+        ep["t0"] = time.time()
+        Trainer(model, opt, dev, batch=hp.batch).fit(n, hp.epochs, step_fn, after_epoch=after_epoch)
 
         tracking.artifact_json("config.json", hp.model_dump())
         tracking.log_model(model)

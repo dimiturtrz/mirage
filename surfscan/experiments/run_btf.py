@@ -1,42 +1,46 @@
 """BTF (FPFH geometry memory bank) over categories -> aggregate. The geometry SOTA-floor.
 
-Uses the eval harness. Fit a normal-FPFH bank per category, score the test split. No training.
+Uses the eval harness. Fit a normal-FPFH bank per category, score the test split. No training — so
+`BtfMethod` satisfies `AnomalyMethod` without any Trainer.
 
-Run:  python -m surfscan.run btf [--cats bagel ...]
+Run:  python -m surfscan.run btf [--cats bagel ...] [--size 256]
 """
 from __future__ import annotations
+
+from dataclasses import dataclass, field
 
 import numpy as np
 
 from core.data import store
-from core.method import Method
-from surfscan.dispatch import Spec, add_cats
-from surfscan.evaluation import harness, scoring
+from surfscan.evaluation import scoring
+from surfscan.method_cli import method_spec
 from surfscan.models.fpfh_bank import FpfhBank
 
 
-def _args(ap):
-    add_cats(ap)
-    ap.add_argument("--size", type=int, default=None, help="store resolution (default 256; 512 = native-ish)")
+@dataclass(frozen=True)
+class BtfCfg:
+    size: int | None = field(default=None, metadata={"help": "store resolution (default 256; 512 = native-ish)"})
 
 
-def _run(args):
-    size = args.size or 256
+class BtfMethod:
+    run_name = "btf_fpfh"
 
-    def fit(c):
-        _, train = store.arrays(c, "train", 0, size)
-        return FpfhBank().fit([(a["xyz"], a["valid"]) for a in train])
+    def __init__(self, cfg: BtfCfg, dev):
+        self.dev = dev
+        self.size = cfg.size or 256
 
-    def score(bank, c):
-        dft, test = store.arrays(c, "test", size=size)
-        amaps = np.stack([bank.score_map(a["xyz"], a["valid"]) for a in test])
+    def fit(self, cat):
+        _, train = store.arrays(cat, "train", 0, self.size)
+        return FpfhBank(device=self.dev).fit([(a["xyz"], a["valid"]) for a in train])
+
+    def score(self, state, cat):
+        dft, test = store.arrays(cat, "test", size=self.size)
+        amaps = np.stack([state.score_map(a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])
         scores = scoring.image_scores(amaps, valids)
         return (amaps, valids, masks, scores,
                 dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
-    harness.run("btf_fpfh", Method(fit, score), cats=args.cats)
 
-
-SPEC = Spec("btf", _args, _run)
+SPEC = method_spec("btf", BtfMethod, BtfCfg)

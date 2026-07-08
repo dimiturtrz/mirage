@@ -5,7 +5,7 @@ real context on cuda and a no-op elsewhere (so one code path runs GPU-resident o
 """
 import torch
 
-from core.compute import autocast, pick_device
+from core.compute import autocast, enable_tf32, pick_device
 
 
 def test_pick_device_cpu_preference():
@@ -27,3 +27,8 @@ def test_autocast_noop_on_cpu_tensor():
 def test_autocast_accepts_device_string():
     with autocast("cpu", amp=True):         # disabled on cpu regardless of amp
         assert torch.zeros(2).sum().item() == 0.0
+
+
+def test_enable_tf32_sets_high_matmul_precision():
+    enable_tf32()
+    assert torch.get_float32_matmul_precision() == "high"

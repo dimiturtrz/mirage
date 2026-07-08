@@ -12,7 +12,7 @@ reads them by name, not by fragile tuple position.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, NamedTuple
+from typing import Any, Callable, NamedTuple, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -32,6 +32,21 @@ ScoreFn = Callable[[Any, str], ScoreArrays]  # score(state, category) -> ScoreAr
 
 
 class Method(NamedTuple):
-    """The (fit, score) pair the harness scores — one interface object per detector."""
+    """The (fit, score) pair the harness scores — the closure form of `AnomalyMethod` (for ad-hoc
+    or orchestrated methods that don't warrant a class; e.g. the triad's per-arm methods)."""
     fit: FitFn
     score: ScoreFn
+
+
+@runtime_checkable
+class AnomalyMethod(Protocol):
+    """The minimal contract the harness scores — a configured detector object. Deliberately just
+    `fit`/`score`: everything else (data loading, a Trainer, the mlflow `run_name`) is composed by
+    HAS-A, never bolted on as protocol hooks. Both the `Method` closure-pair and the per-paradigm
+    method classes (PatchCoreMethod, DraemMethod, …) satisfy it, so `harness.run` reads `.fit`/`.score`
+    without caring which. `run_name` (below) is read via getattr when present, defaulting to the
+    subcommand name."""
+
+    def fit(self, cat: str) -> Any: ...
+
+    def score(self, state: Any, cat: str) -> ScoreArrays: ...

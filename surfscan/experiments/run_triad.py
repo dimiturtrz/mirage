@@ -11,10 +11,15 @@ the *labels* came from:
 gap (pp) = real->real AU-PRO  -  synth->real AU-PRO. "modeled it" never stands in for "measured it
 transferred" — this module is that measurement. rgb channel (the 0.91 ceiling's modality).
 
+A META-method, deliberately NOT one `AnomalyMethod`: it runs three arms through the harness and reports
+their gap. Each arm's training is the shared `Trainer`; the orchestration (arms + gap math) stays here.
+
 Run:  python -m surfscan.run triad [--cats bagel ...] [--epochs 100] [--seed 0]
       [--arms real synth synth_da] [--curriculum]
 """
 from __future__ import annotations
+
+from dataclasses import dataclass, field
 
 import numpy as np
 import torch
@@ -22,7 +27,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
 
-from core.compute import autocast, pick_device
+from core.cli_config import add_config_args, build_config
+from core.compute import autocast, enable_tf32, pick_device
 from core.data.dataset import load_split
 from core.data.defects import KINDS, synthesize
 from core.method import Method
@@ -31,11 +37,20 @@ from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
+from surfscan.training.trainer import Trainer
 
 log = get()
 
-CH = ("rgb",)      # channels; overridable via --channels (set in _run)
 BATCH = 16
+
+
+@dataclass(frozen=True)
+class TriadCfg:
+    epochs: int = 100
+    seed: int = 0
+    arms: list[str] = field(default_factory=lambda: ["real", "synth", "synth_da"])
+    channels: list[str] = field(default_factory=lambda: ["rgb"])
+    curriculum: bool = False
 
 
 def _split_idx(labels):
@@ -54,60 +69,50 @@ def _new(in_ch, dev):
     return UNet(in_ch, 1).to(dev, memory_format=torch.channels_last)
 
 
-def _step(model, opt, x, v, m):
-    with autocast(x):
-        logits = model(x.to(memory_format=torch.channels_last))
-        loss = F.binary_cross_entropy_with_logits(logits.float(), m, weight=v)
-    opt.zero_grad(set_to_none=True)
-    loss.backward()
-    opt.step()
-    return float(loss.detach())
-
-
-def fit_synth(c, epochs, seed, dev, *, curriculum=False):
+def fit_synth(cat, cfg, dev, *, curriculum=False):
     """Train on good scans + on-the-fly synthetic defects. The synth->real arm."""
-    rng = np.random.RandomState(seed)
-    torch.manual_seed(seed)
-    good = load_split(split="train", label=0, cats=[c], channels=CH, device=dev)
+    ch = tuple(cfg.channels)
+    rng = np.random.RandomState(cfg.seed)
+    torch.manual_seed(cfg.seed)
+    good = load_split(split="train", label=0, cats=[cat], channels=ch, device=dev)
     model = _new(good.in_ch, dev)
     opt = optim.AdamW(model.parameters(), lr=1e-3)
-    n = len(good)
-    ctrl = curric.KindCurriculum(KINDS, seed=seed) if curriculum else None
-    for _ in range(epochs):
-        model.train()
-        order = torch.randperm(n, device=dev)
-        for i in range(0, n, BATCH):
-            b = order[i:i + BATCH]
-            x, v = good.x[b], good.valid[b]
-            kinds = ctrl.sample(len(b)) if ctrl else KINDS
-            aug, mask = synthesize(x, v, rng, channels=CH, kinds=kinds)
-            loss = _step(model, opt, aug, v, mask)
-            if ctrl:
-                ctrl.observe(kinds, loss)
+    ctrl = curric.KindCurriculum(KINDS, seed=cfg.seed) if curriculum else None
+
+    def step(idx):
+        x, v = good.x[idx], good.valid[idx]
+        kinds = ctrl.sample(len(idx)) if ctrl else KINDS
+        aug, mask = synthesize(x, v, rng, channels=ch, kinds=kinds)
+        with autocast(x):
+            logits = model(aug.to(memory_format=torch.channels_last))
+            loss = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)
         if ctrl:
-            ctrl.end_epoch()
-    return model
+            ctrl.observe(kinds, float(loss.detach()))
+        return loss
+
+    return Trainer(model, opt, dev, batch=BATCH).fit(
+        len(good), cfg.epochs, step, after_epoch=(ctrl.end_epoch if ctrl else None))
 
 
-def fit_real(c, epochs, seed, dev):
+def fit_real(cat, cfg, dev):
     """Train on REAL defect masks (calib half of test). The real->real ceiling — note it's a
     *scarce-label* ceiling (only ~half of an already-small defect set), not an oracle; that's the
     honest supervised bar for this detector, and why the unsupervised memory bank can beat it."""
-    torch.manual_seed(seed)
-    test = load_split(split="test", cats=[c], channels=CH, device=dev)
+    ch = tuple(cfg.channels)
+    torch.manual_seed(cfg.seed)
+    test = load_split(split="test", cats=[cat], channels=ch, device=dev)
     ci, _ = _split_idx(test.df["label"].to_numpy())
     t = torch.as_tensor(ci, device=dev)
     x, v, g = test.x[t], test.valid[t], test.gt[t]
     model = _new(test.in_ch, dev)
     opt = optim.AdamW(model.parameters(), lr=1e-3)
-    n = x.shape[0]
-    for _ in range(epochs):
-        model.train()
-        order = torch.randperm(n, device=dev)
-        for i in range(0, n, BATCH):
-            b = order[i:i + BATCH]
-            _step(model, opt, x[b], v[b], g[b])
-    return model
+
+    def step(idx):
+        with autocast(x):
+            logits = model(x[idx].to(memory_format=torch.channels_last))
+            return F.binary_cross_entropy_with_logits(logits.float(), g[idx], weight=v[idx])
+
+    return Trainer(model, opt, dev, batch=BATCH).fit(x.shape[0], cfg.epochs, step)
 
 
 @torch.no_grad()
@@ -129,18 +134,18 @@ def _adabn(model, x, passes=2, batch=BATCH):
     return model
 
 
-def fit_synth_da(c, epochs, seed, dev, *, curriculum=False):
+def fit_synth_da(cat, cfg, dev, *, curriculum=False):
     """synth-trained, then AdaBN-adapted to the real eval images (unlabeled). The closure arm."""
-    model = fit_synth(c, epochs, seed, dev, curriculum=curriculum)
-    test = load_split(split="test", cats=[c], channels=CH, device=dev)
+    model = fit_synth(cat, cfg, dev, curriculum=curriculum)
+    test = load_split(split="test", cats=[cat], channels=tuple(cfg.channels), device=dev)
     _, ei = _split_idx(test.df["label"].to_numpy())
     return _adabn(model, test.x[torch.as_tensor(ei, device=dev)])
 
 
 @torch.no_grad()
-def score(model, c, dev, batch=BATCH):
+def score(model, cat, cfg, dev, batch=BATCH):
     """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
-    test = load_split(split="test", cats=[c], channels=CH, device=dev)
+    test = load_split(split="test", cats=[cat], channels=tuple(cfg.channels), device=dev)
     labels = test.df["label"].to_numpy()
     defects = np.array(test.df["defect"].to_list())
     _, ei = _split_idx(labels)
@@ -161,34 +166,29 @@ def score(model, c, dev, batch=BATCH):
 
 def _args(ap):
     add_cats(ap)
-    ap.add_argument("--epochs", type=int, default=100)
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--arms", nargs="*", default=["real", "synth", "synth_da"])
-    ap.add_argument("--channels", nargs="*", default=["rgb"])
-    ap.add_argument("--curriculum", action="store_true")
+    add_config_args(ap, TriadCfg)
 
 
 def _run(args):
-    torch.set_float32_matmul_precision("high")
-    global CH
-    CH = tuple(args.channels)
+    enable_tf32()
+    cfg = build_config(TriadCfg, args)
     dev = pick_device()
 
     def score_fn(m, c):
-        return score(m, c, dev)
+        return score(m, c, cfg, dev)
 
     fits = {
-        "real": lambda c: fit_real(c, args.epochs, args.seed, dev),
-        "synth": lambda c: fit_synth(c, args.epochs, args.seed, dev, curriculum=args.curriculum),
-        "synth_da": lambda c: fit_synth_da(c, args.epochs, args.seed, dev, curriculum=args.curriculum),
+        "real": lambda c: fit_real(c, cfg, dev),
+        "synth": lambda c: fit_synth(c, cfg, dev, curriculum=cfg.curriculum),
+        "synth_da": lambda c: fit_synth_da(c, cfg, dev, curriculum=cfg.curriculum),
     }
     res = {}
-    for arm in args.arms:
-        tag = f"triad_{arm}" + ("_curric" if args.curriculum and arm != "real" else "")
-        log.info(f"\n===== {tag} (seed {args.seed}) =====")
+    for arm in cfg.arms:
+        tag = f"triad_{arm}" + ("_curric" if cfg.curriculum and arm != "real" else "")
+        log.info(f"\n===== {tag} (seed {cfg.seed}) =====")
         res[arm] = harness.run(tag, Method(fits[arm], score_fn), cats=args.cats,
-                               params={"arm": arm, "seed": args.seed, "epochs": args.epochs,
-                                       "curriculum": args.curriculum})
+                               params={"arm": arm, "seed": cfg.seed, "epochs": cfg.epochs,
+                                       "curriculum": cfg.curriculum})
     if "real" in res and "synth" in res:
         gap = res["real"]["mean"]["au_pro"] - res["synth"]["mean"]["au_pro"]
         log.info(f"\n>>> SIM-TO-REAL GAP (au_pro): real {res['real']['mean']['au_pro']:.3f} "

@@ -16,11 +16,10 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      # ENFORCED (blocks the merge): rules already at zero on shipped code — this catches REGRESSION
-      # (a new undefined name / unused import / unsorted imports fails CI). Ratchet: add each family to
-      # --select as it reaches zero across core+surfscan (B905/B023, then E501, PLR*, etc.).
-      - name: Lint — enforced (shipped code, clean rules)
-        run: uvx ruff@0.15.13 check core surfscan --select F,I,B,T201,PLR2004,PLC0415,FBT,C901,PLR0912,PLR0915,E501
+      # ENFORCED (blocks the merge): the FULL curated select is now at zero on core+surfscan — the
+      # ratchet is complete. This runs the whole pyproject [tool.ruff.lint].select as the merge gate.
+      - name: Lint — enforced (full curated select, at zero)
+        run: uvx ruff@0.15.13 check core surfscan
       # ADVISORY (never blocks): full check over the whole tree — surfaces the families still being
       # cleaned so the count is visible in CI. Becomes the enforced gate once it hits zero.
       - name: Lint — advisory full (non-blocking)

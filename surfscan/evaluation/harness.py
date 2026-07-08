@@ -39,17 +39,15 @@ def aggregate(method, fit_fn, score_fn, cats):
     aupro = float(np.nanmean([r["au_pro"] for r in rows]))
     log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
 
-    defect_rows = diagnostics.by_defect(
-        np.concatenate(pool["amaps"]), np.concatenate(pool["scores"]),
-        np.concatenate(pool["masks"]), np.concatenate(pool["valids"]),
-        np.concatenate(pool["labels"]), np.concatenate(pool["defects"]))
+    pooled = ScoreArrays(**{f: np.concatenate(pool[f]) for f in ScoreArrays._fields})
+    defect_rows = diagnostics.by_defect(pooled)
     log.info("  --- per defect type ---")
     for d in defect_rows:
         log.info(f"  {d['defect']:14s}  img_auroc {d['img_auroc']:.3f}   au_pro {d['au_pro']:.3f}  (n={d['n']})")
 
     # calibration (ECE) — only meaningful when amaps are probabilities in [0,1] (e.g. the triad's
     # sigmoid outputs); residual/distance methods aren't calibrated, so skip them cleanly.
-    amaps_all = np.concatenate(pool["amaps"])
+    amaps_all = pooled.amaps
     calib = None
     if amaps_all.size and np.nanmin(amaps_all) >= 0.0 and np.nanmax(amaps_all) <= 1.0:
         calib = metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))

@@ -73,7 +73,7 @@ def build(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None, *, 
 
     def _one(s: mvtec.Sample):
         rgb, xyz, gt = mvtec.load_raw(s)
-        arr = pp.preprocess(rgb, xyz, gt, size=size, nb=nb, std=std)
+        arr = pp.preprocess(rgb, xyz, gt, pp.PP(size=size, nb=nb, std=std))
         np.savez_compressed(data_dir / f"{s.sample_id}.npz", **arr)
 
     if todo:

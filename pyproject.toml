@@ -72,6 +72,12 @@ select = [
 # RUF001-003 (intentional → × ± math unicode; RUF100 ON), D*/ANN* (docstrings/annotations not mandated),
 # TRY/EM/SIM/UP (opinionated churn), NPY002 (legacy np.random kept — seed-comparability with existing runs).
 
+[tool.ruff.lint.pylint]
+# ML data/model functions legitimately take 6-7 params (data-query filters, model hparams, tensor
+# dims); config objects for those = worse ergonomics, not better. 7 still catches real bloat (8+).
+# Genuine field-groups ARE grouped: by_defect(sa: ScoreArrays), not 6 positionals.
+max-args = 7
+
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]              # re-exports are the package's public surface
 "tests/**" = ["PLR2004", "FBT"]       # literal fixtures + bool test flags are fine in tests

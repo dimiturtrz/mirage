@@ -44,8 +44,8 @@ class GpuSplit:
         return self.x.shape[0]
 
 
-def load_split(split=None, label=None, cats=None, channels=("xyz",),
-               device="cuda", dtype=torch.float32, size=None) -> GpuSplit:
+def load_split(split=None, label=None, cats=None, channels=("xyz",),  # noqa: PLR0913
+               device="cuda", size=None) -> GpuSplit:
     """Query the store (filter by split / label / category) -> GPU-resident tensors."""
     df = store.load(size=size or pp.SIZE)
     if cats:
@@ -56,4 +56,4 @@ def load_split(split=None, label=None, cats=None, channels=("xyz",),
         df = df.filter(pl.col("label") == label)
     if len(df) == 0:
         raise ValueError(f"empty split (split={split}, label={label}, cats={cats}) — build the store first")
-    return GpuSplit(df, channels=channels, device=device, dtype=dtype)
+    return GpuSplit(df, channels=channels, device=device)

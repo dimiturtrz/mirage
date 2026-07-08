@@ -5,6 +5,15 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 
+class ModelCfg(BaseModel):
+    in_ch: int = 3
+    base: int = 32
+    latent: int = 256
+    size: int = 256
+    depth: int = 5
+    dropout: float = 0.0
+
+
 class HParams(BaseModel):
     model_type: str = "vae"            # vae | inpaint
     cats: list[str] | None = None      # None = all categories
@@ -23,3 +32,7 @@ class HParams(BaseModel):
     bf16: bool = True
     compile: bool = True
     seed: int = 0
+
+    def model_cfg(self, in_ch: int) -> ModelCfg:
+        return ModelCfg(in_ch=in_ch, base=self.base, latent=self.latent,
+                        size=self.size, depth=self.depth, dropout=self.dropout)

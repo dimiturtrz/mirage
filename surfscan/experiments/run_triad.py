@@ -26,6 +26,7 @@ from torch import optim
 
 from core.data.dataset import load_split
 from core.data.defects import KINDS, synthesize
+from core.method import Method
 from core.obs import get
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import UNet
@@ -184,7 +185,7 @@ def main():
     for arm in args.arms:
         tag = f"triad_{arm}" + ("_curric" if args.curriculum and arm != "real" else "")
         log.info(f"\n===== {tag} (seed {args.seed}) =====")
-        res[arm] = harness.run(tag, fits[arm], score_fn, cats=args.cats,
+        res[arm] = harness.run(tag, Method(fits[arm], score_fn), cats=args.cats,
                                params={"arm": arm, "seed": args.seed, "epochs": args.epochs,
                                        "curriculum": args.curriculum})
     if "real" in res and "synth" in res:

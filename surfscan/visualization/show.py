@@ -33,7 +33,7 @@ from core.data import preprocess as pp
 from core.data import store
 from core.data.dataset import load_split
 from core.obs import get
-from surfscan.models.patchcore import PatchCore
+from surfscan.models.patchcore import FitCfg, PatchCore
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import HParams
 
@@ -70,8 +70,7 @@ def _run_model(run, rgb, xyz):
     chans = [(xyz if c == "xyz" else rgb).transpose(2, 0, 1) for c in hp.channels]
     x = np.concatenate(chans, 0)[None].astype("float32")          # 1,C,H,W
     dev = "cuda" if torch.cuda.is_available() else "cpu"
-    model = ConvVAE(in_ch=x.shape[1], base=hp.base, latent=hp.latent, size=hp.size,
-                    depth=hp.depth, dropout=hp.dropout).to(dev)
+    model = ConvVAE(hp.model_cfg(x.shape[1])).to(dev)
     model.load_state_dict(torch.load(run / "model.pt", map_location=dev))
     model.eval()
     with torch.no_grad():
@@ -97,7 +96,7 @@ def patchcore_map(cat, rgb, valid, coreset=0.1):
     score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
-    pc = PatchCore(device=dev).fit(train.x, coreset=coreset)
+    pc = PatchCore(device=dev).fit(train.x, FitCfg(coreset=coreset))
     x = torch.from_numpy(rgb.transpose(2, 0, 1)[None]).to(dev)
     return pc.score_maps(x)[0] * valid                           # H,W
 

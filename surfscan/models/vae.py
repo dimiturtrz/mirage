@@ -8,6 +8,8 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
+from surfscan.training.hparams import ModelCfg
+
 
 def _enc_block(ci, co, p=0.0):
     layers = [nn.Conv2d(ci, co, 4, 2, 1), nn.BatchNorm2d(co), nn.SiLU()]
@@ -26,8 +28,10 @@ def _dec_block(ci, co, *, last=False, p=0.0):
 
 
 class ConvVAE(nn.Module):
-    def __init__(self, in_ch=3, base=32, latent=256, size=256, depth=5, dropout=0.0):
+    def __init__(self, cfg: ModelCfg):
         super().__init__()
+        in_ch, base, latent, size, depth, dropout = (
+            cfg.in_ch, cfg.base, cfg.latent, cfg.size, cfg.depth, cfg.dropout)
         self.in_ch, self.size, self.depth = in_ch, size, depth
         chs = [in_ch] + [base * 2 ** i for i in range(depth)]   # e.g. 3,32,64,128,256,512
         self.enc = nn.ModuleList(_enc_block(chs[i], chs[i + 1], dropout) for i in range(depth))

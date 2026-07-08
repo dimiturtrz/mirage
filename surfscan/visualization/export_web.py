@@ -20,7 +20,8 @@ log = get()
 OUT = Path(__file__).resolve().parents[2] / "pointcloud-viewer" / "data"
 
 
-def export_one(cat, split, defect, idx, n=15000, seed=0):
+def export_one(sample, n=15000, seed=0):
+    cat, split, defect, idx = sample
     rgb, xyz, gt, valid = load_processed(cat, split, defect, idx)
     v = valid.astype(bool)
     an = patchcore_map(cat, rgb, valid)[v]
@@ -50,7 +51,7 @@ def main():
     ids = []
     for spec in args.samples:
         cat, split, defect, idx = spec.split(":")
-        ids.append(export_one(cat, split, defect, int(idx)))
+        ids.append(export_one((cat, split, defect, int(idx))))
     (OUT / "manifest.json").write_text(json.dumps({"samples": ids}, indent=2))
     log.info(f"manifest: {len(ids)} samples -> {OUT}")
 

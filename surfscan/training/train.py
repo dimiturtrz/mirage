@@ -28,11 +28,11 @@ log = get()
 
 
 def _vae_model(hp, in_ch):
-    return ConvVAE(in_ch=in_ch, base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth, dropout=hp.dropout)
+    return ConvVAE(hp.model_cfg(in_ch))
 
 
 def _inpaint_model(hp, in_ch):
-    return InpaintAE(in_ch=in_ch, base=hp.base, latent=hp.latent, size=hp.size, depth=hp.depth, dropout=hp.dropout)
+    return InpaintAE(hp.model_cfg(in_ch))
 
 
 def _vae_step(run_model, x, m, hp):

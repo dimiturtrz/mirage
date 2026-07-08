@@ -68,9 +68,9 @@ def _log(res):
     tracking.artifact_json("aggregate.json", res)
 
 
-def run(method, fit_fn, score_fn, cats=None, run_id=None, params=None):
+def run(method, m, cats=None, run_id=None, params=None):
     cats = cats or mvtec.categories()
-    res = aggregate(method, fit_fn, score_fn, cats)
+    res = aggregate(method, m.fit, m.score, cats)
     if run_id:                                       # log into an existing run (e.g. the train run)
         with tracking.resume(run_id):
             _log(res)

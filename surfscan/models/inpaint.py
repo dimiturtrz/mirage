@@ -11,11 +11,14 @@ import torch
 import torch.nn as nn
 
 from surfscan.models.vae import _dec_block, _enc_block
+from surfscan.training.hparams import ModelCfg
 
 
 class InpaintAE(nn.Module):
-    def __init__(self, in_ch=3, base=32, latent=256, size=256, depth=5, dropout=0.0):
+    def __init__(self, cfg: ModelCfg):
         super().__init__()
+        in_ch, base, latent, size, depth, dropout = (
+            cfg.in_ch, cfg.base, cfg.latent, cfg.size, cfg.depth, cfg.dropout)
         self.in_ch, self.size, self.depth = in_ch, size, depth
         chs = [in_ch] + [base * 2 ** i for i in range(depth)]
         self.enc = nn.ModuleList(_enc_block(chs[i], chs[i + 1], dropout) for i in range(depth))

@@ -15,11 +15,7 @@ log = get()
 CARD = ROOT / "docs" / "MODEL_CARD.md"
 
 
-def build(run_name: str) -> None:
-    row = _latest(run_name)
-    if row is None:
-        raise SystemExit(f"no mlflow run '{run_name}' — train/score it first, then regenerate the card")
-
+def _render(run_name: str, row: dict) -> str:
     params = {k[len("params."):]: v for k, v in row.items() if k.startswith("params.") and v == v}
     au, img = row.get("metrics.au_pro_mean"), row.get("metrics.img_auroc_mean")
     cats = sorted({k.split("/")[1] for k in row if k.startswith("metrics.au_pro/")})
@@ -51,7 +47,14 @@ def build(run_name: str) -> None:
         "named and measured, not bank/resolution tuning.",
         "",
     ]
-    CARD.write_text("\n".join(out), encoding="utf-8")
+    return "\n".join(out)
+
+
+def build(run_name: str) -> None:
+    row = _latest(run_name)
+    if row is None:
+        raise SystemExit(f"no mlflow run '{run_name}' — train/score it first, then regenerate the card")
+    CARD.write_text(_render(run_name, row), encoding="utf-8")
     log.info(f"wrote {CARD.relative_to(ROOT)}")
 
 

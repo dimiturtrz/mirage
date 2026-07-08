@@ -15,8 +15,11 @@ import numpy as np
 
 from core.data import mvtec
 from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
+from core.obs import get
 from surfscan import tracking
 from surfscan.evaluation import diagnostics, metrics
+
+log = get()
 
 
 def aggregate(method, fit_fn, score_fn, cats):
@@ -28,21 +31,21 @@ def aggregate(method, fit_fn, score_fn, cats):
         rows.append({"category": c, "n": int(len(sa.scores)),
                      "img_auroc": metrics.image_auroc(sa.scores, sa.labels),
                      "au_pro": metrics.au_pro(sa.amaps, sa.masks, sa.valids)})
-        print(f"  {c:12s}  img_auroc {rows[-1]['img_auroc']:.3f}   au_pro {rows[-1]['au_pro']:.3f}")
+        log.info(f"  {c:12s}  img_auroc {rows[-1]['img_auroc']:.3f}   au_pro {rows[-1]['au_pro']:.3f}")
         for f in ScoreArrays._fields:
             pool[f].append(getattr(sa, f))
 
     auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
     aupro = float(np.nanmean([r["au_pro"] for r in rows]))
-    print(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
+    log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
 
     defect_rows = diagnostics.by_defect(
         np.concatenate(pool["amaps"]), np.concatenate(pool["scores"]),
         np.concatenate(pool["masks"]), np.concatenate(pool["valids"]),
         np.concatenate(pool["labels"]), np.concatenate(pool["defects"]))
-    print("  --- per defect type ---")
+    log.info("  --- per defect type ---")
     for d in defect_rows:
-        print(f"  {d['defect']:14s}  img_auroc {d['img_auroc']:.3f}   au_pro {d['au_pro']:.3f}  (n={d['n']})")
+        log.info(f"  {d['defect']:14s}  img_auroc {d['img_auroc']:.3f}   au_pro {d['au_pro']:.3f}  (n={d['n']})")
 
     # calibration (ECE) — only meaningful when amaps are probabilities in [0,1] (e.g. the triad's
     # sigmoid outputs); residual/distance methods aren't calibrated, so skip them cleanly.
@@ -50,7 +53,7 @@ def aggregate(method, fit_fn, score_fn, cats):
     calib = None
     if amaps_all.size and np.nanmin(amaps_all) >= 0.0 and np.nanmax(amaps_all) <= 1.0:
         calib = metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
-        print(f"  ECE (calibration under shift) {calib:.4f}")
+        log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
     return {"method": method, "per_category": rows,
             "mean": {"img_auroc": auroc, "au_pro": aupro}, "ece": calib, "per_defect": defect_rows}

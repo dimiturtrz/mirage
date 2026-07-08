@@ -22,6 +22,9 @@ import polars as pl
 from core import config
 from core.data import mvtec
 from core.data import preprocess as pp
+from core.obs import get
+
+log = get()
 
 # unified cloud columns. `file` -> the npz in data/; `raw_*` -> the original channels.
 META_FIELDS = ["sample_id", "category", "split", "defect", "label", "has_gt", "file",
@@ -121,6 +124,6 @@ if __name__ == "__main__":
     args = ap.parse_args()
     build(size=args.size, cats=args.cats, rebuild=args.rebuild)  # process-if-missing + rewrite meta
     df = load(size=args.size, cats=args.cats)
-    print(f"=== mvtec3d cloud: {len(df)} samples ===")
-    print(df.group_by("split", "label").agg(pl.len().alias("n")).sort("split", "label"))
-    print(df.group_by("category").agg(pl.len().alias("n"), pl.col("label").sum().alias("anom")).sort("category"))
+    log.info(f"=== mvtec3d cloud: {len(df)} samples ===")
+    log.info(df.group_by("split", "label").agg(pl.len().alias("n")).sort("split", "label"))
+    log.info(df.group_by("category").agg(pl.len().alias("n"), pl.col("label").sum().alias("anom")).sort("category"))

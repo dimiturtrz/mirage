@@ -20,7 +20,7 @@ jobs:
       # (a new undefined name / unused import / unsorted imports fails CI). Ratchet: add each family to
       # --select as it reaches zero across core+surfscan (B905/B023, then E501, PLR*, etc.).
       - name: Lint — enforced (shipped code, clean rules)
-        run: uvx ruff@0.15.13 check core surfscan --select F,I,B
+        run: uvx ruff@0.15.13 check core surfscan --select F,I,B,T201
       # ADVISORY (never blocks): full check over the whole tree — surfaces the families still being
       # cleaned so the count is visible in CI. Becomes the enforced gate once it hits zero.
       - name: Lint — advisory full (non-blocking)

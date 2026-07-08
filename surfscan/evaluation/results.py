@@ -15,7 +15,10 @@ from pathlib import Path
 
 import mlflow
 
+from core.obs import get
 from surfscan import tracking  # noqa: F401  — importing sets the mlflow tracking uri
+
+log = get()
 
 ROOT = Path(__file__).resolve().parents[2]
 RJSON = ROOT / "docs" / "RESULTS.json"
@@ -59,10 +62,10 @@ def refresh() -> None:
         done.append(m["name"])
 
     RJSON.write_text(json.dumps(R, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"refreshed from mlflow: {done or '(nothing)'}")
+    log.info(f"refreshed from mlflow: {done or '(nothing)'}")
     if skipped:
-        print(f"  no run found (kept curated): {skipped}")
-    print("now render the docs:  python -m surfscan.evaluation.sync_numbers")
+        log.info(f"  no run found (kept curated): {skipped}")
+    log.info("now render the docs:  python -m surfscan.evaluation.sync_numbers")
 
 
 if __name__ == "__main__":

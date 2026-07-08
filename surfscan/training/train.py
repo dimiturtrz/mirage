@@ -17,11 +17,14 @@ import torch
 from torch import optim
 
 from core.data.dataset import load_split
+from core.obs import get
 from surfscan import tracking
 from surfscan.models.inpaint import InpaintAE, random_mask
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import HParams
 from surfscan.training.losses import kl_loss, masked_recon_loss
+
+log = get()
 
 
 def _vae_model(hp, in_ch):
@@ -68,7 +71,7 @@ def train(hp: HParams, run_name: str | None = None) -> str:
     amp = dev == "cuda" and hp.bf16
 
     with tracking.run("surfscan", run_name, params=hp.model_dump()) as run_id:
-        print(f"train[{hp.model_type}]: {n} good | in_ch={data.in_ch} | dev={dev} | bf16={amp} | compile={hp.compile}")
+        log.info(f"train[{hp.model_type}]: {n} good | in_ch={data.in_ch} | dev={dev} | bf16={amp} | compile={hp.compile}")
         for epoch in range(hp.epochs):
             model.train()
             idx = torch.randperm(n, device=dev)
@@ -92,11 +95,11 @@ def train(hp: HParams, run_name: str | None = None) -> str:
             tracking.metrics(row, step=epoch)
             if epoch % max(1, hp.epochs // 20) == 0 or epoch == hp.epochs - 1:
                 parts = "  ".join(f"{k} {v:.4f}" for k, v in row.items())
-                print(f"ep {epoch:3d}  {parts}  {time.time()-t0:.2f}s")
+                log.info(f"ep {epoch:3d}  {parts}  {time.time()-t0:.2f}s")
 
         tracking.artifact_json("config.json", hp.model_dump())
         tracking.log_model(model)
-        print(f"logged -> mlflow run {run_id}")
+        log.info(f"logged -> mlflow run {run_id}")
         return run_id
 
 

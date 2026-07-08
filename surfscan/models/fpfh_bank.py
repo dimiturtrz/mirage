@@ -6,6 +6,8 @@ local-surface descriptors to normal. See learning/2026-06-25_fpfh-and-neighborho
 """
 from __future__ import annotations
 
+import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import numpy as np
@@ -49,6 +51,15 @@ def fpfh_for_sample(xyz, valid, cfg=None):
     return np.asarray(f.data).T.astype(np.float32), coords
 
 
+def _fpfh_batch(samples, cfg=None, workers=None):
+    """fpfh_for_sample over samples in parallel — open3d's normals/FPFH are C++ ops that release the
+    GIL, so threads give near-linear speedup on the per-sample descriptor compute (the CPU bottleneck).
+    executor.map preserves order, so the result is identical to the serial list — just faster."""
+    workers = workers or max(1, (os.cpu_count() or 4) - 2)
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        return list(ex.map(lambda s: fpfh_for_sample(s[0], s[1], cfg), samples))
+
+
 class FpfhBank:
     def __init__(self, device="cuda", per_sample=2000, coreset=0.25, seed=0):
         self.device = device
@@ -60,8 +71,7 @@ class FpfhBank:
     def fit(self, samples):               # samples: list of (xyz, valid)
         rng = np.random.RandomState(self.seed)
         feats = []
-        for xyz, valid in samples:
-            f, _ = fpfh_for_sample(xyz, valid)
+        for f, _ in _fpfh_batch(samples):     # parallel FPFH; order preserved -> identical bank
             if self.per_sample and len(f) > self.per_sample:
                 f = f[rng.choice(len(f), self.per_sample, replace=False)]
             feats.append(f)
@@ -72,8 +82,7 @@ class FpfhBank:
         return self
 
     @torch.no_grad()
-    def score_map(self, xyz, valid, chunk=4096):
-        f, coords = fpfh_for_sample(xyz, valid)
+    def _score_one(self, f, coords, valid, chunk):
         ft = torch.from_numpy(f).to(self.device)
         d = torch.empty(len(ft), device=self.device)
         for i in range(0, len(ft), chunk):
@@ -81,3 +90,13 @@ class FpfhBank:
         amap = np.zeros(valid.shape, np.float32)
         amap[coords[:, 0], coords[:, 1]] = d.cpu().numpy()
         return amap
+
+    def score_map(self, xyz, valid, chunk=4096):
+        f, coords = fpfh_for_sample(xyz, valid)
+        return self._score_one(f, coords, valid, chunk)
+
+    def score_maps(self, samples, chunk=4096):
+        """Batch score: parallel FPFH over samples, GPU nearest-bank distance each -> (N,H,W).
+        Identical to np.stack([score_map(x, v) for x, v in samples]), just parallel on the CPU half."""
+        return np.stack([self._score_one(f, coords, valid, chunk)
+                         for (f, coords), (_, valid) in zip(_fpfh_batch(samples), samples, strict=True)])

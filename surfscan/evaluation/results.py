@@ -38,6 +38,13 @@ def _get(row: dict, key: str):
     return round(float(v), 3) if v is not None and v == v else None   # skip None / NaN
 
 
+def _apply(obj: dict, row: dict, pairs) -> None:
+    for metric, field in pairs:
+        v = _get(row, metric)
+        if v is not None:
+            obj[field] = v
+
+
 def refresh() -> None:
     R = json.loads(RJSON.read_text(encoding="utf-8"))
     done, skipped = [], []
@@ -48,17 +55,11 @@ def refresh() -> None:
         row = _latest(rn)
         if row is None:
             skipped.append(rn); continue
-        for metric, field in (("au_pro_mean", "au_pro"), ("img_auroc_mean", "img_auroc")):
-            v = _get(row, metric)
-            if v is not None:
-                m[field] = v
+        _apply(m, row, (("au_pro_mean", "au_pro"), ("img_auroc_mean", "img_auroc")))
         if m.get("deployable"):                                   # per-category table
             for c in R["patchcore_per_category"]:
-                for metric, field in ((f"au_pro/{c['category']}", "au_pro"),
-                                      (f"img_auroc/{c['category']}", "img_auroc")):
-                    v = _get(row, metric)
-                    if v is not None:
-                        c[field] = v
+                _apply(c, row, ((f"au_pro/{c['category']}", "au_pro"),
+                                (f"img_auroc/{c['category']}", "img_auroc")))
         done.append(m["name"])
 
     RJSON.write_text(json.dumps(R, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

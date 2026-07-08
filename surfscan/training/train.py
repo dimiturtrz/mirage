@@ -71,7 +71,8 @@ def train(hp: HParams, run_name: str | None = None) -> str:
     amp = dev == "cuda" and hp.bf16
 
     with tracking.run("surfscan", run_name, params=hp.model_dump()) as run_id:
-        log.info(f"train[{hp.model_type}]: {n} good | in_ch={data.in_ch} | dev={dev} | bf16={amp} | compile={hp.compile}")
+        log.info(f"train[{hp.model_type}]: {n} good | in_ch={data.in_ch} | dev={dev} | "
+                 f"bf16={amp} | compile={hp.compile}")
         for epoch in range(hp.epochs):
             model.train()
             idx = torch.randperm(n, device=dev)

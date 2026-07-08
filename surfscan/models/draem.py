@@ -23,7 +23,8 @@ def _block(ci, co):
 class UNet(nn.Module):
     def __init__(self, in_ch, out_ch, base=32):
         super().__init__()
-        self.e1, self.e2, self.e3, self.e4 = _block(in_ch, base), _block(base, base * 2), _block(base * 2, base * 4), _block(base * 4, base * 8)
+        self.e1, self.e2 = _block(in_ch, base), _block(base, base * 2)
+        self.e3, self.e4 = _block(base * 2, base * 4), _block(base * 4, base * 8)
         self.bott = _block(base * 8, base * 16)
         self.pool = nn.MaxPool2d(2)
         self.u4 = nn.ConvTranspose2d(base * 16, base * 8, 2, 2); self.d4 = _block(base * 16, base * 8)

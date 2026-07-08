@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from core.compute import pick_device
 from core.data.dataset import load_split
+from core.method import Method
 from surfscan import tracking
 from surfscan.dispatch import Spec
 from surfscan.evaluation import harness, scoring
@@ -36,7 +37,7 @@ def evaluate(run_id, cats=None, device="cuda", image_score="residual"):
             scores = scoring.mahalanobis(scoring.latents(m, good), scoring.latents(m, data))
         return scoring.score_arrays(amaps, data, scores=scores)
 
-    return harness.run(hp.model_type, fit, score, cats=cats or hp.cats, run_id=run_id)
+    return harness.run(hp.model_type, Method(fit, score), cats=cats or hp.cats, run_id=run_id)
 
 
 def _args(ap):

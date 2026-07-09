@@ -6,8 +6,6 @@ local-surface descriptors to normal. See learning/2026-06-25_fpfh-and-neighborho
 """
 from __future__ import annotations
 
-import os
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import numpy as np
@@ -51,13 +49,12 @@ def fpfh_for_sample(xyz, valid, cfg=None):
     return np.asarray(f.data).T.astype(np.float32), coords
 
 
-def _fpfh_batch(samples, cfg=None, workers=None):
-    """fpfh_for_sample over samples in parallel — open3d's normals/FPFH are C++ ops that release the
-    GIL, so threads give near-linear speedup on the per-sample descriptor compute (the CPU bottleneck).
-    executor.map preserves order, so the result is identical to the serial list — just faster."""
-    workers = workers or max(1, (os.cpu_count() or 4) - 2)
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        return list(ex.map(lambda s: fpfh_for_sample(s[0], s[1], cfg), samples))
+def _fpfh_batch(samples, cfg=None):
+    """fpfh_for_sample over samples. Serial by measurement: open3d's normals/FPFH hold the GIL, so a
+    ThreadPool gave 1.0x (no speedup, benchmarked on real data); a ProcessPool's Windows-spawn +
+    per-sample point-cloud pickle overhead doesn't pay for these small clouds. A real speedup needs a
+    vectorized/GPU FPFH, not a pool — out of scope. Kept as a batch helper (fit + score_maps)."""
+    return [fpfh_for_sample(xyz, valid, cfg) for xyz, valid in samples]
 
 
 class FpfhBank:
@@ -71,7 +68,7 @@ class FpfhBank:
     def fit(self, samples):               # samples: list of (xyz, valid)
         rng = np.random.RandomState(self.seed)
         feats = []
-        for f, _ in _fpfh_batch(samples):     # parallel FPFH; order preserved -> identical bank
+        for f, _ in _fpfh_batch(samples):
             if self.per_sample and len(f) > self.per_sample:
                 f = f[rng.choice(len(f), self.per_sample, replace=False)]
             feats.append(f)
@@ -96,7 +93,7 @@ class FpfhBank:
         return self._score_one(f, coords, valid, chunk)
 
     def score_maps(self, samples, chunk=4096):
-        """Batch score: parallel FPFH over samples, GPU nearest-bank distance each -> (N,H,W).
-        Identical to np.stack([score_map(x, v) for x, v in samples]), just parallel on the CPU half."""
+        """Batch score -> (N,H,W): FPFH per sample (see _fpfh_batch), then GPU nearest-bank distance.
+        Identical to np.stack([score_map(x, v) for x, v in samples]) — a convenience, not a speedup."""
         return np.stack([self._score_one(f, coords, valid, chunk)
                          for (f, coords), (_, valid) in zip(_fpfh_batch(samples), samples, strict=True)])

@@ -22,6 +22,7 @@ class PatchCoreCfg:
     coreset_method: str = field(default="greedy", metadata={"choices": ["greedy", "random"]})
     size: int | None = field(default=None, metadata={"help": "processed store resolution (default 256)"})
     amp: bool = field(default=False, metadata={"help": "bf16 backbone forward (faster; off = reported number)"})
+    seed: int = field(default=0, metadata={"help": "coreset RNG seed (vary for multi-seed error bars)"})
 
 
 class PatchCoreMethod:
@@ -38,7 +39,7 @@ class PatchCoreMethod:
     def fit(self, cat):
         train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=self.dev, size=self.cfg.size)
         return PatchCore(device=self.dev, amp=self.cfg.amp).fit(
-            train.x, FitCfg(coreset=self.cfg.coreset, method=self.cfg.coreset_method))
+            train.x, FitCfg(coreset=self.cfg.coreset, method=self.cfg.coreset_method, seed=self.cfg.seed))
 
     def score(self, state, cat):
         test = load_split(split="test", cats=[cat], channels=["rgb"], device=self.dev, size=self.cfg.size)

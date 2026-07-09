@@ -51,3 +51,6 @@ Thumbs.db
 # Web viewer data (MVTec-derived, CC BY-NC-SA — generate locally, do not redistribute)
 pointcloud-viewer/data/
 .coverage
+
+# external git-repo deps: checked out, never vendored (CLAUDE.md)
+external/

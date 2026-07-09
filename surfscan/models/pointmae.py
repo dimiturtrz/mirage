@@ -40,6 +40,7 @@ def _install_op_shims():
         class KNN:                                          # M3DM: KNN(k, transpose_mode)(ref, query)->(_, idx)
             def __init__(self, k, transpose_mode=True):  # noqa: FBT002  (mirrors knn_cuda.KNN's signature)
                 self.k = k
+                self.transpose_mode = transpose_mode        # our output is the transpose_mode=True layout
 
             def __call__(self, ref, query):                 # query's k-nearest in ref -> idx (B, Gq, k)
                 dist, idx = square_distance(query, ref).topk(self.k, dim=-1, largest=False)

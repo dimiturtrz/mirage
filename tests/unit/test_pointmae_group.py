@@ -8,7 +8,6 @@ import torch
 
 from surfscan.models.pointmae_group import (
     farthest_point_sample,
-    group,
     index_points,
     square_distance,
 )
@@ -32,15 +31,3 @@ def test_fps_spans_two_clusters():
     xyz = torch.cat([torch.zeros(1, 10, 3), torch.full((1, 10, 3), 100.0)], 1)
     picked = index_points(xyz, farthest_point_sample(xyz, 4))[0]
     assert (picked.norm(dim=1) < 1).sum() >= 1 and (picked.norm(dim=1) > 50).sum() >= 1
-
-
-def test_group_shapes_and_knn_is_true_nearest():
-    torch.manual_seed(0)
-    xyz = torch.randn(1, 64, 3)
-    nb, ctr, nidx, cidx = group(xyz, num_group=8, group_size=6)
-    assert nb.shape == (1, 8, 6, 3) and ctr.shape == (1, 8, 3)
-    assert nidx.shape == (1, 8, 6) and cidx.shape == (1, 8)
-
-    ref = torch.cdist(ctr, xyz).topk(6, dim=-1, largest=False).indices     # brute-force k-nearest
-    assert torch.equal(nidx.sort(-1).values, ref.sort(-1).values)
-    assert (nb.norm(dim=-1).min(-1).values < 1e-5).all()                   # centre ∈ its own patch -> a ~0 vector

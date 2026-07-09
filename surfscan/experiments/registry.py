@@ -13,6 +13,7 @@ from surfscan.experiments import (
     run_featrecon,
     run_fused,
     run_patchcore,
+    run_pointmae,
     run_triad,
 )
 
@@ -24,4 +25,5 @@ REGISTRY: list[Spec] = [
     run_draem.SPEC,
     run_triad.SPEC,
     run_vae.SPEC,
+    run_pointmae.SPEC,
 ]

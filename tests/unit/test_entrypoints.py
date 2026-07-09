@@ -22,7 +22,7 @@ def test_report_commands():
 def test_run_commands():
     pytest.importorskip("torchvision")
     from surfscan.experiments.registry import REGISTRY  # noqa: PLC0415
-    assert _cmds(REGISTRY) == {"patchcore", "btf", "fused", "featrecon", "draem", "triad", "vae"}
+    assert _cmds(REGISTRY) == {"patchcore", "btf", "fused", "featrecon", "draem", "triad", "vae", "pointmae"}
     build_parser("surfscan.run", REGISTRY)
 
 

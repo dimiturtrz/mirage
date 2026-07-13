@@ -8,12 +8,12 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 <!-- results:methods -->
 | method | modality | mean img-AUROC | mean pixel AU-PRO |
 |---|---|---|---|
-| Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.480 | 0.095 |
+| Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.486 | 0.095 |
 | DRAEM (synthesis-discriminative, crude Perlin) · bagel — ours | xyz | 0.610 | 0.360 |
 |   ↳ realistic-synth v3 (normal-displaced, on DRAEM) · bagel — ours | xyz | 0.790 | 0.320 |
-| BTF (FPFH memory bank) — ours | geometry | 0.675 | 0.653 |
-| **PatchCore (feature memory bank)** — ours | rgb | 0.838 | 0.902 |
-| Feature-recon / RD4AD-lite — ours | rgb | 0.807 | 0.908 |
+| BTF (FPFH memory bank) — ours | geometry | 0.674 [0.641, 0.707] | 0.650 [0.637, 0.662] |
+| **PatchCore (feature memory bank)** — ours | rgb | 0.838 [0.812, 0.866] | 0.902 [0.892, 0.910] |
+| Feature-recon / RD4AD-lite — ours | rgb | 0.805 [0.777, 0.833] | 0.907 [0.899, 0.915] |
 | Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.782 | 0.904 |
 | SOTA (DCRDF-Net) ⚠ | rgb + 3D | ~0.97 | ~0.99 |
 <!-- /results:methods -->

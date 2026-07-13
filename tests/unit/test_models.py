@@ -6,7 +6,7 @@ guards against a broken layer wiring / shape mismatch after a refactor.
 import numpy as np
 import torch
 
-from surfscan.models.draem import Draem, UNet, synthesize
+from surfscan.models.draem import Draem, DraemSynth, UNet
 from surfscan.models.feat_ae import FeatAE
 from surfscan.models.inpaint import InpaintAE
 from surfscan.models.vae import ConvVAE
@@ -50,6 +50,6 @@ def test_draem_synthesize_on_object():
     x = torch.rand(2, 3, 32, 32)
     valid = torch.zeros(2, 1, 32, 32)
     valid[:, :, 8:24, 8:24] = 1.0
-    aug, mask = synthesize(x, valid, np.random.RandomState(0))
+    aug, mask = DraemSynth.synthesize(x, valid, np.random.RandomState(0))
     assert aug.shape == x.shape and mask.shape == (2, 1, 32, 32)
     assert (mask.bool() & (valid < 0.5)).sum() == 0        # synthetic defect stays on-object

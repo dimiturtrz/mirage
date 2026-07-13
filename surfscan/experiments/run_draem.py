@@ -15,17 +15,14 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
-from core.compute import autocast
-from core.data.dataset import load_split
-from core.data.defects import (
-    synthesize as synth_realistic,  # channel-aware coherent defects
-)
+from core.compute import Compute
+from core.data.dataset import GpuSplit
+from core.data.defects import Defects  # channel-aware coherent defects
 from surfscan.evaluation import scoring
-from surfscan.method_cli import method_spec
-from surfscan.models.draem import Draem
-from surfscan.models.draem import (
-    synthesize as synth_perlin,  # the original crude Perlin (control)
-)
+from surfscan.method_cli import MethodCli
+from surfscan.models.draem import Draem, DraemSynth
+
+synth_perlin = DraemSynth.synthesize  # the original crude Perlin (control)
 from surfscan.training.trainer import Trainer
 
 
@@ -49,15 +46,15 @@ class DraemMethod:
     def fit(self, cat):
         torch.manual_seed(self.cfg.seed)
         rng = np.random.RandomState(self.cfg.seed)
-        train = load_split(split="train", label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
+        train = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
         model = Draem(ch=train.in_ch).to(self.dev, memory_format=torch.channels_last)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
 
         def step(idx):
             x, v = train.x[idx], train.valid[idx]
-            aug, mask = (synth_realistic(x, v, rng, channels=self.cfg.channels)
+            aug, mask = (Defects.synthesize(x, v, rng, channels=self.cfg.channels)
                          if self.cfg.synth == "realistic" else synth_perlin(x, v, rng))
-            with autocast(x):
+            with Compute.autocast(x):
                 rec, logits = model(aug.to(memory_format=torch.channels_last))
                 rl = (((rec - x) ** 2) * v).sum() / (v.sum() * x.shape[1] + 1e-8)
                 dl = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)
@@ -66,7 +63,7 @@ class DraemMethod:
         return Trainer(model, opt, self.dev, batch=16).fit(len(train), self.cfg.epochs, step)
 
     def score(self, model, cat):
-        test = load_split(split="test", cats=[cat], channels=self.cfg.channels, device=self.dev)
+        test = GpuSplit.load_split(split="test", cats=[cat], channels=self.cfg.channels, device=self.dev)
         model.eval()
         amaps = []
         with torch.no_grad():
@@ -74,7 +71,7 @@ class DraemMethod:
                 x, v = test.x[i:i + 16], test.valid[i:i + 16]
                 _, logits = model(x.to(memory_format=torch.channels_last))
                 amaps.append((torch.sigmoid(logits.float()) * v).squeeze(1).cpu())
-        return scoring.score_arrays(torch.cat(amaps).numpy(), test)
+        return scoring.Scoring.score_arrays(torch.cat(amaps).numpy(), test)
 
 
-SPEC = method_spec("draem", DraemMethod, DraemCfg)
+SPEC = MethodCli.method_spec("draem", DraemMethod, DraemCfg)

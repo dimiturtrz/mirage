@@ -74,10 +74,10 @@ Principles are enforced **mechanically**, not by review — a **ratcheting** gat
 | Dead code | `vulture@2.16` | unused funcs/attrs — blocks conf≥80, warns conf≥60 | `[tool.vulture]` |
 | Import layers | `import-linter` (grimp) | `core` = independent kernel, imports no `surfscan` | `[tool.importlinter]` |
 | Arch fitness | `devtools/graph.py --assert` (grimp+networkx) | god-module (fan-in AND fan-out both >8), god-file (>750 lines), import cycle; line-floor/chokepoint advisory | `[tool.structure]` |
-| Module shape | `ast-grep` (`devtools/sgconfig.yml`) | no import-time side-effect call (`matplotlib.use` exempt) | `devtools/sg-rules/` |
+| Module shape | `ast-grep` (`devtools/sgconfig.yml`) | no import-time side-effect call (`matplotlib.use` exempt); **everything-in-a-class** — every top-level `def` is a method on the class that owns it (`main` exempt) | `devtools/sg-rules/` |
 | Duplication | `jscpd` (advisory) | copy-paste over the DRY threshold | `devtools/jscpd.json` |
 
-**noqa policy: bare `# noqa: RULE`** — no prose reasons; minimal comments, prefer self-documenting names. **surfscan is functional-core** (module-level pure functions + `Method`/`AnomalyMethod` strategy objects) — systole's "everything-in-a-class" ast-grep rule is deliberately **not** ported (global principle is "strategy pattern for big things", not everything-in-a-class).
+**noqa policy: bare `# noqa: RULE`** — no prose reasons; minimal comments, prefer self-documenting names. **Everything-in-a-class** (qc5, matching systole): a top-level function belongs as a method on the class that owns its state/responsibility; a pure stateless helper is a `@staticmethod` on that class. `main`/`_main` exempt. The rule catches decorated top-level defs too (a `@contextmanager`/`@torch.no_grad()` free func can't slip past).
 
 ## Architecture Overview
 

@@ -11,11 +11,11 @@ Each is a `Spec` in its module; this front-end builds subparsers and routes. See
 """
 from __future__ import annotations
 
-from surfscan.dispatch import dispatch
+from surfscan.dispatch import Dispatch
 from surfscan.evaluation import evaluate, modelcard, results, sync_numbers
 from surfscan.experiments import triad_summary
 
 REPORTS = [evaluate.SPEC, results.SPEC, sync_numbers.SPEC, modelcard.SPEC, triad_summary.SPEC]
 
 if __name__ == "__main__":
-    dispatch("surfscan.report", REPORTS)
+    Dispatch.dispatch("surfscan.report", REPORTS)

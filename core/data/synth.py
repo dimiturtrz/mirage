@@ -19,25 +19,31 @@ from pathlib import Path
 
 from core import config
 from core.data import mvtec
-from core.data.mvtec import Sample, load_raw  # identical on-disk format -> reuse the loader + Sample type
+from core.data.mvtec import Mvtec, Sample  # identical on-disk format -> reuse the loader + Sample type
 
 SPLITS = mvtec.SPLITS
 
 
-def synth_root() -> Path:
-    """`<data root>/synth` — the engine's output root (sibling to raw/ + processed/)."""
-    return Path(config.data_root()) / "synth"
+class Synth:
+    """Synthetic-defect reader (the second adapter) — delegates to the MVTec adapter over the synth root."""
+
+    @staticmethod
+    def synth_root() -> Path:
+        """`<data root>/synth` — the engine's output root (sibling to raw/ + processed/)."""
+        return Path(config.Config.data_root()) / "synth"
+
+    @staticmethod
+    def categories(root: Path | None = None) -> list[str]:
+        """Rendered categories under the synth root ([] until the engine has written any)."""
+        return Mvtec.categories(root or Synth.synth_root())
+
+    @staticmethod
+    def samples(root: Path | None = None, cats: list[str] | None = None) -> list[Sample]:
+        """Every rendered (category, split, defect, idx) sample — same walk + on-disk format as
+        Mvtec.samples (only the source root differs), so the store ingests real + synth identically."""
+        return Mvtec.samples(root or Synth.synth_root(), cats)
 
 
-def categories(root: Path | None = None) -> list[str]:
-    """Rendered categories under the synth root ([] until the engine has written any)."""
-    return mvtec.categories(root or synth_root())
+load_raw = Mvtec.load_raw  # identical on-disk format -> reuse the loader
 
-
-def samples(root: Path | None = None, cats: list[str] | None = None) -> list[Sample]:
-    """Every rendered (category, split, defect, idx) sample — same walk + on-disk format as
-    mvtec.samples (only the source root differs), so the store ingests real + synth identically."""
-    return mvtec.samples(root or synth_root(), cats)
-
-
-__all__ = ["Sample", "load_raw", "samples", "categories", "synth_root"]
+__all__ = ["Sample", "load_raw", "Synth"]

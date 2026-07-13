@@ -27,46 +27,46 @@ def _assert_sane(res):
 
 
 def _run(method):
-    from surfscan.evaluation.harness import aggregate  # noqa: PLC0415
-    return aggregate(method.run_name, method.fit, method.score, [CAT])
+    from surfscan.evaluation.harness import Harness  # noqa: PLC0415
+    return Harness.aggregate(method.run_name, method.fit, method.score, [CAT])
 
 
 def test_patchcore_smoke():
-    from core.compute import pick_device  # noqa: PLC0415
+    from core.compute import Compute  # noqa: PLC0415
     from surfscan.experiments.run_patchcore import PatchCoreCfg, PatchCoreMethod  # noqa: PLC0415
-    _assert_sane(_run(PatchCoreMethod(PatchCoreCfg(coreset=0.05), pick_device())))
+    _assert_sane(_run(PatchCoreMethod(PatchCoreCfg(coreset=0.05), Compute.pick_device())))
 
 
 def test_patchcore_amp_smoke():
     """Closes the 'bf16 backbone path not GPU-verified' gap — runs the amp=True embed on real data."""
-    from core.compute import pick_device  # noqa: PLC0415
+    from core.compute import Compute  # noqa: PLC0415
     from surfscan.experiments.run_patchcore import PatchCoreCfg, PatchCoreMethod  # noqa: PLC0415
-    _assert_sane(_run(PatchCoreMethod(PatchCoreCfg(coreset=0.05, amp=True), pick_device())))
+    _assert_sane(_run(PatchCoreMethod(PatchCoreCfg(coreset=0.05, amp=True), Compute.pick_device())))
 
 
 def test_fused_smoke():
-    from core.compute import pick_device  # noqa: PLC0415
+    from core.compute import Compute  # noqa: PLC0415
     from surfscan.experiments.run_fused import FusedCfg, FusedMethod  # noqa: PLC0415
-    _assert_sane(_run(FusedMethod(FusedCfg(), pick_device())))
+    _assert_sane(_run(FusedMethod(FusedCfg(), Compute.pick_device())))
 
 
 def test_btf_smoke():
-    from core.compute import pick_device  # noqa: PLC0415
+    from core.compute import Compute  # noqa: PLC0415
     from surfscan.experiments.run_btf import BtfCfg, BtfMethod  # noqa: PLC0415
-    _assert_sane(_run(BtfMethod(BtfCfg(), pick_device())))
+    _assert_sane(_run(BtfMethod(BtfCfg(), Compute.pick_device())))
 
 
 def test_train_then_evaluate_smoke():
     """The run_all train -> evaluate path (evaluate()'s harness.run call, both image scores). A 2-epoch
     vae isn't a detector, so we assert the pipeline runs + metrics are valid — not a perf threshold."""
-    from core.compute import pick_device  # noqa: PLC0415
-    from surfscan.evaluation.evaluate import evaluate  # noqa: PLC0415
+    from core.compute import Compute  # noqa: PLC0415
+    from surfscan.evaluation.evaluate import Evaluate  # noqa: PLC0415
     from surfscan.training.hparams import HParams  # noqa: PLC0415
-    from surfscan.training.train import train  # noqa: PLC0415
-    dev = pick_device()
-    run_id = train(HParams(cats=[CAT], epochs=2, compile=False), run_name="e2e_vae", device=dev)
+    from surfscan.training.train import TrainRun  # noqa: PLC0415
+    dev = Compute.pick_device()
+    run_id = TrainRun.train(HParams(cats=[CAT], epochs=2, compile=False), run_name="e2e_vae", device=dev)
     for image_score in ("residual", "mahalanobis"):
-        res = evaluate(run_id, cats=[CAT], device=dev, image_score=image_score)
+        res = Evaluate.evaluate(run_id, cats=[CAT], device=dev, image_score=image_score)
         assert len(res["per_category"]) == 1
         au = res["mean"]["au_pro"]
         assert 0.0 <= au <= 1.0 and not np.isnan(au)

@@ -8,10 +8,10 @@ Each view is a `Spec` in its module; this front-end builds subparsers and routes
 """
 from __future__ import annotations
 
-from surfscan.dispatch import dispatch
+from surfscan.dispatch import Dispatch
 from surfscan.visualization import export_web, show
 
 VIEWS = [show.SPEC, export_web.SPEC]
 
 if __name__ == "__main__":
-    dispatch("surfscan.viz", VIEWS)
+    Dispatch.dispatch("surfscan.viz", VIEWS)

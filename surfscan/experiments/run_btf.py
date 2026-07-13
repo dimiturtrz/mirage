@@ -13,7 +13,7 @@ import numpy as np
 
 from core.data import store
 from surfscan.evaluation import scoring
-from surfscan.method_cli import method_spec
+from surfscan.method_cli import MethodCli
 from surfscan.models.fpfh_bank import FpfhBank
 
 
@@ -30,17 +30,17 @@ class BtfMethod:
         self.size = cfg.size or 256
 
     def fit(self, cat):
-        _, train = store.arrays(cat, "train", 0, self.size)
+        _, train = store.Store.arrays(cat, "train", 0, self.size)
         return FpfhBank(device=self.dev).fit([(a["xyz"], a["valid"]) for a in train])
 
     def score(self, state, cat):
-        dft, test = store.arrays(cat, "test", size=self.size)
+        dft, test = store.Store.arrays(cat, "test", size=self.size)
         amaps = state.score_maps([(a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])
-        scores = scoring.image_scores(amaps, valids)
+        scores = scoring.Scoring.image_scores(amaps, valids)
         return (amaps, valids, masks, scores,
                 dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
 
-SPEC = method_spec("btf", BtfMethod, BtfCfg)
+SPEC = MethodCli.method_spec("btf", BtfMethod, BtfCfg)

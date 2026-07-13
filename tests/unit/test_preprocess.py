@@ -5,7 +5,7 @@ flying-pixel cluster dropped (xyz bounded by the centroid clip).
 """
 import numpy as np
 
-from core.data.preprocess import CLIP, SIZE, preprocess
+from core.data.preprocess import CLIP, SIZE, Preprocess
 
 
 def _sample(h=200, w=200):
@@ -21,7 +21,7 @@ def _sample(h=200, w=200):
 
 
 def test_preprocess_contract():
-    out = preprocess(*_sample())
+    out = Preprocess.preprocess(*_sample())
     assert out["xyz"].shape == (SIZE, SIZE, 3)
     assert out["rgb"].shape == (SIZE, SIZE, 3)
     assert out["valid"].dtype == bool

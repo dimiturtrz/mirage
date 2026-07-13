@@ -9,7 +9,7 @@ from core import obs
 
 def test_setup_writes_to_logfile(tmp_path):
     f = tmp_path / "sub" / "run.log"
-    log = obs.setup(f)
+    log = obs.Obs.setup(f)
     log.info("hello-line")
     for h in log.handlers:                       # flush the file handler
         h.flush()
@@ -17,5 +17,5 @@ def test_setup_writes_to_logfile(tmp_path):
 
 
 def test_get_returns_configured_logger():
-    log = obs.get()
+    log = obs.Obs.get()
     assert isinstance(log, logging.Logger) and log.handlers

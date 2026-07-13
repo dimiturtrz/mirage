@@ -5,11 +5,11 @@ the requested channel order — the pure transform that feeds the GPU-resident t
 """
 import numpy as np
 
-from core.data.dataset import _stack_channels
+from core.data.dataset import GpuSplit
 
 
 def test_stack_channels_order_and_shape():
     a = {"xyz": np.ones((4, 5, 3), np.float64), "rgb": np.zeros((4, 5, 3), np.float64)}
-    out = _stack_channels(a, ("xyz", "rgb"))
+    out = GpuSplit._stack_channels(a, ("xyz", "rgb"))
     assert out.shape == (6, 4, 5) and out.dtype == np.float32
     assert out[:3].all() and not out[3:].any()          # xyz block first, then rgb

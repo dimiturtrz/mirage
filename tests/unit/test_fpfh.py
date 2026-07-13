@@ -5,7 +5,7 @@ smoke-level (guards the normals -> FPFH pipeline wiring).
 """
 import numpy as np
 
-from surfscan.models.fpfh_bank import FpfhBank, FpfhCfg, fpfh_for_sample
+from surfscan.models.fpfh_bank import FpfhBank, FpfhCfg
 
 
 def _surface(g=20):
@@ -17,7 +17,7 @@ def _surface(g=20):
 
 def test_fpfh_shapes():
     xyz, valid = _surface(20)
-    f, coords = fpfh_for_sample(xyz, valid, FpfhCfg(normal_knn=8, fpfh_knn=10))
+    f, coords = FpfhBank.fpfh_for_sample(xyz, valid, FpfhCfg(normal_knn=8, fpfh_knn=10))
     assert f.shape == (400, 33)
     assert coords.shape == (400, 2)
     assert f.dtype == np.float32
@@ -25,7 +25,7 @@ def test_fpfh_shapes():
 
 def test_fpfh_clean_subsets_points():
     xyz, valid = _surface(20)
-    f, coords = fpfh_for_sample(xyz, valid, FpfhCfg(normal_knn=8, fpfh_knn=10, clean=True, graze=0.1))
+    f, coords = FpfhBank.fpfh_for_sample(xyz, valid, FpfhCfg(normal_knn=8, fpfh_knn=10, clean=True, graze=0.1))
     assert f.shape[1] == 33
     assert 0 < f.shape[0] <= 400 and len(coords) == f.shape[0]
 

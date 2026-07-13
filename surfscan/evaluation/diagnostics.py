@@ -14,19 +14,23 @@ import numpy as np
 from surfscan.evaluation import metrics
 
 
-def by_defect(sa):
-    amaps, valids, masks, scores, labels, defects = sa
-    labels = np.asarray(labels)
-    defects = np.asarray(defects)
-    types = sorted({d for d, l in zip(defects, labels, strict=True) if l == 1})
-    rows = []
-    for t in types:
-        is_t = (defects == t) & (labels == 1)
-        # image-AUROC needs both classes -> this type's anomalies + ALL normals
-        sel = is_t | (labels == 0)
-        rows.append({
-            "defect": t, "n": int(is_t.sum()),
-            "img_auroc": metrics.image_auroc(scores[sel], labels[sel]),
-            "au_pro": metrics.au_pro(amaps[is_t], masks[is_t], valids[is_t]),
-        })
-    return rows
+class Diagnostics:
+    """Per-condition (defect-type) stratified diagnostics — the eval-rigor breakdown."""
+
+    @staticmethod
+    def by_defect(sa):
+        amaps, valids, masks, scores, labels, defects = sa
+        labels = np.asarray(labels)
+        defects = np.asarray(defects)
+        types = sorted({d for d, l in zip(defects, labels, strict=True) if l == 1})
+        rows = []
+        for t in types:
+            is_t = (defects == t) & (labels == 1)
+            # image-AUROC needs both classes -> this type's anomalies + ALL normals
+            sel = is_t | (labels == 0)
+            rows.append({
+                "defect": t, "n": int(is_t.sum()),
+                "img_auroc": metrics.Metrics.image_auroc(scores[sel], labels[sel]),
+                "au_pro": metrics.Metrics.au_pro(amaps[is_t], masks[is_t], valids[is_t]),
+            })
+        return rows

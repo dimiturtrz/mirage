@@ -9,8 +9,8 @@ and routes. See also `surfscan.report` (docs/metrics) and `surfscan.viz` (visual
 """
 from __future__ import annotations
 
-from surfscan.dispatch import dispatch
+from surfscan.dispatch import Dispatch
 from surfscan.experiments.registry import REGISTRY
 
 if __name__ == "__main__":
-    dispatch("surfscan.run", REGISTRY)
+    Dispatch.dispatch("surfscan.run", REGISTRY)

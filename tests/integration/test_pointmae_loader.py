@@ -15,9 +15,9 @@ def test_pointmae_loads_cuda_free_and_forwards():
         pytest.skip("external/M3DM not checked out")
     import torch  # noqa: PLC0415
 
-    from surfscan.models.pointmae import load_pointmae, pointmae_features  # noqa: PLC0415
+    from surfscan.models.pointmae import Pointmae  # noqa: PLC0415
 
-    net = load_pointmae("cpu", num_group=32, group_size=16, ckpt=None)     # random init, small, no CUDA ops
-    feats, centers = pointmae_features(net, torch.randn(1, 300, 3))
+    net = Pointmae.load_pointmae("cpu", num_group=32, group_size=16, ckpt=None)  # random init, small, no CUDA ops
+    feats, centers = Pointmae.pointmae_features(net, torch.randn(1, 300, 3))
     assert feats.shape == (1, 32, 1152)                                    # 3 transformer layers x 384
     assert centers.shape == (1, 32, 3)

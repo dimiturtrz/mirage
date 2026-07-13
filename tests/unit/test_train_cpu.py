@@ -25,9 +25,9 @@ class _FakeSplit:
         return self.x.shape[0]
 
 
-class _StubTracking:
-    def __init__(self):
-        self.metric_steps = []
+class _StubTracker:
+    def __init__(self, metric_steps):
+        self.metric_steps = metric_steps
 
     @contextmanager
     def run(self, *_a, **_k):
@@ -43,8 +43,14 @@ class _StubTracking:
         pass
 
 
+class _StubTracking:
+    def __init__(self):
+        self.metric_steps = []
+        self.Tracker = _StubTracker(self.metric_steps)
+
+
 def _patch(monkeypatch, size=32):
-    monkeypatch.setattr(train_mod, "load_split", lambda **_k: _FakeSplit(size=size))
+    monkeypatch.setattr(train_mod.GpuSplit, "load_split", lambda **_k: _FakeSplit(size=size))
     stub = _StubTracking()
     monkeypatch.setattr(train_mod, "tracking", stub)
     return stub
@@ -57,11 +63,11 @@ def _hp(model_type):
 
 def test_train_vae_cpu(monkeypatch):
     stub = _patch(monkeypatch)
-    run_id = train_mod.train(_hp("vae"), device="cpu")
+    run_id = train_mod.TrainRun.train(_hp("vae"), device="cpu")
     assert run_id == "run-xyz"
     assert stub.metric_steps and stub.metric_steps[0][1]["loss"] == stub.metric_steps[0][1]["loss"]  # not NaN
 
 
 def test_train_inpaint_cpu(monkeypatch):
     _patch(monkeypatch)
-    assert train_mod.train(_hp("inpaint"), device="cpu") == "run-xyz"
+    assert train_mod.TrainRun.train(_hp("inpaint"), device="cpu") == "run-xyz"

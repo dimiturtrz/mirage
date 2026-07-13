@@ -7,7 +7,7 @@ performance threshold (that's the e2e tier's job, on real data).
 import numpy as np
 
 from surfscan.evaluation import scoring
-from surfscan.evaluation.harness import aggregate
+from surfscan.evaluation.harness import Harness
 from surfscan.models.fpfh_bank import FpfhBank
 
 
@@ -28,7 +28,7 @@ def test_btf_pipeline_produces_valid_aggregate():
     valids = np.stack([v for _, v in samples]).astype(bool)
     masks = np.zeros_like(valids)
     masks[2:, 6:10, 6:10] = True                                        # bumped frames carry a gt region
-    scores = scoring.image_scores(amaps, valids)
+    scores = scoring.Scoring.image_scores(amaps, valids)
     labels = np.array([0, 0, 1, 1])
     defects = np.array(["good", "good", "bump", "bump"])
 
@@ -38,7 +38,7 @@ def test_btf_pipeline_produces_valid_aggregate():
     def score(_s, _c):
         return amaps, valids, masks, scores, labels, defects
 
-    res = aggregate("btf_fpfh", fit, score, ["a"])
+    res = Harness.aggregate("btf_fpfh", fit, score, ["a"])
     assert set(res) == {"method", "per_category", "mean", "ece", "per_defect"}
     assert 0.0 <= res["mean"]["au_pro"] <= 1.0
     assert not np.isnan(res["mean"]["img_auroc"])                       # chain wired, values sane

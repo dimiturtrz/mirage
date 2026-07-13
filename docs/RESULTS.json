@@ -56,8 +56,13 @@
       "name": "Feature-recon / RD4AD-lite",
       "modality": "rgb",
       "paradigm": "reconstruct features → error",
-      "img_auroc": 0.807,
-      "au_pro": 0.908
+      "img_auroc": 0.805,
+      "au_pro": 0.907,
+      "mlflow_run": "feat_recon",
+      "au_pro_lo": 0.899,
+      "au_pro_hi": 0.915,
+      "img_auroc_lo": 0.777,
+      "img_auroc_hi": 0.833
     },
     {
       "name": "Fused (PatchCore-rgb + BTF)",
@@ -65,7 +70,8 @@
       "paradigm": "memory-bank fusion",
       "img_auroc": 0.782,
       "au_pro": 0.904,
-      "note": "net-neutral vs rgb-only until native-res FPFH"
+      "note": "net-neutral vs rgb-only until native-res FPFH",
+      "mlflow_run": "fused_rgb_fpfh"
     }
   ],
   "sota": {

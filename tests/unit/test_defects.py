@@ -18,7 +18,7 @@ def _sample(b=4, c=3, h=64, w=64):
 
 def test_defect_on_object_and_only_mask_changes():
     x, valid = _sample()
-    aug, mask = Defects.synthesize(x, valid, np.random.RandomState(0), channels=("rgb",))
+    aug, mask = Defects(np.random.RandomState(0)).synthesize(x, valid, channels=("rgb",))
     assert mask.any()
     assert (mask.bool() & (valid < 0.5)).sum() == 0                  # defect stays ON the object
     changed = (aug != x).any(1, keepdim=True)
@@ -27,14 +27,14 @@ def test_defect_on_object_and_only_mask_changes():
 
 
 def test_defect_sized_region_not_noise_field():
-    _, mask = Defects.synthesize(*_sample(), rng=np.random.RandomState(1), channels=("rgb",))
+    _, mask = Defects(np.random.RandomState(1)).synthesize(*_sample(), channels=("rgb",))
     assert 0.0 < mask.float().mean().item() < 0.25                   # a defect, not half the frame
 
 
 def test_seed_deterministic():
     x, valid = _sample()
-    a1, m1 = Defects.synthesize(x, valid, np.random.RandomState(7), channels=("rgb",))
-    a2, m2 = Defects.synthesize(x, valid, np.random.RandomState(7), channels=("rgb",))
+    a1, m1 = Defects(np.random.RandomState(7)).synthesize(x, valid, channels=("rgb",))
+    a2, m2 = Defects(np.random.RandomState(7)).synthesize(x, valid, channels=("rgb",))
     assert torch.equal(m1, m2) and torch.equal(a1, a2)
 
 
@@ -50,7 +50,7 @@ def test_xyz_displaces_along_surface_normal():
     x = torch.stack([xx, yy, zz])[None]                             # (1,3,H,W)
     valid = torch.zeros(1, 1, h, w); valid[:, :, 12:52, 12:52] = 1.0
 
-    aug, mask = Defects.synthesize(x, valid, np.random.RandomState(0), channels=("xyz",), kinds=("dent",))
+    aug, mask = Defects(np.random.RandomState(0)).synthesize(x, valid, channels=("xyz",), kinds=("dent",))
     d = (aug - x)[0]                                                # (3,H,W)
     moved = d.norm(dim=0) > 1e-6
     assert moved.sum() > 0
@@ -65,5 +65,5 @@ def test_xyz_displaces_along_surface_normal():
 def test_each_kind_runs():
     x, valid = _sample()
     for k in KINDS:
-        _, mask = Defects.synthesize(x, valid, np.random.RandomState(0), channels=("rgb",), kinds=(k,))
+        _, mask = Defects(np.random.RandomState(0)).synthesize(x, valid, channels=("rgb",), kinds=(k,))
         assert (mask.bool() & (valid < 0.5)).sum() == 0

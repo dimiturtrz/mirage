@@ -52,7 +52,7 @@ class DraemMethod:
 
         def step(idx):
             x, v = train.x[idx], train.valid[idx]
-            aug, mask = (Defects.synthesize(x, v, rng, channels=self.cfg.channels)
+            aug, mask = (Defects(rng).synthesize(x, v, channels=self.cfg.channels)
                          if self.cfg.synth == "realistic" else synth_perlin(x, v, rng))
             with Compute.autocast(x):
                 rec, logits = model(aug.to(memory_format=torch.channels_last))

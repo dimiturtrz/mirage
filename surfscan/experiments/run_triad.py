@@ -87,7 +87,7 @@ class TriadRun:
         def step(idx):
             x, v = good.x[idx], good.valid[idx]
             kinds = ctrl.sample(len(idx)) if ctrl else KINDS
-            aug, mask = Defects.synthesize(x, v, rng, channels=ch, kinds=kinds)
+            aug, mask = Defects(rng).synthesize(x, v, channels=ch, kinds=kinds)
             with Compute.autocast(x):
                 logits = model(aug.to(memory_format=torch.channels_last))
                 loss = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)

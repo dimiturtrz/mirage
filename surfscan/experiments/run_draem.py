@@ -21,8 +21,6 @@ from core.data.defects import Defects  # channel-aware coherent defects
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.draem import Draem, DraemSynth
-
-synth_perlin = DraemSynth.synthesize  # the original crude Perlin (control)
 from surfscan.training.trainer import Trainer
 
 
@@ -53,7 +51,7 @@ class DraemMethod:
         def step(idx):
             x, v = train.x[idx], train.valid[idx]
             aug, mask = (Defects(rng).synthesize(x, v, channels=self.cfg.channels)
-                         if self.cfg.synth == "realistic" else synth_perlin(x, v, rng))
+                         if self.cfg.synth == "realistic" else DraemSynth(rng).synthesize(x, v))
             with Compute.autocast(x):
                 rec, logits = model(aug.to(memory_format=torch.channels_last))
                 rl = (((rec - x) ** 2) * v).sum() / (v.sum() * x.shape[1] + 1e-8)

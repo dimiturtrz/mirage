@@ -32,7 +32,7 @@ def _method(kind, n=12, h=48, w=48):
 def test_aggregate_structure_and_perfect():
     cats, fit, score = _method("perfect")
     res = Harness.aggregate("m", fit, score, cats)
-    assert set(res) == {"method", "per_category", "mean", "ci", "ece", "per_defect"}
+    assert set(res) == {"method", "per_category", "mean", "ci", "ece", "per_defect", "pooled"}
     assert len(res["per_category"]) == 2
     assert res["mean"]["au_pro"] > 0.95
     assert res["mean"]["img_auroc"] > 0.95

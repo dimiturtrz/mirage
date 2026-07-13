@@ -64,8 +64,8 @@ class Harness:
             calib = metrics.Metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
-        return {"method": method, "per_category": rows,
-                "mean": {"img_auroc": auroc, "au_pro": aupro}, "ci": ci, "ece": calib, "per_defect": defect_rows}
+        return {"method": method, "per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro},
+                "ci": ci, "ece": calib, "per_defect": defect_rows, "pooled": pooled}
 
     @staticmethod
     def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
@@ -80,7 +80,7 @@ class Harness:
         tracking.Tracker.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
         tracking.Tracker.per_group("img_auroc", {r["category"]: r["img_auroc"] for r in rows})
         tracking.Tracker.per_group("au_pro_defect", {d["defect"]: d["au_pro"] for d in res["per_defect"]})
-        tracking.Tracker.artifact_json("aggregate.json", res)
+        tracking.Tracker.artifact_json("aggregate.json", {k: v for k, v in res.items() if k != "pooled"})
 
     @staticmethod
     def run(method, m, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper; aggregate is pure

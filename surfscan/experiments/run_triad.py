@@ -35,6 +35,7 @@ from core.method import Method
 from core.obs import Obs
 from surfscan.dispatch import Dispatch, Spec
 from surfscan.evaluation import harness, scoring
+from surfscan.evaluation.metrics import Metrics
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
 from surfscan.training.trainer import Trainer
@@ -193,14 +194,29 @@ class TriadRun:
             res[arm] = harness.Harness.run(tag, Method(fits[arm], run.score), cats=args.cats,
                                    params={"arm": arm, "seed": cfg.seed, "epochs": cfg.epochs,
                                            "curriculum": cfg.curriculum})
-        if "real" in res and "synth" in res:
-            gap = res["real"]["mean"]["au_pro"] - res["synth"]["mean"]["au_pro"]
-            log.info(f"\n>>> SIM-TO-REAL GAP (au_pro): real {res['real']['mean']['au_pro']:.3f} "
-                  f"- synth {res['synth']['mean']['au_pro']:.3f} = {gap:+.3f} pp")
-            if "synth_da" in res:
-                closed = res["synth_da"]["mean"]["au_pro"] - res["synth"]["mean"]["au_pro"]
-                log.info(f">>> DA CLOSURE (AdaBN): synth+DA {res['synth_da']['mean']['au_pro']:.3f} "
-                      f"(+{closed:.3f} vs synth)")
+        TriadRun._report_gap(res)
+
+    @staticmethod
+    def _pro_delta_ci(res_a, res_b):
+        """Paired bootstrap CI for au_pro(B) − au_pro(A) over the SHARED eval images (arms score the
+        same deterministic eval half in the same order, so the paired resample cancels image noise)."""
+        pa, pb = res_a["pooled"], res_b["pooled"]
+        return Metrics.boot_delta_ci(Metrics.au_pro, (pa.amaps, pa.masks, pa.valids),
+                                     (pb.amaps, pb.masks, pb.valids))
+
+    @staticmethod
+    def _report_gap(res):
+        """The headline: sim-to-real GAP and DA CLOSURE, each as a point with a PAIRED bootstrap CI —
+        one deterministic run, uncertainty from the shared eval set (no seed scatter)."""
+        if "real" not in res or "synth" not in res:
+            return
+        gap, glo, ghi = TriadRun._pro_delta_ci(res["synth"], res["real"])   # real − synth (the gap)
+        log.info(f"\n>>> SIM-TO-REAL GAP (au_pro): real {res['real']['mean']['au_pro']:.3f} "
+                 f"- synth {res['synth']['mean']['au_pro']:.3f} = {gap:+.3f} pp  [{glo:+.3f}, {ghi:+.3f}]")
+        if "synth_da" in res:
+            clo_pt, clo_lo, clo_hi = TriadRun._pro_delta_ci(res["synth"], res["synth_da"])  # DA − synth
+            log.info(f">>> DA CLOSURE (AdaBN): synth+DA {res['synth_da']['mean']['au_pro']:.3f} "
+                     f"(+{clo_pt:.3f} vs synth)  [{clo_lo:+.3f}, {clo_hi:+.3f}]")
 
 
 SPEC = Spec("triad", TriadRun._args, TriadRun._run)

@@ -114,6 +114,19 @@ exclude_lines = [
     "^\\s*\\.\\.\\.$",
 ]
 
+# import-linter (grimp engine): the dependency rule as a STATIC import-graph contract, not prose. `core`
+# is the shared kernel — the anomaly methods, data adapters, eval spine — and MUST NOT import the app
+# package `surfscan` (experiments/models/training/evaluation glue). CI fails the day a new upward edge
+# lands. Mirrors systole's core-kernel contract; core imports no surfscan today, so this locks it. bag/u3i.
+[tool.importlinter]
+root_packages = ["core", "surfscan"]
+
+[[tool.importlinter.contracts]]
+name = "core is an independent kernel (imports no surfscan)"
+type = "forbidden"
+source_modules = ["core"]
+forbidden_modules = ["surfscan"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

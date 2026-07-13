@@ -33,6 +33,11 @@ jobs:
       # ADVISORY: `ruff format` not applied yet — shows the pending reformat, does not block.
       - name: Format — advisory (non-blocking)
         run: uvx ruff@0.15.13 format --check . || true
+      # Import layers — the dependency rule as a STATIC import-graph contract (grimp engine). Enforces
+      # core = independent kernel (imports no surfscan); fails the day a new upward edge lands. Config in
+      # [tool.importlinter]. Static AST analysis — no project env needed. bag/u3i.
+      - name: Import layers — enforced (import-linter)
+        run: uvx --from import-linter lint-imports
       # Vulture — dead code, the axis ruff can't see. Config (paths/ignores) in [tool.vulture].
       # BLOCKS at conf>=80 (near-certain: redundant conditions, unreachable, unused locals — precision
       # high enough to fail the merge; currently zero).

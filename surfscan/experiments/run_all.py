@@ -37,7 +37,7 @@ class VaeRun:
         for c in cats:
             log.info(f"\n===== {c} =====")
             hp = HParams(cats=[c], epochs=args.epochs, compile=False)
-            run_id = TrainRun.train(hp, run_name=f"vae_{c}", device=dev)
+            run_id = TrainRun(hp).train(run_name=f"vae_{c}", device=dev)
             rows.append(Evaluate.evaluate(run_id, cats=[c], device=dev)["per_category"][0])
 
         auroc = float(np.nanmean([r["img_auroc"] for r in rows]))

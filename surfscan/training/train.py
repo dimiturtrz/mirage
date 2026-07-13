@@ -30,32 +30,34 @@ log = Obs.get()
 
 
 class TrainRun:
-    """The reconstruction-model train spine + the per-model (build, step) registry helpers."""
+    """The reconstruction-model train spine + the per-model (build, step) registry helpers. `hp` (the
+    run's hyperparameters) is fixed for the run's life and threaded by every method -> held in __init__;
+    the (build, step) helpers read `self.hp` and are dispatched through `_REGISTRY` as unbound functions."""
 
-    @staticmethod
-    def _vae_model(hp, in_ch):
-        return ConvVAE(hp.model_cfg(in_ch))
+    def __init__(self, hp: HParams):
+        self.hp = hp
 
-    @staticmethod
-    def _inpaint_model(hp, in_ch):
-        return InpaintAE(hp.model_cfg(in_ch))
+    def _vae_model(self, in_ch):
+        return ConvVAE(self.hp.model_cfg(in_ch))
 
-    @staticmethod
-    def _vae_step(run_model, x, m, hp):
+    def _inpaint_model(self, in_ch):
+        return InpaintAE(self.hp.model_cfg(in_ch))
+
+    def _vae_step(self, run_model, x, m):
         recon, mu, logvar = run_model(x)
         rl = Losses.masked_recon_loss(recon, x, m)
         kl = Losses.kl_loss(mu, logvar)
-        return rl + hp.beta * kl, {"recon": rl, "kl": kl}
+        return rl + self.hp.beta * kl, {"recon": rl, "kl": kl}
 
-    @staticmethod
-    def _inpaint_step(run_model, x, m, hp):
+    def _inpaint_step(self, run_model, x, m):
+        hp = self.hp
         patch = hp.size // hp.grid
         keep = InpaintAE.random_mask(x.shape[0], hp.size, patch, hp.mask_ratio, x.device)
         recon = run_model(x * keep)                 # reconstruct FULL image from masked input
         return Losses.masked_recon_loss(recon, x, m), {}
 
-    @staticmethod
-    def train(hp: HParams, run_name: str | None = None, device: str = "cuda") -> str:
+    def train(self, run_name: str | None = None, device: str = "cuda") -> str:
+        hp = self.hp
         build, step = _REGISTRY[hp.model_type]
         run_name = run_name or hp.model_type
         torch.manual_seed(hp.seed)
@@ -64,7 +66,7 @@ class TrainRun:
 
         data = GpuSplit.load_split(split="train", label=0, cats=hp.cats, channels=hp.channels, device=dev, size=hp.size)
         n = len(data)
-        model = build(hp, data.in_ch).to(dev, memory_format=torch.channels_last)
+        model = build(self, data.in_ch).to(dev, memory_format=torch.channels_last)
         run_model = torch.compile(model) if (hp.compile and dev == "cuda") else model
         opt = optim.AdamW(model.parameters(), lr=hp.lr)
         amp = dev == "cuda" and hp.bf16
@@ -76,7 +78,7 @@ class TrainRun:
         def step_fn(idx):
             x = data.x[idx].to(memory_format=torch.channels_last)
             with Compute.autocast(x, amp=amp):
-                loss, extra = step(run_model, x, data.valid[idx], hp)
+                loss, extra = step(self, run_model, x, data.valid[idx])
             ep["tot"] += loss.item(); ep["nb"] += 1
             for k, v in extra.items():
                 ep["extra"][k] = ep["extra"].get(k, 0.0) + v.item()
@@ -129,7 +131,7 @@ def main():  # pragma: no cover  CLI entry (argparse); train is the tested spine
             setattr(hp, k, v)
     if args.no_compile:
         hp.compile = False
-    TrainRun.train(hp, args.run_name, device=Compute.pick_device())
+    TrainRun(hp).train(args.run_name, device=Compute.pick_device())
 
 
 if __name__ == "__main__":

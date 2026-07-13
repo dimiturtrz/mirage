@@ -18,12 +18,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from core import config
-from core.data.mvtec import (  # identical on-disk format -> reuse the loader
-    Sample,
-    load_raw,
-)
+from core.data import mvtec
+from core.data.mvtec import Sample, load_raw  # identical on-disk format -> reuse the loader + Sample type
 
-SPLITS = ("train", "validation", "test")
+SPLITS = mvtec.SPLITS
 
 
 def synth_root() -> Path:
@@ -32,30 +30,14 @@ def synth_root() -> Path:
 
 
 def categories(root: Path | None = None) -> list[str]:
-    root = Path(root or synth_root())
-    return sorted(p.name for p in root.iterdir() if p.is_dir()) if root.is_dir() else []
+    """Rendered categories under the synth root ([] until the engine has written any)."""
+    return mvtec.categories(root or synth_root())
 
 
 def samples(root: Path | None = None, cats: list[str] | None = None) -> list[Sample]:
-    """Enumerate every rendered (category, split, defect, idx) sample — same shape as mvtec.samples."""
-    root = Path(root or synth_root())
-    cats = cats or categories(root)
-    out: list[Sample] = []
-    for cat in cats:
-        for split in SPLITS:
-            sdir = root / cat / split
-            if not sdir.is_dir():
-                continue
-            for ddir in sorted(p for p in sdir.iterdir() if p.is_dir()):
-                gt_dir = ddir / "gt"
-                for rgb in sorted((ddir / "rgb").glob("*.png")):
-                    gt = gt_dir / f"{rgb.stem}.png"
-                    out.append(Sample(
-                        cat, split, ddir.name, int(rgb.stem),
-                        rgb, ddir / "xyz" / f"{rgb.stem}.tiff",
-                        gt if gt.exists() else None,
-                    ))
-    return out
+    """Every rendered (category, split, defect, idx) sample — same walk + on-disk format as
+    mvtec.samples (only the source root differs), so the store ingests real + synth identically."""
+    return mvtec.samples(root or synth_root(), cats)
 
 
 __all__ = ["Sample", "load_raw", "samples", "categories", "synth_root"]

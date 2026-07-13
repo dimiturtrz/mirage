@@ -33,6 +33,26 @@ jobs:
       # ADVISORY: `ruff format` not applied yet — shows the pending reformat, does not block.
       - name: Format — advisory (non-blocking)
         run: uvx ruff@0.15.13 format --check . || true
+      # Import layers — the dependency rule as a STATIC import-graph contract (grimp engine). Enforces
+      # core = independent kernel (imports no surfscan); fails the day a new upward edge lands. Config in
+      # [tool.importlinter]. Static AST analysis — no project env needed. bag/u3i.
+      - name: Import layers — enforced (import-linter)
+        run: uvx --from import-linter lint-imports
+      # Module shape — ast-grep (bag/ij6): the SYNTACTIC axis ruff has no plugin API for. Rules are data
+      # (devtools/sg-rules/*.yml), zero-bag, severity=error (BLOCKING). Enforces no import-time side-effect
+      # call (matplotlib.use exempt) — a new bare top-level call fails CI. surfscan is functional-core, so
+      # systole's everything-in-a-class rule is deliberately NOT ported (see devtools/sgconfig.yml).
+      - name: Module shape — enforced (ast-grep)
+        run: uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan
+      # Duplication — the DRY axis (bag/ij6) coupling tools can't see. jscpd over python; threshold in
+      # devtools/jscpd.json (repo ~0.43% today = REGRESSION GUARD). ADVISORY while the Node step proves
+      # stable; graduate to blocking after.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Duplication — advisory (jscpd, warns)
+        continue-on-error: true
+        run: npx --yes jscpd@4 core surfscan --config devtools/jscpd.json
       # Vulture — dead code, the axis ruff can't see. Config (paths/ignores) in [tool.vulture].
       # BLOCKS at conf>=80 (near-certain: redundant conditions, unreachable, unused locals — precision
       # high enough to fail the merge; currently zero).
@@ -56,8 +76,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Install dependencies (locked, + dev extra for pytest + coverage)
-        run: uv sync --frozen --extra dev
+      - name: Install dependencies (locked, + dev extra for pytest + coverage, + devtools for the arch gate)
+        run: uv sync --frozen --extra dev --extra devtools
       # One instrumented run = the test gate AND the coverage data. Config in [tool.coverage.*].
       - name: Tests + coverage (tests block)
         run: uv run pytest tests --cov --cov-report=term-missing -q
@@ -67,6 +87,13 @@ jobs:
       # real drop blocks the merge; the 95 warn flags erosion before it reaches the hard floor.
       - name: Coverage floor — enforced (>=80, blocks)
         run: uv run coverage report --fail-under=80
+      # Architecture fitness — the METRIC arch axis (god-module = fan-in AND fan-out both over a degree /
+      # import cycle / god-file) as a GATE on the grimp+networkx import graph, the axis import-linter's
+      # categorical contracts can't express. BLOCKS on the rules clean today (they ratchet — a new
+      # god-module/cycle/oversized file fails CI); line-floor + chokepoint are advisory. Thresholds in
+      # pyproject [tool.structure]. Runs in the tests job for the synced grimp/networkx env. bag/169.
+      - name: Architecture fitness — enforced (devtools/graph.py --assert)
+        run: uv run python -m devtools.graph --assert
       # ADVISORY early-warning — 95 warns, never blocks (drift toward the floor surfaces here first).
       - name: Coverage target — advisory (>=95, warns)
         if: always()

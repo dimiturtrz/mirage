@@ -17,7 +17,7 @@ from core.data import mvtec
 from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
 from core.obs import Obs, Progress
 from surfscan import tracking
-from surfscan.evaluation import diagnostics, metrics, predictions
+from surfscan.evaluation import diagnostics, invariants, metrics, predictions
 
 log = Obs.get()
 
@@ -84,8 +84,10 @@ class Harness:
             calib = metrics.Metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
-        return {"method": method, "per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro},
-                "ci": ci, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
+        res = {"method": method, "per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro},
+               "ci": ci, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
+        invariants.Invariants.check(res)                       # loud at run end if a number is inconsistent
+        return res
 
     @staticmethod
     def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core

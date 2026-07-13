@@ -15,11 +15,11 @@ from pathlib import Path
 
 import mlflow
 
-from core.obs import get
+from core.obs import Obs
 from surfscan import tracking  # noqa: F401  — importing sets the mlflow tracking uri
 from surfscan.dispatch import Spec
 
-log = get()
+log = Obs.get()
 
 ROOT = Path(__file__).resolve().parents[2]
 RJSON = ROOT / "docs" / "RESULTS.json"

@@ -13,10 +13,10 @@ from collections import defaultdict
 import mlflow
 import numpy as np
 
-from core.obs import get
+from core.obs import Obs
 from surfscan.dispatch import Spec
 
-log = get()
+log = Obs.get()
 
 ARMS = ["triad_real", "triad_synth", "triad_synth_da", "triad_synth_curric"]
 

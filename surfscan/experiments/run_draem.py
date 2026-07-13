@@ -15,7 +15,7 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
-from core.compute import autocast
+from core.compute import Compute
 from core.data.dataset import load_split
 from core.data.defects import (
     synthesize as synth_realistic,  # channel-aware coherent defects
@@ -57,7 +57,7 @@ class DraemMethod:
             x, v = train.x[idx], train.valid[idx]
             aug, mask = (synth_realistic(x, v, rng, channels=self.cfg.channels)
                          if self.cfg.synth == "realistic" else synth_perlin(x, v, rng))
-            with autocast(x):
+            with Compute.autocast(x):
                 rec, logits = model(aug.to(memory_format=torch.channels_last))
                 rl = (((rec - x) ** 2) * v).sum() / (v.sum() * x.shape[1] + 1e-8)
                 dl = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)

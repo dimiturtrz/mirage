@@ -5,11 +5,11 @@
 """
 from __future__ import annotations
 
-from core.obs import get
+from core.obs import Obs
 from surfscan.dispatch import Spec
 from surfscan.evaluation.results import ROOT, _latest  # DRY: reuse the mlflow lookup
 
-log = get()
+log = Obs.get()
 
 CARD = ROOT / "docs" / "MODEL_CARD.md"
 

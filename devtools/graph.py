@@ -25,7 +25,7 @@ from pathlib import Path
 import grimp
 import networkx as nx
 
-from core.obs import setup
+from core.obs import Obs
 
 log = logging.getLogger("surfscan.devtools.graph")   # child of the "surfscan" logger setup() configures
 
@@ -147,7 +147,7 @@ def main():
     ap.add_argument("--assert", action="store_true", dest="assert_",
                     help="fitness GATE: exit 1 on a god-module / import cycle / god-file")
     args = ap.parse_args()
-    setup()
+    Obs.setup()
     if args.assert_:
         raise SystemExit(_run_assert(args.packages))
     log.info("\n%s", report(build_graph(args.packages), args.top))

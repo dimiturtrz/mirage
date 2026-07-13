@@ -15,11 +15,11 @@ import numpy as np
 
 from core.data import mvtec
 from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
-from core.obs import get
+from core.obs import Obs
 from surfscan import tracking
 from surfscan.evaluation import diagnostics, metrics
 
-log = get()
+log = Obs.get()
 
 
 def aggregate(method, fit_fn, score_fn, cats):

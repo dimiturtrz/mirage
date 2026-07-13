@@ -13,7 +13,7 @@ import numpy as np
 import torch
 from sklearn.covariance import LedoitWolf
 
-from core.compute import autocast
+from core.compute import Compute
 
 
 @torch.no_grad()
@@ -24,7 +24,7 @@ def anomaly_maps(model, data, batch=64, *, amp=True):
     for i in range(0, len(data), batch):
         x = data.x[i:i + batch].to(memory_format=torch.channels_last)
         m = data.valid[i:i + batch]
-        with autocast(x, amp=amp):
+        with Compute.autocast(x, amp=amp):
             recon, _, _ = model(x)
         err = ((recon.float() - x.float()) ** 2).sum(1, keepdim=True) * m   # N,1,H,W
         out.append(err.squeeze(1).cpu())
@@ -49,7 +49,7 @@ def inpaint_maps(model, data, grid=8, batch=16, *, amp=True):
                 xs = slice(gx * patch, (gx + 1) * patch)
                 xm = x.clone()
                 xm[..., ys, xs] = 0
-                with autocast(xm, amp=amp):
+                with Compute.autocast(xm, amp=amp):
                     r = model(xm.to(memory_format=torch.channels_last))
                 inpainted[..., ys, xs] = r.float()[..., ys, xs]
         err = ((x - inpainted) ** 2).sum(1, keepdim=True) * m
@@ -86,7 +86,7 @@ def latents(model, data, batch=64, *, amp=True):
     out = []
     for i in range(0, len(data), batch):
         x = data.x[i:i + batch].to(memory_format=torch.channels_last)
-        with autocast(x, amp=amp):
+        with Compute.autocast(x, amp=amp):
             mu, _ = model.encode(x)
         out.append(mu.float().cpu())
     return torch.cat(out).numpy()

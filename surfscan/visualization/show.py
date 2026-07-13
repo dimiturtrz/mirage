@@ -28,17 +28,17 @@ import torch
 from PIL import Image
 
 from core import config
-from core.compute import pick_device
+from core.compute import Compute
 from core.data import preprocess as pp
 from core.data import store
 from core.data.dataset import load_split
-from core.obs import get
+from core.obs import Obs
 from surfscan.dispatch import Spec
 from surfscan.models.patchcore import FitCfg, PatchCore
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import HParams
 
-log = get()
+log = Obs.get()
 
 _RAW_RGB_CUTOFF = 1.5   # cols.max() above this => raw uint8 (not float [0,1])
 
@@ -70,7 +70,7 @@ def _run_model(run, rgb, xyz, device=None):
     hp = HParams(**json.loads((run / "config.json").read_text()))
     chans = [(xyz if c == "xyz" else rgb).transpose(2, 0, 1) for c in hp.channels]
     x = np.concatenate(chans, 0)[None].astype("float32")          # 1,C,H,W
-    dev = device or pick_device()
+    dev = device or Compute.pick_device()
     model = ConvVAE(hp.model_cfg(x.shape[1])).to(dev)
     model.load_state_dict(torch.load(run / "model.pt", map_location=dev))
     model.eval()
@@ -95,7 +95,7 @@ def recon_xyz(run, rgb, xyz):
 def patchcore_map(cat, rgb, valid, coreset=0.1, device=None):
     """The WORKING detector's anomaly map: fit a PatchCore bank on this category's train-good (rgb),
     score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
-    dev = device or pick_device()
+    dev = device or Compute.pick_device()
     train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
     pc = PatchCore(device=dev).fit(train.x, FitCfg(coreset=coreset))
     x = torch.from_numpy(rgb.transpose(2, 0, 1)[None]).to(dev)
@@ -198,7 +198,7 @@ def _run(args):
     if args.processed:
         rgb, xyz, gt, valid = load_processed(args.cat, args.split, args.defect, args.idx, args.size)
     else:
-        root = args.data_root or config.mvtec_root()
+        root = args.data_root or config.Config.mvtec_root()
         rgb, xyz, gt = load_sample(root, args.cat, args.split, args.defect, args.idx)
         valid = np.any(xyz != 0, axis=-1)
     log.info(f"rgb {rgb.shape} {rgb.dtype} | xyz {xyz.shape} {xyz.dtype} | "

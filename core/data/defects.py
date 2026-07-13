@@ -21,7 +21,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from core.geometry import grid_normals
+from core.geometry import Geometry
 
 KINDS = ("dent", "scratch", "contamination", "bump")
 _THR = 0.05
@@ -76,7 +76,7 @@ def synthesize(x, valid, rng, channels=("rgb",), kinds=KINDS):
     if "xyz" in sl:                                                        # geometry: displace along the surface normal
         xc = slice(sl["xyz"], sl["xyz"] + 3)
         xyz = aug[:, xc]                                                   # (B,3,H,W)
-        n = grid_normals(xyz, valid)                                       # unit normals off the grid
+        n = Geometry.grid_normals(xyz, valid)                              # unit normals off the grid
         z = xyz[:, 2]
         zm = torch.where(valid[:, 0] > _ON, z, torch.full_like(z, float("nan")))
         zr = (torch.nan_to_num(zm, nan=-1e9).amax((1, 2)) - torch.nan_to_num(zm, nan=1e9).amin((1, 2)))

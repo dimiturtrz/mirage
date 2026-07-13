@@ -22,9 +22,9 @@ import polars as pl
 from core import config
 from core.data import mvtec
 from core.data import preprocess as pp
-from core.obs import get
+from core.obs import Obs
 
-log = get()
+log = Obs.get()
 
 # unified cloud columns. `file` -> the npz in data/; `raw_*` -> the original channels.
 META_FIELDS = ["sample_id", "category", "split", "defect", "label", "has_gt", "file",
@@ -36,7 +36,7 @@ def param_key(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD) -> str:
 
 
 def dataset_dir(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD) -> Path:
-    return config.processed_dir() / "mvtec3d" / param_key(size, nb, std)
+    return config.Config.processed_dir() / "mvtec3d" / param_key(size, nb, std)
 
 
 def _row(s: mvtec.Sample, arr: dict, file: str) -> dict:

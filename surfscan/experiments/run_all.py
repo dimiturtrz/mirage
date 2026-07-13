@@ -9,16 +9,16 @@ from __future__ import annotations
 
 import numpy as np
 
-from core.compute import pick_device
+from core.compute import Compute
 from core.data import mvtec
-from core.obs import get
+from core.obs import Obs
 from surfscan import tracking
 from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation.evaluate import evaluate
 from surfscan.training.hparams import HParams
 from surfscan.training.train import train
 
-log = get()
+log = Obs.get()
 
 
 def _args(ap):
@@ -27,7 +27,7 @@ def _args(ap):
 
 
 def _run(args):
-    dev = pick_device()
+    dev = Compute.pick_device()
     cats = args.cats or mvtec.categories()
     rows = []
     for c in cats:

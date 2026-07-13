@@ -10,8 +10,8 @@ method; only the final `pick_device()` + `harness.run` in the run closure is the
 """
 from __future__ import annotations
 
-from core.cli_config import add_config_args, build_config
-from core.compute import enable_tf32, pick_device
+from core.cli_config import CliConfig
+from core.compute import Compute
 from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness
 
@@ -19,18 +19,18 @@ from surfscan.evaluation import harness
 def build_method(method_cls, cfg_cls, args, dev):
     """(parsed namespace, device) -> (run_name, method instance). run_name defaults to None when the
     method doesn't declare one (the caller falls back to the subcommand name)."""
-    method = method_cls(build_config(cfg_cls, args), dev)
+    method = method_cls(CliConfig.build_config(cfg_cls, args), dev)
     return getattr(method, "run_name", None), method
 
 
 def method_spec(name: str, method_cls, cfg_cls) -> Spec:
     def add_args(ap):
         add_cats(ap)
-        add_config_args(ap, cfg_cls)
+        CliConfig.add_config_args(ap, cfg_cls)
 
     def run(args):  # pragma: no cover  device pick + mlflow harness boundary; build_method is the core
-        enable_tf32()
-        run_name, method = build_method(method_cls, cfg_cls, args, pick_device())
+        Compute.enable_tf32()
+        run_name, method = build_method(method_cls, cfg_cls, args, Compute.pick_device())
         harness.run(run_name or name, method, cats=args.cats)
 
     return Spec(name, add_args, run)

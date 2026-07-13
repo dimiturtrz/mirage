@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from core.cli_config import add_config_args, build_config
+from core.cli_config import CliConfig
 
 
 @dataclass(frozen=True)
@@ -23,16 +23,16 @@ class Cfg:
 
 def _parse(argv):
     ap = argparse.ArgumentParser()
-    add_config_args(ap, Cfg)
+    CliConfig.add_config_args(ap, Cfg)
     return ap.parse_args(argv)
 
 
 def test_defaults_roundtrip_to_the_dataclass():
-    assert build_config(Cfg, _parse([])) == Cfg()
+    assert CliConfig.build_config(Cfg, _parse([])) == Cfg()
 
 
 def test_typed_overrides():
-    cfg = build_config(Cfg, _parse(
+    cfg = CliConfig.build_config(Cfg, _parse(
         ["--coreset", "0.3", "--size", "512", "--channels", "rgb", "xyz",
          "--arms", "real", "synth", "--coreset-method", "random"]))
     assert cfg.coreset == 0.3 and cfg.size == 512
@@ -41,13 +41,13 @@ def test_typed_overrides():
 
 
 def test_optional_int_defaults_none():
-    assert build_config(Cfg, _parse([])).size is None
+    assert CliConfig.build_config(Cfg, _parse([])).size is None
 
 
 def test_bool_flag_and_negation():
-    assert build_config(Cfg, _parse([])).curriculum is False
-    assert build_config(Cfg, _parse(["--curriculum"])).curriculum is True
-    assert build_config(Cfg, _parse(["--no-curriculum"])).curriculum is False
+    assert CliConfig.build_config(Cfg, _parse([])).curriculum is False
+    assert CliConfig.build_config(Cfg, _parse(["--curriculum"])).curriculum is True
+    assert CliConfig.build_config(Cfg, _parse(["--no-curriculum"])).curriculum is False
 
 
 def test_choices_enforced():
@@ -62,5 +62,5 @@ class ReqCfg:
 
 def test_field_without_default_is_none():
     ap = argparse.ArgumentParser()
-    add_config_args(ap, ReqCfg)
+    CliConfig.add_config_args(ap, ReqCfg)
     assert ap.parse_args([]).name is None

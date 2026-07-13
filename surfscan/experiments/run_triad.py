@@ -27,19 +27,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
 
-from core.cli_config import add_config_args, build_config
-from core.compute import autocast, enable_tf32, pick_device
+from core.cli_config import CliConfig
+from core.compute import Compute
 from core.data.dataset import load_split
 from core.data.defects import KINDS, synthesize
 from core.method import Method
-from core.obs import get
+from core.obs import Obs
 from surfscan.dispatch import Spec, add_cats
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
 from surfscan.training.trainer import Trainer
 
-log = get()
+log = Obs.get()
 
 BATCH = 16
 
@@ -83,7 +83,7 @@ def fit_synth(cat, cfg, dev, *, curriculum=False):
         x, v = good.x[idx], good.valid[idx]
         kinds = ctrl.sample(len(idx)) if ctrl else KINDS
         aug, mask = synthesize(x, v, rng, channels=ch, kinds=kinds)
-        with autocast(x):
+        with Compute.autocast(x):
             logits = model(aug.to(memory_format=torch.channels_last))
             loss = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)
         if ctrl:
@@ -108,7 +108,7 @@ def fit_real(cat, cfg, dev):
     opt = optim.AdamW(model.parameters(), lr=1e-3)
 
     def step(idx):
-        with autocast(x):
+        with Compute.autocast(x):
             logits = model(x[idx].to(memory_format=torch.channels_last))
             return F.binary_cross_entropy_with_logits(logits.float(), g[idx], weight=v[idx])
 
@@ -128,7 +128,7 @@ def _adabn(model, x, passes=2, batch=BATCH):
     model.train()
     for _ in range(passes):
         for i in range(0, x.shape[0], batch):
-            with autocast(x):
+            with Compute.autocast(x):
                 model(x[i:i + batch].to(memory_format=torch.channels_last))
     model.eval()
     return model
@@ -154,7 +154,7 @@ def score(model, cat, cfg, dev, batch=BATCH):
     model.eval()
     amaps = []
     for i in range(0, x.shape[0], batch):
-        with autocast(x):
+        with Compute.autocast(x):
             logits = model(x[i:i + batch].to(memory_format=torch.channels_last))
         amaps.append((torch.sigmoid(logits.float()) * v[i:i + batch]).squeeze(1).cpu())
     amaps = torch.cat(amaps).numpy()
@@ -166,13 +166,13 @@ def score(model, cat, cfg, dev, batch=BATCH):
 
 def _args(ap):
     add_cats(ap)
-    add_config_args(ap, TriadCfg)
+    CliConfig.add_config_args(ap, TriadCfg)
 
 
 def _run(args):
-    enable_tf32()
-    cfg = build_config(TriadCfg, args)
-    dev = pick_device()
+    Compute.enable_tf32()
+    cfg = CliConfig.build_config(TriadCfg, args)
+    dev = Compute.pick_device()
 
     def score_fn(m, c):
         return score(m, c, cfg, dev)

@@ -11,11 +11,11 @@ from pathlib import Path
 
 import numpy as np
 
-from core.obs import get
+from core.obs import Obs
 from surfscan.dispatch import Spec
 from surfscan.visualization.show import load_processed, patchcore_map
 
-log = get()
+log = Obs.get()
 
 OUT = Path(__file__).resolve().parents[2] / "pointcloud-viewer" / "data"
 

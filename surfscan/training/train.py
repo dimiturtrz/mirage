@@ -16,9 +16,9 @@ import time
 import torch
 from torch import optim
 
-from core.compute import autocast, enable_tf32, pick_device
+from core.compute import Compute
 from core.data.dataset import load_split
-from core.obs import get
+from core.obs import Obs
 from surfscan import tracking
 from surfscan.models.inpaint import InpaintAE, random_mask
 from surfscan.models.vae import ConvVAE
@@ -26,7 +26,7 @@ from surfscan.training.hparams import HParams
 from surfscan.training.losses import kl_loss, masked_recon_loss
 from surfscan.training.trainer import Trainer
 
-log = get()
+log = Obs.get()
 
 
 def _vae_model(hp, in_ch):
@@ -62,7 +62,7 @@ def train(hp: HParams, run_name: str | None = None, device: str = "cuda") -> str
     build, step = _REGISTRY[hp.model_type]
     run_name = run_name or hp.model_type
     torch.manual_seed(hp.seed)
-    enable_tf32()
+    Compute.enable_tf32()
     dev = device
 
     data = load_split(split="train", label=0, cats=hp.cats, channels=hp.channels, device=dev, size=hp.size)
@@ -78,7 +78,7 @@ def train(hp: HParams, run_name: str | None = None, device: str = "cuda") -> str
 
     def step_fn(idx):
         x = data.x[idx].to(memory_format=torch.channels_last)
-        with autocast(x, amp=amp):
+        with Compute.autocast(x, amp=amp):
             loss, extra = step(run_model, x, data.valid[idx], hp)
         ep["tot"] += loss.item(); ep["nb"] += 1
         for k, v in extra.items():
@@ -125,7 +125,7 @@ def main():  # pragma: no cover  CLI entry (argparse); train is the tested spine
             setattr(hp, k, v)
     if args.no_compile:
         hp.compile = False
-    train(hp, args.run_name, device=pick_device())
+    train(hp, args.run_name, device=Compute.pick_device())
 
 
 if __name__ == "__main__":

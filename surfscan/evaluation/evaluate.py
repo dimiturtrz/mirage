@@ -10,7 +10,7 @@ Run:  python -m surfscan.report evaluate --run-id <mlflow-run-id> [--cats bagel]
 """
 from __future__ import annotations
 
-from core.compute import pick_device
+from core.compute import Compute
 from core.data.dataset import load_split
 from core.method import Method
 from surfscan import tracking
@@ -47,7 +47,7 @@ def _args(ap):
 
 
 def _run(args):  # pragma: no cover  CLI glue; evaluate() is the logic (mlflow-omitted whole-file)
-    evaluate(args.run_id, cats=args.cats, device=pick_device(), image_score=args.image_score)
+    evaluate(args.run_id, cats=args.cats, device=Compute.pick_device(), image_score=args.image_score)
 
 
 SPEC = Spec("evaluate", _args, _run)

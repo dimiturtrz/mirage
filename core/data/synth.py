@@ -26,7 +26,7 @@ SPLITS = mvtec.SPLITS
 
 def synth_root() -> Path:
     """`<data root>/synth` — the engine's output root (sibling to raw/ + processed/)."""
-    return Path(config.data_root()) / "synth"
+    return Path(config.Config.data_root()) / "synth"
 
 
 def categories(root: Path | None = None) -> list[str]:

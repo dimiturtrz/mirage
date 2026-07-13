@@ -6,7 +6,7 @@
       "name": "Reconstruction (VAE / +dropout / inpaint / fused)",
       "modality": "xyz (+rgb)",
       "paradigm": "reconstruct pixels → error",
-      "img_auroc": 0.48,
+      "img_auroc": 0.486,
       "au_pro": 0.095,
       "note": "≈ random localization",
       "mlflow_run": "vae_all"
@@ -31,8 +31,12 @@
       "name": "BTF (FPFH memory bank)",
       "modality": "geometry",
       "paradigm": "memory bank",
-      "img_auroc": 0.675,
-      "au_pro": 0.653
+      "img_auroc": 0.674,
+      "img_auroc_lo": 0.641,
+      "img_auroc_hi": 0.707,
+      "au_pro": 0.65,
+      "au_pro_lo": 0.637,
+      "au_pro_hi": 0.662
     },
     {
       "name": "PatchCore (feature memory bank)",
@@ -41,7 +45,11 @@
       "img_auroc": 0.838,
       "au_pro": 0.902,
       "deployable": true,
-      "mlflow_run": "patchcore_rgb_greedy"
+      "mlflow_run": "patchcore_rgb_greedy",
+      "au_pro_lo": 0.892,
+      "au_pro_hi": 0.91,
+      "img_auroc_lo": 0.812,
+      "img_auroc_hi": 0.866
     },
     {
       "name": "Feature-recon / RD4AD-lite",

@@ -141,3 +141,37 @@ def test_boot_delta_ci_brackets_zero_when_equal():
                                           cfg=BootCfg(n_boot=200, rng=rng))
     assert delta == 0.0
     assert lo <= 0.0 <= hi
+
+
+# --- macro (mean-of-categories) bootstrap: the CI must match the reported macro point, not a pooled one ---
+
+def test_boot_macro_ci_point_is_mean_of_categories():
+    # the macro point is the plain mean of per-category AUROCs — NOT the pooled/micro AUROC
+    rng = np.random.default_rng(10)
+    per_cat = [_sep_scores(40, rng, gap=g) for g in (0.2, 0.8, 1.2)]
+    point, lo, hi = Metrics.boot_macro_ci(Metrics.image_auroc, per_cat, cfg=BootCfg(n_boot=200, rng=rng))
+    expected = np.mean([Metrics.image_auroc(s, lab) for s, lab in per_cat])
+    assert abs(point - expected) < 1e-9
+    assert lo <= point <= hi
+
+
+def test_boot_macro_differs_from_pooled_when_sizes_uneven():
+    # macro (equal category weight) != micro/pooled (image-weighted) when categories differ in size/skill
+    rng = np.random.default_rng(11)
+    big_easy = _sep_scores(200, rng, gap=1.5)                # many images, easy
+    small_hard = _sep_scores(20, rng, gap=0.0)               # few images, chance-level
+    macro, _, _ = Metrics.boot_macro_ci(Metrics.image_auroc, [big_easy, small_hard],
+                                        cfg=BootCfg(n_boot=100, rng=rng))
+    pooled = Metrics.image_auroc(np.concatenate([big_easy[0], small_hard[0]]),
+                                 np.concatenate([big_easy[1], small_hard[1]]))
+    assert abs(macro - pooled) > 0.05                        # the two aggregates genuinely diverge
+
+
+def test_boot_macro_delta_ci_detects_real_macro_gap():
+    # B beats A in every category -> macro delta > 0 and the paired CI clears 0
+    rng = np.random.default_rng(12)
+    pc_a = [_sep_scores(50, rng, gap=g) for g in (0.1, 0.3, 0.5)]
+    pc_b = [(s + 0.6 * lab, lab) for s, lab in pc_a]         # B lifts anomalies in each category
+    delta, lo, hi = Metrics.boot_macro_delta_ci(Metrics.image_auroc, pc_a, pc_b,
+                                                cfg=BootCfg(n_boot=300, rng=rng))
+    assert delta > 0 and lo > 0

@@ -43,16 +43,19 @@ class Harness:
         aupro = float(np.nanmean([r["au_pro"] for r in rows]))
         log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
 
+        by_cat = [ScoreArrays(**{f: pool[f][i] for f in ScoreArrays._fields}) for i in range(len(rows))]
         pooled = ScoreArrays(**{f: np.concatenate(pool[f]) for f in ScoreArrays._fields})
         defect_rows = diagnostics.Diagnostics.by_defect(pooled)
         log.info("  --- per defect type ---")
         for d in defect_rows:
             log.info(f"  {d['defect']:14s}  img_auroc {d['img_auroc']:.3f}   au_pro {d['au_pro']:.3f}  (n={d['n']})")
 
-        # uncertainty from THIS run's test set — a bootstrap over the pooled images, not a retrain
-        # (the rigor axis: power comes from the test-set N, so one run yields point [lo, hi]).
-        ci = {"img_auroc": metrics.Metrics.boot_ci(metrics.Metrics.image_auroc, pooled.scores, pooled.labels),
-              "au_pro": metrics.Metrics.boot_ci(metrics.Metrics.au_pro, pooled.amaps, pooled.masks, pooled.valids)}
+        # uncertainty from THIS run's test set — a stratified bootstrap over the images (not a retrain).
+        # MACRO (mean-of-categories) to match the reported point: resample within each category, average.
+        auroc_cat = [(sa.scores, sa.labels) for sa in by_cat]
+        pro_cat = [(sa.amaps, sa.masks, sa.valids) for sa in by_cat]
+        ci = {"img_auroc": metrics.Metrics.boot_macro_ci(metrics.Metrics.image_auroc, auroc_cat),
+              "au_pro": metrics.Metrics.boot_macro_ci(metrics.Metrics.au_pro, pro_cat)}
         log.info(f"  img_auroc {ci['img_auroc'][0]:.3f} [{ci['img_auroc'][1]:.3f}, {ci['img_auroc'][2]:.3f}]   "
                  f"au_pro {ci['au_pro'][0]:.3f} [{ci['au_pro'][1]:.3f}, {ci['au_pro'][2]:.3f}]  (95% boot CI)")
 
@@ -65,7 +68,7 @@ class Harness:
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
         return {"method": method, "per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro},
-                "ci": ci, "ece": calib, "per_defect": defect_rows, "pooled": pooled}
+                "ci": ci, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
 
     @staticmethod
     def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
@@ -80,7 +83,7 @@ class Harness:
         tracking.Tracker.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
         tracking.Tracker.per_group("img_auroc", {r["category"]: r["img_auroc"] for r in rows})
         tracking.Tracker.per_group("au_pro_defect", {d["defect"]: d["au_pro"] for d in res["per_defect"]})
-        tracking.Tracker.artifact_json("aggregate.json", {k: v for k, v in res.items() if k != "pooled"})
+        tracking.Tracker.artifact_json("aggregate.json", {k: v for k, v in res.items() if k != "by_cat"})
 
     @staticmethod
     def run(method, m, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper; aggregate is pure

@@ -124,39 +124,41 @@
     "au_pro": 0.902
   },
   "stage1_triad": {
-    "_comment": "Stage-1 sim-to-real triad: ONE supervised defect-seg U-Net, all-10 rgb, early-stopped, ONE deterministic run per arm. Only the label SOURCE varies; shared real eval half. Uncertainty = a bootstrap over that eval set (au_pro [lo, hi]), NOT a cross-seed std. GAP/CLOSURE deltas carry a PAIRED bootstrap CI (printed by run_triad). run_triad.py + triad_summary.py. Points/brackets pending the early-stopped refresh (bead htg).",
+    "_comment": "Stage-1 sim-to-real triad: ONE supervised defect-seg U-Net, all-10 rgb, ONE deterministic run per arm; the synth arm is EARLY-STOPPED on a held-out synth val (best weights restored). Only the label SOURCE varies; shared real eval half. Uncertainty = a MACRO (mean-of-categories, stratified) bootstrap over the eval set — au_pro [lo, hi] matches the reported point, NOT a cross-seed std. GAP + DA-CLOSURE carry a PAIRED macro bootstrap CI (run_triad). Refreshed under the early-stopped protocol (bead htg) — supersedes the earlier 3-seed, non-early-stopped numbers; the AdaBN story changed (see notes).",
     "arms": [
       {
         "arm": "real → real (ceiling)",
-        "au_pro": 0.804,
-        "img_auroc": 0.892,
-        "ece": 0.011,
-        "note": "scarce-label supervised ceiling (< PatchCore 0.91 unsupervised)"
+        "au_pro": 0.794,
+        "au_pro_lo": 0.772,
+        "au_pro_hi": 0.813,
+        "img_auroc": 0.869,
+        "ece": 0.01,
+        "note": "scarce-label supervised ceiling (< PatchCore 0.90 unsupervised)"
       },
       {
         "arm": "synth → real (the gap)",
-        "au_pro": 0.537,
-        "img_auroc": 0.635,
-        "ece": 0.037,
-        "note": "train on synthetic defects, test real"
+        "au_pro": 0.628,
+        "au_pro_lo": 0.604,
+        "au_pro_hi": 0.65,
+        "img_auroc": 0.618,
+        "ece": 0.075,
+        "note": "train on synthetic defects (early-stopped -> no overfit to synth artifacts), test real. Stronger than the earlier overtrained 0.537 -> the gap is narrower"
       },
       {
         "arm": "synth+DA → real (AdaBN)",
-        "au_pro": 0.66,
-        "img_auroc": 0.579,
-        "ece": 0.013,
-        "note": "AdaBN closes 46% of the gap + restores calibration; costs image-detection"
-      },
-      {
-        "arm": "synth + curriculum",
-        "au_pro": 0.487,
-        "img_auroc": 0.617,
-        "ece": 0.083,
-        "note": "NEGATIVE: kind-chasing curriculum regressed on both au_pro and ECE"
+        "au_pro": 0.643,
+        "au_pro_lo": 0.618,
+        "au_pro_hi": 0.669,
+        "img_auroc": 0.526,
+        "ece": 0.076,
+        "note": "MEASURED-MARGINAL: +0.015 au_pro [-0.000, 0.030] — CI touches 0, NOT significant; ECE unchanged (0.075 -> 0.076, no calibration restore). On the already-strong early-stopped synth baseline AdaBN has little left to add. Reverses the earlier overtrained-baseline claim of a large closure + ECE restore"
       }
     ],
-    "gap_pp": 0.267,
-    "da_closure_pp": 0.123,
-    "curriculum_delta_pp": -0.051
+    "gap_pp": 0.166,
+    "gap_lo": 0.141,
+    "gap_hi": 0.19,
+    "da_closure_pp": 0.015,
+    "da_closure_lo": -0.0,
+    "da_closure_hi": 0.03
   }
 }

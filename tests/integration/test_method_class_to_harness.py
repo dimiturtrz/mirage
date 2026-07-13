@@ -50,7 +50,7 @@ def test_method_class_flows_through_harness():
     assert run_name == "fake_class" and method.dev == "cpu"
 
     res = Harness.aggregate(run_name, method.fit, method.score, ["a", "b"])
-    assert set(res) == {"method", "per_category", "mean", "ece", "per_defect"}
+    assert set(res) == {"method", "per_category", "mean", "ci", "ece", "per_defect", "by_cat"}
     assert len(res["per_category"]) == 2
     assert res["mean"]["au_pro"] > 0.9                  # class-form method integrates + localizes
     hole = next(d for d in res["per_defect"] if d["defect"] == "hole")

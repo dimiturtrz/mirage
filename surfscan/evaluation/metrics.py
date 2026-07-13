@@ -80,6 +80,50 @@ class Metrics:
                    for idx in draws]
         return Metrics._interval(delta, samples, cfg.alpha)
 
+    # --- macro (mean-of-categories) bootstrap: the CI matches the reported statistic. A pooled/micro
+    # resample would over-weight image-dense categories; MVTec reports the per-category mean, so the
+    # bootstrap resamples images WITHIN each category and averages per draw (stratified). ---
+
+    @staticmethod
+    def _nanmean(vals):
+        """Mean over finite values -> NaN if none are finite (no 'empty slice' warning for a dead draw)."""
+        finite = [v for v in vals if v == v]
+        return float(np.mean(finite)) if finite else float("nan")
+
+    @staticmethod
+    def _macro_point(metric_fn, per_cat):
+        """mean-of-categories of `metric_fn` over each category's full arg-tuple (NaN categories dropped)."""
+        return Metrics._nanmean([metric_fn(*args) for args in per_cat])
+
+    @staticmethod
+    def _macro_draw(metric_fn, per_cat, idxs):
+        """One stratified draw: resample within each category by its index array, then mean-of-categories."""
+        return Metrics._nanmean([metric_fn(*Metrics._resample(a, ix)) for a, ix in zip(per_cat, idxs, strict=True)])
+
+    @staticmethod
+    def boot_macro_ci(metric_fn, per_cat, cfg=_DEFAULT_BOOT):
+        """(point, lo, hi) for the mean-of-categories metric — stratified bootstrap (resample images within
+        each category, average). `per_cat` = one metric arg-tuple per category. The CI for a macro number."""
+        rng = cfg.gen()
+        point = Metrics._macro_point(metric_fn, per_cat)
+        samples = [Metrics._macro_draw(metric_fn, per_cat, [rng.integers(0, len(a[0]), len(a[0])) for a in per_cat])
+                   for _ in range(cfg.n_boot)]
+        return Metrics._interval(point, samples, cfg.alpha)
+
+    @staticmethod
+    def boot_macro_delta_ci(metric_fn, per_cat_a, per_cat_b, cfg=_DEFAULT_BOOT):
+        """(delta, lo, hi) for macro-metric(B) − macro-metric(A), PAIRED + stratified. Same within-category
+        resample hits both arms each draw (shared eval images per category, same order), so the CI is on the
+        mean-of-categories delta — the headline gap number, honestly bracketed."""
+        rng = cfg.gen()
+        delta = Metrics._macro_point(metric_fn, per_cat_b) - Metrics._macro_point(metric_fn, per_cat_a)
+        samples = []
+        for _ in range(cfg.n_boot):
+            idxs = [rng.integers(0, len(a[0]), len(a[0])) for a in per_cat_a]     # paired: same idx to A and B
+            samples.append(Metrics._macro_draw(metric_fn, per_cat_b, idxs)
+                           - Metrics._macro_draw(metric_fn, per_cat_a, idxs))
+        return Metrics._interval(delta, samples, cfg.alpha)
+
     @staticmethod
     def image_auroc(scores, labels):
         labels = np.asarray(labels)

@@ -38,11 +38,13 @@ from surfscan.evaluation import harness, scoring
 from surfscan.evaluation.metrics import Metrics
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
-from surfscan.training.trainer import Trainer
+from surfscan.training.trainer import EarlyStop, Trainer
 
 log = Obs.get()
 
 BATCH = 16
+VAL_FRAC = 5             # 1/VAL_FRAC of the good scans held out for the synth val signal
+PATIENCE = 8             # epochs of no val-au_pro improvement before stopping (best weights restored)
 
 
 @dataclass(frozen=True)
@@ -80,19 +82,39 @@ class TriadRun:
     def _new(self, in_ch):
         return UNet(in_ch, 1).to(self.dev, memory_format=torch.channels_last)
 
+    @staticmethod
+    @torch.no_grad()
+    def _synth_val_au_pro(model, x, v, ch, seed):
+        """Val signal for early stopping: au_pro on a FIXED held-out synth set (same seed each call ->
+        identical val defects -> a stable plateau to detect). Synthetic, from the arm's own train
+        distribution — never the real eval half, so the synth->real arm stays honestly synth-only."""
+        aug, mask = Defects(np.random.RandomState(seed + 9973)).synthesize(x, v, channels=ch)
+        model.eval()
+        with Compute.autocast(x):
+            logits = model(aug.to(memory_format=torch.channels_last))
+        amaps = (torch.sigmoid(logits.float()) * v).squeeze(1).cpu().numpy()
+        return Metrics.au_pro(amaps, mask.squeeze(1).cpu().numpy().astype(bool),
+                              v.squeeze(1).cpu().numpy().astype(bool))
+
     def fit_synth(self, cat):
-        """Train on good scans + on-the-fly synthetic defects. The synth->real arm."""
+        """Train on good scans + on-the-fly synthetic defects, EARLY-STOPPED on a held-out synth val
+        (one optimized run, best weights restored). The synth->real arm."""
         cfg, dev = self.cfg, self.dev
         ch = tuple(cfg.channels)
         rng = np.random.RandomState(cfg.seed)
         torch.manual_seed(cfg.seed)
         good = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=ch, device=dev)
+        perm = np.random.RandomState(cfg.seed).permutation(good.x.shape[0])
+        nval = max(BATCH, good.x.shape[0] // VAL_FRAC)
+        val_t = torch.as_tensor(perm[:nval], device=dev)
+        tr_t = torch.as_tensor(perm[nval:], device=dev)                     # disjoint train / val good scans
         model = self._new(good.in_ch)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
         ctrl = curric.KindCurriculum(KINDS, seed=cfg.seed) if cfg.curriculum else None
 
         def step(idx):
-            x, v = good.x[idx], good.valid[idx]
+            sel = tr_t[idx]
+            x, v = good.x[sel], good.valid[sel]
             kinds = ctrl.sample(len(idx)) if ctrl else KINDS
             aug, mask = Defects(rng).synthesize(x, v, channels=ch, kinds=kinds)
             with Compute.autocast(x):
@@ -102,8 +124,10 @@ class TriadRun:
                 ctrl.observe(kinds, float(loss.detach()))
             return loss
 
+        stop = EarlyStop(lambda: TriadRun._synth_val_au_pro(model, good.x[val_t], good.valid[val_t], ch,
+                                                            cfg.seed), PATIENCE)
         return Trainer(model, opt, dev, batch=BATCH).fit(
-            len(good), cfg.epochs, step, after_epoch=(ctrl.end_epoch if ctrl else None))
+            tr_t.shape[0], cfg.epochs, step, after_epoch=(ctrl.end_epoch if ctrl else None), stop=stop)
 
     def fit_real(self, cat):
         """Train on REAL defect masks (calib half of test). The real->real ceiling — note it's a
@@ -198,11 +222,12 @@ class TriadRun:
 
     @staticmethod
     def _pro_delta_ci(res_a, res_b):
-        """Paired bootstrap CI for au_pro(B) − au_pro(A) over the SHARED eval images (arms score the
-        same deterministic eval half in the same order, so the paired resample cancels image noise)."""
-        pa, pb = res_a["pooled"], res_b["pooled"]
-        return Metrics.boot_delta_ci(Metrics.au_pro, (pa.amaps, pa.masks, pa.valids),
-                                     (pb.amaps, pb.masks, pb.valids))
+        """Paired MACRO bootstrap CI for au_pro(B) − au_pro(A) — mean-of-categories, matching the headline
+        arm numbers. Arms score the same deterministic eval half per category in the same order, so the
+        within-category paired resample cancels shared image noise (a CI clearing 0 = an honest gap)."""
+        pc_a = [(sa.amaps, sa.masks, sa.valids) for sa in res_a["by_cat"]]
+        pc_b = [(sa.amaps, sa.masks, sa.valids) for sa in res_b["by_cat"]]
+        return Metrics.boot_macro_delta_ci(Metrics.au_pro, pc_a, pc_b)
 
     @staticmethod
     def _report_gap(res):

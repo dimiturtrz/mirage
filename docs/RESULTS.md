@@ -79,12 +79,12 @@ rgb, 100 ep, **3 seeds**). Only the label source varies → the drop IS the sim-
 diagnosis → [`learning/2026-07-08_sim-to-real-triad.md`](../learning/2026-07-08_sim-to-real-triad.md).
 
 <!-- results:triad -->
-| arm | au_pro (3-seed) | img-AUROC | ECE |
+| arm | au_pro [95% boot CI] | img-AUROC | ECE |
 |---|---|---|---|
-| real → real (ceiling) | 0.804 ± 0.007 | 0.892 | 0.011 |
-| synth → real (the gap) | 0.537 ± 0.049 | 0.635 | 0.037 |
-| synth+DA → real (AdaBN) | 0.660 ± 0.045 | 0.579 | 0.013 |
-| synth + curriculum | 0.487 ± 0.057 | 0.617 | 0.083 |
+| real → real (ceiling) | 0.804 | 0.892 | 0.011 |
+| synth → real (the gap) | 0.537 | 0.635 | 0.037 |
+| synth+DA → real (AdaBN) | 0.660 | 0.579 | 0.013 |
+| synth + curriculum | 0.487 | 0.617 | 0.083 |
 <!-- /results:triad -->
 
 - **Sim-to-real gap ≈ 27 pp** (real 0.804 → synth 0.537 AU-PRO). Ceiling rock-stable (±0.007).

@@ -49,6 +49,13 @@ class Harness:
         for d in defect_rows:
             log.info(f"  {d['defect']:14s}  img_auroc {d['img_auroc']:.3f}   au_pro {d['au_pro']:.3f}  (n={d['n']})")
 
+        # uncertainty from THIS run's test set — a bootstrap over the pooled images, not a retrain
+        # (the rigor axis: power comes from the test-set N, so one run yields point [lo, hi]).
+        ci = {"img_auroc": metrics.Metrics.boot_ci(metrics.Metrics.image_auroc, pooled.scores, pooled.labels),
+              "au_pro": metrics.Metrics.boot_ci(metrics.Metrics.au_pro, pooled.amaps, pooled.masks, pooled.valids)}
+        log.info(f"  img_auroc {ci['img_auroc'][0]:.3f} [{ci['img_auroc'][1]:.3f}, {ci['img_auroc'][2]:.3f}]   "
+                 f"au_pro {ci['au_pro'][0]:.3f} [{ci['au_pro'][1]:.3f}, {ci['au_pro'][2]:.3f}]  (95% boot CI)")
+
         # calibration (ECE) — only meaningful when amaps are probabilities in [0,1] (e.g. the triad's
         # sigmoid outputs); residual/distance methods aren't calibrated, so skip them cleanly.
         amaps_all = pooled.amaps
@@ -58,12 +65,16 @@ class Harness:
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
         return {"method": method, "per_category": rows,
-                "mean": {"img_auroc": auroc, "au_pro": aupro}, "ece": calib, "per_defect": defect_rows}
+                "mean": {"img_auroc": auroc, "au_pro": aupro}, "ci": ci, "ece": calib, "per_defect": defect_rows}
 
     @staticmethod
     def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
         rows = res["per_category"]
         tracking.Tracker.metrics({"img_auroc_mean": res["mean"]["img_auroc"], "au_pro_mean": res["mean"]["au_pro"]})
+        ci = res.get("ci", {})
+        for metric, (_p, lo, hi) in ci.items():                # bootstrap brackets next to the point metric
+            if lo == lo:                                        # skip NaN (metric undefined on the run)
+                tracking.Tracker.metrics({f"{metric}_lo": lo, f"{metric}_hi": hi})
         if res.get("ece") is not None:
             tracking.Tracker.metrics({"ece": res["ece"]})
         tracking.Tracker.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})

@@ -61,8 +61,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Install dependencies (locked, + dev extra for pytest + coverage)
-        run: uv sync --frozen --extra dev
+      - name: Install dependencies (locked, + dev extra for pytest + coverage, + devtools for the arch gate)
+        run: uv sync --frozen --extra dev --extra devtools
       # One instrumented run = the test gate AND the coverage data. Config in [tool.coverage.*].
       - name: Tests + coverage (tests block)
         run: uv run pytest tests --cov --cov-report=term-missing -q
@@ -72,6 +72,13 @@ jobs:
       # real drop blocks the merge; the 95 warn flags erosion before it reaches the hard floor.
       - name: Coverage floor — enforced (>=80, blocks)
         run: uv run coverage report --fail-under=80
+      # Architecture fitness — the METRIC arch axis (god-module = fan-in AND fan-out both over a degree /
+      # import cycle / god-file) as a GATE on the grimp+networkx import graph, the axis import-linter's
+      # categorical contracts can't express. BLOCKS on the rules clean today (they ratchet — a new
+      # god-module/cycle/oversized file fails CI); line-floor + chokepoint are advisory. Thresholds in
+      # pyproject [tool.structure]. Runs in the tests job for the synced grimp/networkx env. bag/169.
+      - name: Architecture fitness — enforced (devtools/graph.py --assert)
+        run: uv run python -m devtools.graph --assert
       # ADVISORY early-warning — 95 warns, never blocks (drift toward the floor surfaces here first).
       - name: Coverage target — advisory (>=95, warns)
         if: always()

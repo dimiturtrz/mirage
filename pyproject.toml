@@ -25,6 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov"]
+devtools = ["grimp", "networkx"]   # import-graph architecture-fitness gate (devtools/graph.py, bag/169)
 export = ["onnxruntime"]   # ONNX export + parity check (train-vs-deploy skew, carried from acoustic)
 features = [
     "timm>=1.0.27",
@@ -37,6 +38,16 @@ all = ["onnxruntime", "pytest"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# Architecture fitness thresholds (devtools/graph.py --assert, bag/169) — the METRIC arch axis
+# import-linter's categorical contracts can't express. BLOCKING rules start clean and ratchet:
+# god-module (fan-in AND fan-out both > bottleneck_degree), file > file_max, any import cycle. ADVISORY
+# (never blocks): line floor (file_min, OFF), betweenness > betweenness_max (noisy chokepoints).
+[tool.structure]
+bottleneck_degree = 8       # a module with BOTH fan-in and fan-out over this is a god-module
+file_max = 750              # god-file ceiling
+file_min = 0                # OFF (owner: no honest floor — small files are SSOT/strategy/shared-vocab leaves)
+betweenness_max = 0.10      # advisory chokepoint threshold
 
 # torch + torchvision CUDA builds live on the PyTorch index, not PyPI. Pin them there explicitly so uv
 # resolves the cu130 wheels (RTX 5090) instead of CPU. `explicit` = only [tool.uv.sources] packages use it.

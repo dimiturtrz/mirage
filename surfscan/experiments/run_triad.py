@@ -38,7 +38,7 @@ from surfscan.evaluation import harness, scoring
 from surfscan.evaluation.metrics import Metrics
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
-from surfscan.training.trainer import EarlyStop, Trainer
+from surfscan.training.trainer import EarlyStop, Telemetry, Trainer
 
 log = Obs.get()
 
@@ -126,7 +126,7 @@ class TriadRun:
 
         stop = EarlyStop(lambda: TriadRun._synth_val_au_pro(model, good.x[val_t], good.valid[val_t], ch,
                                                             cfg.seed), PATIENCE)
-        return Trainer(model, opt, dev, batch=BATCH).fit(
+        return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"synth:{cat}")).fit(
             tr_t.shape[0], cfg.epochs, step, after_epoch=(ctrl.end_epoch if ctrl else None), stop=stop)
 
     def fit_real(self, cat):
@@ -148,7 +148,8 @@ class TriadRun:
                 logits = model(x[idx].to(memory_format=torch.channels_last))
                 return F.binary_cross_entropy_with_logits(logits.float(), g[idx], weight=v[idx])
 
-        return Trainer(model, opt, dev, batch=BATCH).fit(x.shape[0], cfg.epochs, step)
+        return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"real:{cat}")).fit(
+            x.shape[0], cfg.epochs, step)
 
     @staticmethod
     @torch.no_grad()

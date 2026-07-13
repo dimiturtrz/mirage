@@ -16,10 +16,8 @@ import torch.nn.functional as F
 from torch import optim
 
 from core.compute import Compute
-from core.data.dataset import load_split
-from core.data.defects import (
-    synthesize as synth_realistic,  # channel-aware coherent defects
-)
+from core.data.dataset import GpuSplit
+from core.data.defects import Defects  # channel-aware coherent defects
 from surfscan.evaluation import scoring
 from surfscan.method_cli import method_spec
 from surfscan.models.draem import Draem
@@ -49,13 +47,13 @@ class DraemMethod:
     def fit(self, cat):
         torch.manual_seed(self.cfg.seed)
         rng = np.random.RandomState(self.cfg.seed)
-        train = load_split(split="train", label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
+        train = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
         model = Draem(ch=train.in_ch).to(self.dev, memory_format=torch.channels_last)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
 
         def step(idx):
             x, v = train.x[idx], train.valid[idx]
-            aug, mask = (synth_realistic(x, v, rng, channels=self.cfg.channels)
+            aug, mask = (Defects.synthesize(x, v, rng, channels=self.cfg.channels)
                          if self.cfg.synth == "realistic" else synth_perlin(x, v, rng))
             with Compute.autocast(x):
                 rec, logits = model(aug.to(memory_format=torch.channels_last))
@@ -66,7 +64,7 @@ class DraemMethod:
         return Trainer(model, opt, self.dev, batch=16).fit(len(train), self.cfg.epochs, step)
 
     def score(self, model, cat):
-        test = load_split(split="test", cats=[cat], channels=self.cfg.channels, device=self.dev)
+        test = GpuSplit.load_split(split="test", cats=[cat], channels=self.cfg.channels, device=self.dev)
         model.eval()
         amaps = []
         with torch.no_grad():

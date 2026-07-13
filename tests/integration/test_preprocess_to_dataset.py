@@ -6,8 +6,8 @@ the invalid-zeroed guarantee surviving the stack) without any dataset or GPU.
 """
 import numpy as np
 
-from core.data.dataset import _stack_channels
-from core.data.preprocess import SIZE, preprocess
+from core.data.dataset import GpuSplit
+from core.data.preprocess import SIZE, Preprocess
 
 
 def _sample(h=200, w=200):
@@ -22,12 +22,12 @@ def _sample(h=200, w=200):
 
 
 def test_preprocess_feeds_channel_stack():
-    out = preprocess(*_sample())
+    out = Preprocess.preprocess(*_sample())
 
-    geo = _stack_channels(out, ["xyz"])
+    geo = GpuSplit._stack_channels(out, ["xyz"])
     assert geo.shape == (3, SIZE, SIZE) and geo.dtype == np.float32
 
-    fused = _stack_channels(out, ["xyz", "rgb"])              # the geometry+rgb 6-channel path
+    fused = GpuSplit._stack_channels(out, ["xyz", "rgb"])              # the geometry+rgb 6-channel path
     assert fused.shape == (6, SIZE, SIZE)
 
     invalid = ~out["valid"]                                   # background zeroed in xyz survives the stack

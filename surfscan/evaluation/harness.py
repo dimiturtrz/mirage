@@ -69,7 +69,7 @@ def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is
 
 
 def run(method, m, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper; aggregate is pure
-    cats = cats or mvtec.categories()
+    cats = cats or mvtec.Mvtec.categories()
     res = aggregate(method, m.fit, m.score, cats)
     if run_id:                                       # log into an existing run (e.g. the train run)
         with tracking.resume(run_id):

@@ -28,7 +28,7 @@ def _args(ap):
 
 def _run(args):
     dev = Compute.pick_device()
-    cats = args.cats or mvtec.categories()
+    cats = args.cats or mvtec.Mvtec.categories()
     rows = []
     for c in cats:
         log.info(f"\n===== {c} =====")

@@ -44,7 +44,7 @@ class _StubTracking:
 
 
 def _patch(monkeypatch, size=32):
-    monkeypatch.setattr(train_mod, "load_split", lambda **_k: _FakeSplit(size=size))
+    monkeypatch.setattr(train_mod.GpuSplit, "load_split", lambda **_k: _FakeSplit(size=size))
     stub = _StubTracking()
     monkeypatch.setattr(train_mod, "tracking", stub)
     return stub

@@ -14,11 +14,6 @@ from core.data import preprocess as pp
 from core.data import store
 
 
-def _stack_channels(a: dict, channels) -> np.ndarray:
-    """(H,W,3) channels -> one (C,H,W) float32 array."""
-    return np.concatenate([a[c].transpose(2, 0, 1) for c in channels], 0).astype(np.float32)
-
-
 class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack_channels is the pure core
     """All samples of a query as GPU-resident tensors:
     x [N,C,H,W] (the channels), valid [N,1,H,W], gt [N,1,H,W]."""
@@ -28,8 +23,8 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
         self.channels = tuple(channels)
         xs, ms, gs = [], [], []
         for path in df["path"].to_list():
-            a = store.load_arrays(path)
-            xs.append(_stack_channels(a, channels))
+            a = store.Store.load_arrays(path)
+            xs.append(GpuSplit._stack_channels(a, channels))
             ms.append(a["valid"][None].astype(np.float32))
             gs.append((a["gt"] > 0)[None].astype(np.float32))
         self.x = torch.from_numpy(np.stack(xs)).to(device=device, dtype=dtype)
@@ -43,17 +38,22 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
     def __len__(self) -> int:
         return self.x.shape[0]
 
+    @staticmethod
+    def _stack_channels(a: dict, channels) -> np.ndarray:
+        """(H,W,3) channels -> one (C,H,W) float32 array."""
+        return np.concatenate([a[c].transpose(2, 0, 1) for c in channels], 0).astype(np.float32)
 
-def load_split(split=None, label=None, cats=None, channels=("xyz",),  # noqa: PLR0913  # pragma: no cover  store query + GpuSplit (disk)
-               device="cuda", size=None) -> GpuSplit:
-    """Query the store (filter by split / label / category) -> GPU-resident tensors."""
-    df = store.load(size=size or pp.SIZE)
-    if cats:
-        df = df.filter(pl.col("category").is_in(cats))
-    if split is not None:
-        df = df.filter(pl.col("split") == split)
-    if label is not None:
-        df = df.filter(pl.col("label") == label)
-    if len(df) == 0:
-        raise ValueError(f"empty split (split={split}, label={label}, cats={cats}) — build the store first")
-    return GpuSplit(df, channels=channels, device=device)
+    @staticmethod
+    def load_split(split=None, label=None, cats=None, channels=("xyz",),  # noqa: PLR0913  # pragma: no cover  store query + GpuSplit (disk)
+                   device="cuda", size=None) -> "GpuSplit":
+        """Query the store (filter by split / label / category) -> GPU-resident tensors."""
+        df = store.Store.load(size=size or pp.SIZE)
+        if cats:
+            df = df.filter(pl.col("category").is_in(cats))
+        if split is not None:
+            df = df.filter(pl.col("split") == split)
+        if label is not None:
+            df = df.filter(pl.col("label") == label)
+        if len(df) == 0:
+            raise ValueError(f"empty split (split={split}, label={label}, cats={cats}) — build the store first")
+        return GpuSplit(df, channels=channels, device=device)

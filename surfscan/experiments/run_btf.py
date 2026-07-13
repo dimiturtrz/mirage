@@ -30,11 +30,11 @@ class BtfMethod:
         self.size = cfg.size or 256
 
     def fit(self, cat):
-        _, train = store.arrays(cat, "train", 0, self.size)
+        _, train = store.Store.arrays(cat, "train", 0, self.size)
         return FpfhBank(device=self.dev).fit([(a["xyz"], a["valid"]) for a in train])
 
     def score(self, state, cat):
-        dft, test = store.arrays(cat, "test", size=self.size)
+        dft, test = store.Store.arrays(cat, "test", size=self.size)
         amaps = state.score_maps([(a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])

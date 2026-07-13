@@ -29,8 +29,8 @@ from torch import optim
 
 from core.cli_config import CliConfig
 from core.compute import Compute
-from core.data.dataset import load_split
-from core.data.defects import KINDS, synthesize
+from core.data.dataset import GpuSplit
+from core.data.defects import KINDS, Defects
 from core.method import Method
 from core.obs import Obs
 from surfscan.dispatch import Spec, add_cats
@@ -74,7 +74,7 @@ def fit_synth(cat, cfg, dev, *, curriculum=False):
     ch = tuple(cfg.channels)
     rng = np.random.RandomState(cfg.seed)
     torch.manual_seed(cfg.seed)
-    good = load_split(split="train", label=0, cats=[cat], channels=ch, device=dev)
+    good = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=ch, device=dev)
     model = _new(good.in_ch, dev)
     opt = optim.AdamW(model.parameters(), lr=1e-3)
     ctrl = curric.KindCurriculum(KINDS, seed=cfg.seed) if curriculum else None
@@ -82,7 +82,7 @@ def fit_synth(cat, cfg, dev, *, curriculum=False):
     def step(idx):
         x, v = good.x[idx], good.valid[idx]
         kinds = ctrl.sample(len(idx)) if ctrl else KINDS
-        aug, mask = synthesize(x, v, rng, channels=ch, kinds=kinds)
+        aug, mask = Defects.synthesize(x, v, rng, channels=ch, kinds=kinds)
         with Compute.autocast(x):
             logits = model(aug.to(memory_format=torch.channels_last))
             loss = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)
@@ -100,7 +100,7 @@ def fit_real(cat, cfg, dev):
     measured supervised bar for this detector, and why the unsupervised memory bank can beat it."""
     ch = tuple(cfg.channels)
     torch.manual_seed(cfg.seed)
-    test = load_split(split="test", cats=[cat], channels=ch, device=dev)
+    test = GpuSplit.load_split(split="test", cats=[cat], channels=ch, device=dev)
     ci, _ = _split_idx(test.df["label"].to_numpy())
     t = torch.as_tensor(ci, device=dev)
     x, v, g = test.x[t], test.valid[t], test.gt[t]
@@ -137,7 +137,7 @@ def _adabn(model, x, passes=2, batch=BATCH):
 def fit_synth_da(cat, cfg, dev, *, curriculum=False):
     """synth-trained, then AdaBN-adapted to the real eval images (unlabeled). The closure arm."""
     model = fit_synth(cat, cfg, dev, curriculum=curriculum)
-    test = load_split(split="test", cats=[cat], channels=tuple(cfg.channels), device=dev)
+    test = GpuSplit.load_split(split="test", cats=[cat], channels=tuple(cfg.channels), device=dev)
     _, ei = _split_idx(test.df["label"].to_numpy())
     return _adabn(model, test.x[torch.as_tensor(ei, device=dev)])
 
@@ -145,7 +145,7 @@ def fit_synth_da(cat, cfg, dev, *, curriculum=False):
 @torch.no_grad()
 def score(model, cat, cfg, dev, batch=BATCH):
     """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
-    test = load_split(split="test", cats=[cat], channels=tuple(cfg.channels), device=dev)
+    test = GpuSplit.load_split(split="test", cats=[cat], channels=tuple(cfg.channels), device=dev)
     labels = test.df["label"].to_numpy()
     defects = np.array(test.df["defect"].to_list())
     _, ei = _split_idx(labels)

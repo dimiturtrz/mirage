@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from core.data.dataset import load_split
+from core.data.dataset import GpuSplit
 from surfscan.evaluation import scoring
 from surfscan.method_cli import method_spec
 from surfscan.models.patchcore import FitCfg, PatchCore
@@ -37,12 +37,13 @@ class PatchCoreMethod:
         return f"patchcore_rgb_{self.cfg.coreset_method}"
 
     def fit(self, cat):
-        train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=self.dev, size=self.cfg.size)
+        train = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=["rgb"],
+                                    device=self.dev, size=self.cfg.size)
         return PatchCore(device=self.dev, amp=self.cfg.amp).fit(
             train.x, FitCfg(coreset=self.cfg.coreset, method=self.cfg.coreset_method, seed=self.cfg.seed))
 
     def score(self, state, cat):
-        test = load_split(split="test", cats=[cat], channels=["rgb"], device=self.dev, size=self.cfg.size)
+        test = GpuSplit.load_split(split="test", cats=[cat], channels=["rgb"], device=self.dev, size=self.cfg.size)
         return scoring.score_arrays(state.score_maps(test.x), test)
 
 

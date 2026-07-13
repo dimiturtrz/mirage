@@ -11,7 +11,7 @@ Run:  python -m surfscan.report evaluate --run-id <mlflow-run-id> [--cats bagel]
 from __future__ import annotations
 
 from core.compute import Compute
-from core.data.dataset import load_split
+from core.data.dataset import GpuSplit
 from core.method import Method
 from surfscan import tracking
 from surfscan.dispatch import Spec
@@ -28,12 +28,12 @@ def evaluate(run_id, cats=None, device="cuda", image_score="residual"):
         return model
 
     def score(m, c):
-        data = load_split(split="test", cats=[c], channels=hp.channels, device=dev, size=hp.size)
+        data = GpuSplit.load_split(split="test", cats=[c], channels=hp.channels, device=dev, size=hp.size)
         amaps = (scoring.inpaint_maps(m, data, grid=hp.grid) if hp.model_type == "inpaint"
                  else scoring.anomaly_maps(m, data))
         scores = None
         if image_score == "mahalanobis":                  # latent-distance score (VAE encoder mu)
-            good = load_split(split="train", label=0, cats=[c], channels=hp.channels, device=dev, size=hp.size)
+            good = GpuSplit.load_split(split="train", label=0, cats=[c], channels=hp.channels, device=dev, size=hp.size)
             scores = scoring.mahalanobis(scoring.latents(m, good), scoring.latents(m, data))
         return scoring.score_arrays(amaps, data, scores=scores)
 

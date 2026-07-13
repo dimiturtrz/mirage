@@ -31,7 +31,7 @@ from core import config
 from core.compute import Compute
 from core.data import preprocess as pp
 from core.data import store
-from core.data.dataset import load_split
+from core.data.dataset import GpuSplit
 from core.obs import Obs
 from surfscan.dispatch import Spec
 from surfscan.models.patchcore import FitCfg, PatchCore
@@ -57,10 +57,10 @@ def load_processed(cat, split, defect, idx, size=None):
     """Load one CLEANED sample from the processed store (rgb [0,1], xyz normalized,
     valid + gt)."""
     sid = f"{cat}_{split}_{defect}_{idx:03d}"
-    path = store.dataset_dir(size=size or pp.SIZE) / "data" / f"{sid}.npz"
+    path = store.Store.dataset_dir(size=size or pp.SIZE) / "data" / f"{sid}.npz"
     if not path.exists():
         raise FileNotFoundError(f"{path} not built — run: python -m core.data.store --cats {cat}")
-    a = store.load_arrays(path)
+    a = store.Store.load_arrays(path)
     return a["rgb"], a["xyz"], a["gt"], a["valid"]
 
 
@@ -96,7 +96,7 @@ def patchcore_map(cat, rgb, valid, coreset=0.1, device=None):
     """The WORKING detector's anomaly map: fit a PatchCore bank on this category's train-good (rgb),
     score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
     dev = device or Compute.pick_device()
-    train = load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
+    train = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
     pc = PatchCore(device=dev).fit(train.x, FitCfg(coreset=coreset))
     x = torch.from_numpy(rgb.transpose(2, 0, 1)[None]).to(dev)
     return pc.score_maps(x)[0] * valid                           # H,W

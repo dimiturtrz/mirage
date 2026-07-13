@@ -56,21 +56,23 @@ class Draem(nn.Module):
 
 
 class DraemSynth:
-    """The crude Perlin proxy-anomaly synthesis (public `synthesize` name kept as a staticmethod)."""
+    """The crude Perlin proxy-anomaly synthesis. Holds the seeded RNG (6sc: rng threads both methods) so
+    it mirrors the realistic path's `Defects(rng).synthesize(...)` — same DraemSynth(rng).synthesize shape."""
 
-    @staticmethod
-    def _perlin_mask(h, w, rng, res=16):
-        low = rng.rand(res, res).astype(np.float32)
+    def __init__(self, rng):
+        self.rng = rng
+
+    def _perlin_mask(self, h, w, res=16):
+        low = self.rng.rand(res, res).astype(np.float32)
         m = sk_resize(low, (h, w), order=1, preserve_range=True)
-        return (m > rng.uniform(0.6, 0.8)).astype(np.float32)
+        return (m > self.rng.uniform(0.6, 0.8)).astype(np.float32)
 
-    @staticmethod
-    def synthesize(x, valid, rng):
+    def synthesize(self, x, valid):
         """x: (B,C,H,W), valid: (B,1,H,W) -> (aug, mask) with a noise-filled blob inside the object."""
         B, C, H, W = x.shape
-        masks = np.stack([DraemSynth._perlin_mask(H, W, rng) for _ in range(B)])[:, None]      # B,1,H,W
+        masks = np.stack([self._perlin_mask(H, W) for _ in range(B)])[:, None]      # B,1,H,W
         m = torch.from_numpy(masks).to(x.device) * valid
-        beta = float(rng.uniform(0.2, 1.0))
+        beta = float(self.rng.uniform(0.2, 1.0))
         noise = torch.randn_like(x) * x.std()
         aug = x * (1 - m) + (beta * noise + (1 - beta) * x) * m
         return aug, m

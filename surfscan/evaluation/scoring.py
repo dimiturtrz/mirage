@@ -17,29 +17,34 @@ from core.compute import Compute
 
 
 class Scoring:
-    """Turn a reconstruction model into anomaly scores (recon-residual maps + latent Mahalanobis)."""
+    """Turn a reconstruction model into anomaly scores. The model-driven maps/latents share the fitted
+    `model` + `amp` policy (state_candidates 6sc/5ak: carried by every model method) -> held in __init__;
+    the array/stat reducers (image_scores/score_arrays/mahalanobis) touch no model, so they stay static.
+    `batch` is a per-call arg, not state — its default legitimately differs per method (64 vs inpaint's 16)."""
 
-    @staticmethod
+    def __init__(self, model, *, amp=True):
+        self.model = model
+        self.amp = amp
+
     @torch.no_grad()
-    def anomaly_maps(model, data, batch=64, *, amp=True):
+    def anomaly_maps(self, data, batch=64):
         """-> (N,H,W) per-pixel squared-reconstruction-error maps, zeroed outside the object."""
-        model.eval()
+        self.model.eval()
         out = []
         for i in range(0, len(data), batch):
             x = data.x[i:i + batch].to(memory_format=torch.channels_last)
             m = data.valid[i:i + batch]
-            with Compute.autocast(x, amp=amp):
-                recon, _, _ = model(x)
+            with Compute.autocast(x, amp=self.amp):
+                recon, _, _ = self.model(x)
             err = ((recon.float() - x.float()) ** 2).sum(1, keepdim=True) * m   # N,1,H,W
             out.append(err.squeeze(1).cpu())
         return torch.cat(out).numpy()
 
-    @staticmethod
     @torch.no_grad()
-    def inpaint_maps(model, data, grid=8, batch=16, *, amp=True):
+    def inpaint_maps(self, data, grid=8, batch=16):
         """Anomaly maps for the inpainting model: mask each grid cell, fill from the model's
         prediction, assemble an 'inpainted' image; anomaly = (input - inpainted)^2."""
-        model.eval()
+        self.model.eval()
         size = data.x.shape[-1]
         patch = size // grid
         out = []
@@ -53,8 +58,8 @@ class Scoring:
                     xs = slice(gx * patch, (gx + 1) * patch)
                     xm = x.clone()
                     xm[..., ys, xs] = 0
-                    with Compute.autocast(xm, amp=amp):
-                        r = model(xm.to(memory_format=torch.channels_last))
+                    with Compute.autocast(xm, amp=self.amp):
+                        r = self.model(xm.to(memory_format=torch.channels_last))
                     inpainted[..., ys, xs] = r.float()[..., ys, xs]
             err = ((x - inpainted) ** 2).sum(1, keepdim=True) * m
             out.append(err.squeeze(1).cpu())
@@ -82,16 +87,15 @@ class Scoring:
         return (amaps, valids, masks, scores,
                 test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
 
-    @staticmethod
     @torch.no_grad()
-    def latents(model, data, batch=64, *, amp=True):
+    def latents(self, data, batch=64):
         """-> (N,D) encoder latent means (VAE mu) — the input to latent-distance scoring."""
-        model.eval()
+        self.model.eval()
         out = []
         for i in range(0, len(data), batch):
             x = data.x[i:i + batch].to(memory_format=torch.channels_last)
-            with Compute.autocast(x, amp=amp):
-                mu, _ = model.encode(x)
+            with Compute.autocast(x, amp=self.amp):
+                mu, _ = self.model.encode(x)
             out.append(mu.float().cpu())
         return torch.cat(out).numpy()
 

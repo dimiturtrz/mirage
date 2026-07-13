@@ -63,11 +63,11 @@ def _hp(model_type):
 
 def test_train_vae_cpu(monkeypatch):
     stub = _patch(monkeypatch)
-    run_id = train_mod.TrainRun.train(_hp("vae"), device="cpu")
+    run_id = train_mod.TrainRun(_hp("vae")).train(device="cpu")
     assert run_id == "run-xyz"
     assert stub.metric_steps and stub.metric_steps[0][1]["loss"] == stub.metric_steps[0][1]["loss"]  # not NaN
 
 
 def test_train_inpaint_cpu(monkeypatch):
     _patch(monkeypatch)
-    assert train_mod.TrainRun.train(_hp("inpaint"), device="cpu") == "run-xyz"
+    assert train_mod.TrainRun(_hp("inpaint")).train(device="cpu") == "run-xyz"

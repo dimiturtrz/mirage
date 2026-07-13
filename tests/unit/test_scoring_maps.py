@@ -28,7 +28,7 @@ def _cfg():
 
 def test_anomaly_maps_cpu():
     data = _Data(torch.randn(3, 3, 32, 32), torch.ones(3, 1, 32, 32))
-    a = Scoring.anomaly_maps(ConvVAE(_cfg()), data, batch=2)
+    a = Scoring(ConvVAE(_cfg())).anomaly_maps(data, batch=2)
     assert a.shape == (3, 32, 32)
     assert (a >= 0).all()
 
@@ -36,20 +36,20 @@ def test_anomaly_maps_cpu():
 def test_anomaly_maps_zeroed_outside_valid():
     valid = torch.zeros(2, 1, 32, 32)
     valid[:, :, 8:24, 8:24] = 1.0
-    a = Scoring.anomaly_maps(ConvVAE(_cfg()), _Data(torch.randn(2, 3, 32, 32), valid), batch=2)
+    a = Scoring(ConvVAE(_cfg())).anomaly_maps(_Data(torch.randn(2, 3, 32, 32), valid), batch=2)
     assert a[:, 0, 0].sum() == 0                     # background corner -> zero
 
 
 def test_inpaint_maps_cpu():
     data = _Data(torch.randn(3, 3, 32, 32), torch.ones(3, 1, 32, 32))
-    a = Scoring.inpaint_maps(InpaintAE(_cfg()), data, grid=4, batch=2)
+    a = Scoring(InpaintAE(_cfg())).inpaint_maps(data, grid=4, batch=2)
     assert a.shape == (3, 32, 32)
     assert (a >= 0).all()
 
 
 def test_latents_shape_cpu():
     data = _Data(torch.randn(5, 3, 32, 32), torch.ones(5, 1, 32, 32))
-    z = Scoring.latents(ConvVAE(_cfg()), data, batch=2)
+    z = Scoring(ConvVAE(_cfg())).latents(data, batch=2)
     assert z.shape == (5, 16)                         # N x latent
 
 

@@ -73,7 +73,7 @@ class Store:
         out = Store.dataset_dir(p.size, p.nb, p.std)
         data_dir = out / "data"
         data_dir.mkdir(parents=True, exist_ok=True)
-        samples = mvtec.Mvtec.samples(cats=cats)
+        samples = mvtec.Mvtec().samples(cats=cats)
         todo = samples if rebuild else [s for s in samples if not (data_dir / f"{s.sample_id}.npz").exists()]
 
         def _one(s: mvtec.Sample):

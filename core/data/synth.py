@@ -25,23 +25,27 @@ SPLITS = mvtec.SPLITS
 
 
 class Synth:
-    """Synthetic-defect reader (the second adapter) — delegates to the MVTec adapter over the synth root."""
+    """Synthetic-defect reader (the second adapter) — delegates to the MVTec adapter over the synth root.
+
+    Same shape as Mvtec: the synth `root` is the adapter's identity (default = synth_root) held in
+    __init__; categories/samples build an Mvtec bound to that root and delegate."""
+
+    def __init__(self, root: Path | None = None):
+        self.root = root or self.synth_root()
 
     @staticmethod
     def synth_root() -> Path:
         """`<data root>/synth` — the engine's output root (sibling to raw/ + processed/)."""
         return Path(config.Config.data_root()) / "synth"
 
-    @staticmethod
-    def categories(root: Path | None = None) -> list[str]:
+    def categories(self) -> list[str]:
         """Rendered categories under the synth root ([] until the engine has written any)."""
-        return Mvtec.categories(root or Synth.synth_root())
+        return Mvtec(self.root).categories()
 
-    @staticmethod
-    def samples(root: Path | None = None, cats: list[str] | None = None) -> list[Sample]:
+    def samples(self, cats: list[str] | None = None) -> list[Sample]:
         """Every rendered (category, split, defect, idx) sample — same walk + on-disk format as
         Mvtec.samples (only the source root differs), so the store ingests real + synth identically."""
-        return Mvtec.samples(root or Synth.synth_root(), cats)
+        return Mvtec(self.root).samples(cats)
 
 
 load_raw = Mvtec.load_raw  # identical on-disk format -> reuse the loader

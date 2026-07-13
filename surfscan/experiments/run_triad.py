@@ -55,7 +55,14 @@ class TriadCfg:
 
 class TriadRun:
     """Stage-1 sim-to-real triad — the measured gap number. A meta-method: three arms
-    (real / synth / synth+DA) through the shared harness, reporting their gap."""
+    (real / synth / synth+DA) through the shared harness, reporting their gap.
+
+    `cfg` (arm/run config) and `dev` (device) are fixed for the whole triad run — held as state;
+    `cat` (category) varies per harness call — stays a method arg."""
+
+    def __init__(self, cfg, dev):
+        self.cfg = cfg
+        self.dev = dev
 
     @staticmethod
     def _split_idx(labels):
@@ -69,25 +76,24 @@ class TriadRun:
             ev += list(li[::2])
         return np.array(sorted(calib)), np.array(sorted(ev))
 
-    @staticmethod
-    def _new(in_ch, dev):
-        return UNet(in_ch, 1).to(dev, memory_format=torch.channels_last)
+    def _new(self, in_ch):
+        return UNet(in_ch, 1).to(self.dev, memory_format=torch.channels_last)
 
-    @staticmethod
-    def fit_synth(cat, cfg, dev, *, curriculum=False):
+    def fit_synth(self, cat):
         """Train on good scans + on-the-fly synthetic defects. The synth->real arm."""
+        cfg, dev = self.cfg, self.dev
         ch = tuple(cfg.channels)
         rng = np.random.RandomState(cfg.seed)
         torch.manual_seed(cfg.seed)
         good = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=ch, device=dev)
-        model = TriadRun._new(good.in_ch, dev)
+        model = self._new(good.in_ch)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
-        ctrl = curric.KindCurriculum(KINDS, seed=cfg.seed) if curriculum else None
+        ctrl = curric.KindCurriculum(KINDS, seed=cfg.seed) if cfg.curriculum else None
 
         def step(idx):
             x, v = good.x[idx], good.valid[idx]
             kinds = ctrl.sample(len(idx)) if ctrl else KINDS
-            aug, mask = Defects.synthesize(x, v, rng, channels=ch, kinds=kinds)
+            aug, mask = Defects(rng).synthesize(x, v, channels=ch, kinds=kinds)
             with Compute.autocast(x):
                 logits = model(aug.to(memory_format=torch.channels_last))
                 loss = F.binary_cross_entropy_with_logits(logits.float(), mask, weight=v)
@@ -98,18 +104,18 @@ class TriadRun:
         return Trainer(model, opt, dev, batch=BATCH).fit(
             len(good), cfg.epochs, step, after_epoch=(ctrl.end_epoch if ctrl else None))
 
-    @staticmethod
-    def fit_real(cat, cfg, dev):
+    def fit_real(self, cat):
         """Train on REAL defect masks (calib half of test). The real->real ceiling — note it's a
         *scarce-label* ceiling (only ~half of an already-small defect set), not an oracle; that's the
         measured supervised bar for this detector, and why the unsupervised memory bank can beat it."""
+        cfg, dev = self.cfg, self.dev
         ch = tuple(cfg.channels)
         torch.manual_seed(cfg.seed)
         test = GpuSplit.load_split(split="test", cats=[cat], channels=ch, device=dev)
         ci, _ = TriadRun._split_idx(test.df["label"].to_numpy())
         t = torch.as_tensor(ci, device=dev)
         x, v, g = test.x[t], test.valid[t], test.gt[t]
-        model = TriadRun._new(test.in_ch, dev)
+        model = self._new(test.in_ch)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
 
         def step(idx):
@@ -138,19 +144,19 @@ class TriadRun:
         model.eval()
         return model
 
-    @staticmethod
-    def fit_synth_da(cat, cfg, dev, *, curriculum=False):
+    def fit_synth_da(self, cat):
         """synth-trained, then AdaBN-adapted to the real eval images (unlabeled). The closure arm."""
-        model = TriadRun.fit_synth(cat, cfg, dev, curriculum=curriculum)
-        test = GpuSplit.load_split(split="test", cats=[cat], channels=tuple(cfg.channels), device=dev)
+        dev = self.dev
+        model = self.fit_synth(cat)
+        test = GpuSplit.load_split(split="test", cats=[cat], channels=tuple(self.cfg.channels), device=dev)
         _, ei = TriadRun._split_idx(test.df["label"].to_numpy())
         return TriadRun._adabn(model, test.x[torch.as_tensor(ei, device=dev)])
 
-    @staticmethod
     @torch.no_grad()
-    def score(model, cat, cfg, dev, batch=BATCH):
+    def score(self, model, cat, batch=BATCH):
         """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
-        test = GpuSplit.load_split(split="test", cats=[cat], channels=tuple(cfg.channels), device=dev)
+        dev = self.dev
+        test = GpuSplit.load_split(split="test", cats=[cat], channels=tuple(self.cfg.channels), device=dev)
         labels = test.df["label"].to_numpy()
         defects = np.array(test.df["defect"].to_list())
         _, ei = TriadRun._split_idx(labels)
@@ -177,21 +183,14 @@ class TriadRun:
     def _run(args):
         Compute.enable_tf32()
         cfg = CliConfig.build_config(TriadCfg, args)
-        dev = Compute.pick_device()
+        run = TriadRun(cfg, Compute.pick_device())
 
-        def score_fn(m, c):
-            return TriadRun.score(m, c, cfg, dev)
-
-        fits = {
-            "real": lambda c: TriadRun.fit_real(c, cfg, dev),
-            "synth": lambda c: TriadRun.fit_synth(c, cfg, dev, curriculum=cfg.curriculum),
-            "synth_da": lambda c: TriadRun.fit_synth_da(c, cfg, dev, curriculum=cfg.curriculum),
-        }
+        fits = {"real": run.fit_real, "synth": run.fit_synth, "synth_da": run.fit_synth_da}
         res = {}
         for arm in cfg.arms:
             tag = f"triad_{arm}" + ("_curric" if cfg.curriculum and arm != "real" else "")
             log.info(f"\n===== {tag} (seed {cfg.seed}) =====")
-            res[arm] = harness.Harness.run(tag, Method(fits[arm], score_fn), cats=args.cats,
+            res[arm] = harness.Harness.run(tag, Method(fits[arm], run.score), cats=args.cats,
                                    params={"arm": arm, "seed": cfg.seed, "epochs": cfg.epochs,
                                            "curriculum": cfg.curriculum})
         if "real" in res and "synth" in res:

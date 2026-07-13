@@ -33,13 +33,13 @@ class Evaluate:
 
         def score(m, c):
             data = GpuSplit.load_split(split="test", cats=[c], channels=hp.channels, device=dev, size=hp.size)
-            amaps = (scoring.Scoring.inpaint_maps(m, data, grid=hp.grid) if hp.model_type == "inpaint"
-                     else scoring.Scoring.anomaly_maps(m, data))
+            sc = scoring.Scoring(m)
+            amaps = sc.inpaint_maps(data, grid=hp.grid) if hp.model_type == "inpaint" else sc.anomaly_maps(data)
             scores = None
             if image_score == "mahalanobis":                  # latent-distance score (VAE encoder mu)
                 good = GpuSplit.load_split(split="train", label=0, cats=[c], channels=hp.channels,
                                            device=dev, size=hp.size)
-                scores = scoring.Scoring.mahalanobis(scoring.Scoring.latents(m, good), scoring.Scoring.latents(m, data))
+                scores = scoring.Scoring.mahalanobis(sc.latents(good), sc.latents(data))
             return scoring.Scoring.score_arrays(amaps, data, scores=scores)
 
         return harness.Harness.run(hp.model_type, Method(fit, score), cats=cats or hp.cats, run_id=run_id)

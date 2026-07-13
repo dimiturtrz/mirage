@@ -44,7 +44,18 @@ _RAW_RGB_CUTOFF = 1.5   # cols.max() above this => raw uint8 (not float [0,1])
 
 
 class Show:
-    """Look at ONE MVTec 3D-AD sample — the 'see the data' step (load, lift to points, recolor, spin)."""
+    """Look at ONE MVTec 3D-AD sample — the 'see the data' step (load, lift to points, recolor, spin).
+
+    The loaded sample (rgb + xyz + valid + gt) is the object's state: every render/colorize method
+    operates on that same synced grid. Loaders PRODUCE a sample and stay static; the CLI entry builds
+    one `Show(...)` and renders it.
+    """
+
+    def __init__(self, rgb, xyz, valid, gt=None):
+        self.rgb = rgb
+        self.xyz = xyz
+        self.valid = valid
+        self.gt = gt
 
     @staticmethod
     def load_sample(root, cat, split, defect, idx):
@@ -67,12 +78,11 @@ class Show:
         a = store.Store.load_arrays(path)
         return a["rgb"], a["xyz"], a["gt"], a["valid"]
 
-    @staticmethod
-    def _run_model(run, rgb, xyz, device=None):
-        """Load a trained model + run it on one sample -> (input x [1,C,H,W], recon [1,C,H,W]), numpy."""
+    def _run_model(self, run, device=None):
+        """Load a trained model + run it on this sample -> (input x [1,C,H,W], recon [1,C,H,W]), numpy."""
         run = Path(run)
         hp = HParams(**json.loads((run / "config.json").read_text()))
-        chans = [(xyz if c == "xyz" else rgb).transpose(2, 0, 1) for c in hp.channels]
+        chans = [(self.xyz if c == "xyz" else self.rgb).transpose(2, 0, 1) for c in hp.channels]
         x = np.concatenate(chans, 0)[None].astype("float32")          # 1,C,H,W
         dev = device or Compute.pick_device()
         model = ConvVAE(hp.model_cfg(x.shape[1])).to(dev)
@@ -82,73 +92,69 @@ class Show:
             recon, _, _ = model(torch.from_numpy(x).to(dev))
         return x, recon.cpu().numpy()
 
-    @staticmethod
-    def anomaly_map(run, rgb, xyz, valid):
+    def anomaly_map(self, run):
         """Per-pixel reconstruction error from a trained model (run dir). Requires processed inputs."""
-        x, recon = Show._run_model(run, rgb, xyz)
+        x, recon = self._run_model(run)
         err = ((recon - x) ** 2).sum(1).squeeze(0)                    # H,W
-        return err * valid
+        return err * self.valid
 
-    @staticmethod
-    def recon_xyz(run, rgb, xyz):
+    def recon_xyz(self, run):
         """The model's reconstructed xyz channels (H,W,3) — what it rebuilt the surface as."""
-        _, recon = Show._run_model(run, rgb, xyz)
+        _, recon = self._run_model(run)
         return recon[0, :3].transpose(1, 2, 0)                        # C,H,W -> H,W,3 (xyz channels)
 
-    @staticmethod
-    def patchcore_map(cat, rgb, valid, coreset=0.1, device=None):
+    def patchcore_map(self, cat, coreset=0.1, device=None):
         """The WORKING detector's anomaly map: fit a PatchCore bank on this category's train-good (rgb),
         score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
         dev = device or Compute.pick_device()
         train = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
         pc = PatchCore(device=dev).fit(train.x, FitCfg(coreset=coreset))
-        x = torch.from_numpy(rgb.transpose(2, 0, 1)[None]).to(dev)
-        return pc.score_maps(x)[0] * valid                           # H,W
+        x = torch.from_numpy(self.rgb.transpose(2, 0, 1)[None]).to(dev)
+        return pc.score_maps(x)[0] * self.valid                       # H,W
 
-    @staticmethod
-    def to_point_cloud(rgb, xyz, valid, gt=None):
+    def to_point_cloud(self, *, mask=False):
         """Drop background, return (points Nx3, colors Nx3 in [0,1]).
 
         rgb may be uint8 (raw) or float [0,1] (processed) — normalized either way.
+        With mask, the labelled gt defect region is painted red.
         """
-        pts = xyz[valid]
-        cols = rgb[valid].astype(np.float64)
+        gt = self.gt if mask else None
+        pts = self.xyz[self.valid]
+        cols = self.rgb[self.valid].astype(np.float64)
         if cols.size and cols.max() > _RAW_RGB_CUTOFF:          # raw uint8 -> [0,1]
             cols /= 255.0
         if gt is not None:                          # paint the labelled defect region red
             cols = cols.copy()
-            cols[gt[valid] > 0] = (1.0, 0.0, 0.0)
+            cols[gt[self.valid] > 0] = (1.0, 0.0, 0.0)
         return pts, cols
 
-    @staticmethod
-    def _show_photo(args, rgb, gt):
-        cols_n = 1 if gt is None else 2
+    def _show_photo(self, args):
+        cols_n = 1 if self.gt is None else 2
         fig, axes = plt.subplots(1, cols_n, figsize=(5 * cols_n, 5))
         axes = np.atleast_1d(axes)
-        axes[0].imshow(rgb)
+        axes[0].imshow(self.rgb)
         axes[0].set_title(f"{args.cat}/{args.split}/{args.defect}/{args.idx:03d} — RGB")
         axes[0].axis("off")
-        if gt is not None:
-            axes[1].imshow(gt, cmap="gray")
+        if self.gt is not None:
+            axes[1].imshow(self.gt, cmap="gray")
             axes[1].set_title("GT defect mask")
             axes[1].axis("off")
         plt.tight_layout()
         plt.show()
 
-    @staticmethod
-    def _colorize(pc, args, rgb, xyz, valid):
+    def _colorize(self, pc, args):
         """Recolor the cloud by the chosen mode (anomaly / curvature / normals); returns show_normals."""
         if args.anomaly is not None or args.patchcore:
             if not args.processed:
                 raise SystemExit("--anomaly/--patchcore need --processed (the model eats the processed input)")
-            err = (Show.patchcore_map(args.cat, rgb, valid) if args.patchcore
-                   else Show.anomaly_map(args.anomaly, rgb, xyz, valid))
-            e = err[valid.astype(bool)]
+            err = (self.patchcore_map(args.cat) if args.patchcore
+                   else self.anomaly_map(args.anomaly))
+            e = err[self.valid.astype(bool)]
             e = (e / (np.percentile(e, 99) + 1e-9)).clip(0, 1)
             pc.colors = o3d.utility.Vector3dVector(cm.inferno(e)[:, :3])
             tag = "patchcore" if args.patchcore else "recon residual"
-            log.info(f"{tag}: median {np.median(err[valid.astype(bool)]):.4f}  "
-                     f"p99 {np.percentile(err[valid.astype(bool)], 99):.4f}")
+            log.info(f"{tag}: median {np.median(err[self.valid.astype(bool)]):.4f}  "
+                     f"p99 {np.percentile(err[self.valid.astype(bool)], 99):.4f}")
         elif args.curvature:
             pc.estimate_covariances(search_param=o3d.geometry.KDTreeSearchParamKNN(30))
             ev = np.linalg.eigvalsh(np.asarray(pc.covariances))
@@ -205,6 +211,7 @@ class Show:
             root = args.data_root or config.Config.mvtec_root()
             rgb, xyz, gt = Show.load_sample(root, args.cat, args.split, args.defect, args.idx)
             valid = np.any(xyz != 0, axis=-1)
+        show = Show(rgb, xyz, valid, gt)
         log.info(f"rgb {rgb.shape} {rgb.dtype} | xyz {xyz.shape} {xyz.dtype} | "
               f"gt {None if gt is None else gt.shape}")
         log.info(f"object pixels: {valid.sum():,} / {valid.size:,}  ({100 * valid.mean():.1f}%)")
@@ -212,7 +219,7 @@ class Show:
             log.info(f"defect pixels: {(gt > 0).sum():,}  ({100 * (gt > 0).mean():.2f}% of frame)")
 
         if args.rgb:                                     # opt-in flat photo + mask (blocks until closed)
-            Show._show_photo(args, rgb, gt)
+            show._show_photo(args)
 
         if args.no_3d:
             return
@@ -221,14 +228,14 @@ class Show:
         if args.recon is not None:
             if not args.processed:
                 raise SystemExit("--recon needs --processed (the model eats the normalized processed input)")
-            xyz = Show.recon_xyz(args.recon, rgb, xyz)   # show the rebuilt surface instead of the input
+            show.xyz = show.recon_xyz(args.recon)        # show the rebuilt surface instead of the input
             log.info("showing the model's RECONSTRUCTED surface (colored by original rgb)")
-        pts, cols = Show.to_point_cloud(rgb, xyz, valid, gt if args.mask else None)
+        pts, cols = show.to_point_cloud(mask=args.mask)
         pc = o3d.geometry.PointCloud()
         pc.points = o3d.utility.Vector3dVector(pts)
         pc.colors = o3d.utility.Vector3dVector(cols)
 
-        show_normals = Show._colorize(pc, args, rgb, xyz, valid)
+        show_normals = show._colorize(pc, args)
 
         log.info("3D: drag = rotate, scroll = zoom, q = quit")
         o3d.visualization.draw_geometries([pc], window_name="MVTec 3D-AD sample",

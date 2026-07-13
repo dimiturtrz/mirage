@@ -21,33 +21,37 @@ from surfscan.training.train import train
 log = Obs.get()
 
 
-def _args(ap):
-    add_cats(ap)
-    ap.add_argument("--epochs", type=int, default=100)
+class VaeRun:
+    """Per-category VAE train+eval over all categories -> aggregate mean. Logs to MLflow."""
+
+    @staticmethod
+    def _args(ap):
+        add_cats(ap)
+        ap.add_argument("--epochs", type=int, default=100)
+
+    @staticmethod
+    def _run(args):
+        dev = Compute.pick_device()
+        cats = args.cats or mvtec.Mvtec.categories()
+        rows = []
+        for c in cats:
+            log.info(f"\n===== {c} =====")
+            hp = HParams(cats=[c], epochs=args.epochs, compile=False)
+            run_id = train(hp, run_name=f"vae_{c}", device=dev)
+            rows.append(Evaluate.evaluate(run_id, cats=[c], device=dev)["per_category"][0])
+
+        auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
+        aupro = float(np.nanmean([r["au_pro"] for r in rows]))
+        log.info("\n===== AGGREGATE (per-category models) =====")
+        for r in rows:
+            log.info(f"  {r['category']:12s}  img_auroc {r['img_auroc']:.3f}   au_pro {r['au_pro']:.3f}")
+        log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
+
+        with tracking.run("surfscan", "vae_all", params={"method": "vae_per_category", "cats": ",".join(cats)}):
+            tracking.metrics({"img_auroc_mean": auroc, "au_pro_mean": aupro})
+            tracking.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
+            tracking.artifact_json("aggregate.json",
+                                   {"per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro}})
 
 
-def _run(args):
-    dev = Compute.pick_device()
-    cats = args.cats or mvtec.Mvtec.categories()
-    rows = []
-    for c in cats:
-        log.info(f"\n===== {c} =====")
-        hp = HParams(cats=[c], epochs=args.epochs, compile=False)
-        run_id = train(hp, run_name=f"vae_{c}", device=dev)
-        rows.append(Evaluate.evaluate(run_id, cats=[c], device=dev)["per_category"][0])
-
-    auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
-    aupro = float(np.nanmean([r["au_pro"] for r in rows]))
-    log.info("\n===== AGGREGATE (per-category models) =====")
-    for r in rows:
-        log.info(f"  {r['category']:12s}  img_auroc {r['img_auroc']:.3f}   au_pro {r['au_pro']:.3f}")
-    log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
-
-    with tracking.run("surfscan", "vae_all", params={"method": "vae_per_category", "cats": ",".join(cats)}):
-        tracking.metrics({"img_auroc_mean": auroc, "au_pro_mean": aupro})
-        tracking.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
-        tracking.artifact_json("aggregate.json",
-                               {"per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro}})
-
-
-SPEC = Spec("vae", _args, _run)
+SPEC = Spec("vae", VaeRun._args, VaeRun._run)

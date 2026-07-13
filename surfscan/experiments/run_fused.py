@@ -17,11 +17,6 @@ from surfscan.models.fpfh_bank import FpfhBank
 from surfscan.models.patchcore import PatchCore
 
 
-def _zscore(maps, valids):
-    v = maps[valids]
-    return (maps - v.mean()) / (v.std() + 1e-9)
-
-
 @dataclass(frozen=True)
 class FusedCfg:
     amp: bool = field(default=False, metadata={"help": "bf16 PatchCore backbone forward (faster; off = reported)"})
@@ -33,6 +28,11 @@ class FusedMethod:
     def __init__(self, cfg: FusedCfg, dev):
         self.cfg = cfg
         self.dev = dev
+
+    @staticmethod
+    def _zscore(maps, valids):
+        v = maps[valids]
+        return (maps - v.mean()) / (v.std() + 1e-9)
 
     def fit(self, cat):
         train_rgb = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=self.dev)
@@ -48,7 +48,7 @@ class FusedMethod:
         pc_maps = pc.score_maps(test.x)
         _, test_arr = store.Store.arrays(cat, "test")
         fp_maps = fbank.score_maps([(a["xyz"], a["valid"]) for a in test_arr])
-        fused = (_zscore(pc_maps, valids) + _zscore(fp_maps, valids)) * valids
+        fused = (FusedMethod._zscore(pc_maps, valids) + FusedMethod._zscore(fp_maps, valids)) * valids
         return scoring.Scoring.score_arrays(fused, test)
 
 

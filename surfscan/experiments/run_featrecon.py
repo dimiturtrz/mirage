@@ -16,7 +16,7 @@ from torch import optim
 
 from core.data.dataset import GpuSplit
 from surfscan.evaluation import scoring
-from surfscan.method_cli import method_spec
+from surfscan.method_cli import MethodCli
 from surfscan.models.feat_recon import FeatAE, FeatExtractor
 from surfscan.training.trainer import Trainer
 
@@ -72,4 +72,4 @@ class FeatReconMethod:
         return scoring.Scoring.score_arrays(amaps, test)
 
 
-SPEC = method_spec("featrecon", FeatReconMethod, FeatReconCfg)
+SPEC = MethodCli.method_spec("featrecon", FeatReconMethod, FeatReconCfg)

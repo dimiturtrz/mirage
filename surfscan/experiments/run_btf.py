@@ -13,7 +13,7 @@ import numpy as np
 
 from core.data import store
 from surfscan.evaluation import scoring
-from surfscan.method_cli import method_spec
+from surfscan.method_cli import MethodCli
 from surfscan.models.fpfh_bank import FpfhBank
 
 
@@ -43,4 +43,4 @@ class BtfMethod:
                 dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
 
-SPEC = method_spec("btf", BtfMethod, BtfCfg)
+SPEC = MethodCli.method_spec("btf", BtfMethod, BtfCfg)

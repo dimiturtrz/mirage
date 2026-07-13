@@ -7,7 +7,7 @@ they're skipped where torchvision is absent (CI); `report` has no torchvision de
 import pytest
 
 import surfscan.report as report
-from surfscan.dispatch import build_parser
+from surfscan.dispatch import Dispatch
 
 
 def _cmds(specs):
@@ -16,18 +16,18 @@ def _cmds(specs):
 
 def test_report_commands():
     assert _cmds(report.REPORTS) == {"evaluate", "results", "sync", "modelcard", "triad-summary"}
-    build_parser("surfscan.report", report.REPORTS)
+    Dispatch.build_parser("surfscan.report", report.REPORTS)
 
 
 def test_run_commands():
     pytest.importorskip("torchvision")
     from surfscan.experiments.registry import REGISTRY  # noqa: PLC0415
     assert _cmds(REGISTRY) == {"patchcore", "btf", "fused", "featrecon", "draem", "triad", "vae", "pointmae"}
-    build_parser("surfscan.run", REGISTRY)
+    Dispatch.build_parser("surfscan.run", REGISTRY)
 
 
 def test_viz_commands():
     pytest.importorskip("torchvision")
     import surfscan.viz as viz  # noqa: PLC0415
     assert _cmds(viz.VIEWS) == {"show", "export"}
-    build_parser("surfscan.viz", viz.VIEWS)
+    Dispatch.build_parser("surfscan.viz", viz.VIEWS)

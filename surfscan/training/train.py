@@ -84,20 +84,20 @@ class TrainRun:
 
         def after_epoch():
             row = {"loss": ep["tot"] / ep["nb"], **{k: t / ep["nb"] for k, t in ep["extra"].items()}}
-            tracking.metrics(row, step=ep["i"])
+            tracking.Tracker.metrics(row, step=ep["i"])
             if ep["i"] % max(1, hp.epochs // 20) == 0 or ep["i"] == hp.epochs - 1:
                 parts = "  ".join(f"{k} {v:.4f}" for k, v in row.items())
                 log.info(f"ep {ep['i']:3d}  {parts}  {time.time() - ep['t0']:.2f}s")
             ep.update(i=ep["i"] + 1, t0=time.time(), tot=0.0, nb=0, extra={})
 
-        with tracking.run("surfscan", run_name, params=hp.model_dump()) as run_id:
+        with tracking.Tracker.run("surfscan", run_name, params=hp.model_dump()) as run_id:
             log.info(f"train[{hp.model_type}]: {n} good | in_ch={data.in_ch} | dev={dev} | "
                      f"bf16={amp} | compile={hp.compile}")
             ep["t0"] = time.time()
             Trainer(model, opt, dev, batch=hp.batch).fit(n, hp.epochs, step_fn, after_epoch=after_epoch)
 
-            tracking.artifact_json("config.json", hp.model_dump())
-            tracking.log_model(model)
+            tracking.Tracker.artifact_json("config.json", hp.model_dump())
+            tracking.Tracker.log_model(model)
             log.info(f"logged -> mlflow run {run_id}")
             return run_id
 

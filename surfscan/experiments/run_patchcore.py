@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 from core.data.dataset import GpuSplit
 from surfscan.evaluation import scoring
-from surfscan.method_cli import method_spec
+from surfscan.method_cli import MethodCli
 from surfscan.models.patchcore import FitCfg, PatchCore
 
 
@@ -47,4 +47,4 @@ class PatchCoreMethod:
         return scoring.Scoring.score_arrays(state.score_maps(test.x), test)
 
 
-SPEC = method_spec("patchcore", PatchCoreMethod, PatchCoreCfg)
+SPEC = MethodCli.method_spec("patchcore", PatchCoreMethod, PatchCoreCfg)

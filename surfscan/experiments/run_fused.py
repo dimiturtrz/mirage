@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from core.data import store
 from core.data.dataset import GpuSplit
 from surfscan.evaluation import scoring
-from surfscan.method_cli import method_spec
+from surfscan.method_cli import MethodCli
 from surfscan.models.fpfh_bank import FpfhBank
 from surfscan.models.patchcore import PatchCore
 
@@ -52,4 +52,4 @@ class FusedMethod:
         return scoring.Scoring.score_arrays(fused, test)
 
 
-SPEC = method_spec("fused", FusedMethod, FusedCfg)
+SPEC = MethodCli.method_spec("fused", FusedMethod, FusedCfg)

@@ -19,7 +19,7 @@ from core.compute import Compute
 from core.data.dataset import GpuSplit
 from core.data.defects import Defects  # channel-aware coherent defects
 from surfscan.evaluation import scoring
-from surfscan.method_cli import method_spec
+from surfscan.method_cli import MethodCli
 from surfscan.models.draem import Draem, DraemSynth
 
 synth_perlin = DraemSynth.synthesize  # the original crude Perlin (control)
@@ -74,4 +74,4 @@ class DraemMethod:
         return scoring.Scoring.score_arrays(torch.cat(amaps).numpy(), test)
 
 
-SPEC = method_spec("draem", DraemMethod, DraemCfg)
+SPEC = MethodCli.method_spec("draem", DraemMethod, DraemCfg)

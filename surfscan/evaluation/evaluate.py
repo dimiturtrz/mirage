@@ -24,9 +24,9 @@ class Evaluate:
 
     @staticmethod
     def evaluate(run_id, cats=None, device="cuda", image_score="residual"):
-        hp = HParams(**tracking.load_config(run_id))
+        hp = HParams(**tracking.Tracker.load_config(run_id))
         dev = device
-        model = tracking.load_model(run_id).to(dev)            # the built model + weights, from MLflow
+        model = tracking.Tracker.load_model(run_id).to(dev)            # the built model + weights, from MLflow
 
         def fit(_c):
             return model

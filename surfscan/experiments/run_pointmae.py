@@ -16,7 +16,7 @@ import torch
 
 from core.data import store
 from surfscan.evaluation import scoring
-from surfscan.method_cli import method_spec
+from surfscan.method_cli import MethodCli
 from surfscan.models.coreset import Coreset
 from surfscan.models.pointmae import Pointmae
 from surfscan.models.pointmae_group import PointmaeGroup
@@ -79,4 +79,4 @@ class PointMAEMethod:
                 dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
 
-SPEC = method_spec("pointmae", PointMAEMethod, PointMAECfg)
+SPEC = MethodCli.method_spec("pointmae", PointMAEMethod, PointMAECfg)

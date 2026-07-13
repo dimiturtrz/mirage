@@ -24,23 +24,27 @@ class Spec:
     run: Callable[[argparse.Namespace], None]
 
 
-def add_cats(ap: argparse.ArgumentParser) -> None:
-    """The `--cats` option shared by every runner (default: all categories)."""
-    ap.add_argument("--cats", nargs="*", default=None)
+class Dispatch:
+    """Argparse subcommand dispatch namespace — build subparsers from specs and route to the chosen one."""
 
+    @staticmethod
+    def add_cats(ap: argparse.ArgumentParser) -> None:
+        """The `--cats` option shared by every runner (default: all categories)."""
+        ap.add_argument("--cats", nargs="*", default=None)
 
-def build_parser(prog: str, specs: Sequence[Spec]) -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog=prog)
-    sub = ap.add_subparsers(dest="cmd", required=True)
-    for s in specs:
-        s.add_args(sub.add_parser(s.name))
-    return ap
+    @staticmethod
+    def build_parser(prog: str, specs: Sequence[Spec]) -> argparse.ArgumentParser:
+        ap = argparse.ArgumentParser(prog=prog)
+        sub = ap.add_subparsers(dest="cmd", required=True)
+        for s in specs:
+            s.add_args(sub.add_parser(s.name))
+        return ap
 
+    @staticmethod
+    def route(specs: Sequence[Spec], args: argparse.Namespace) -> Spec:
+        return {s.name: s for s in specs}[args.cmd]
 
-def route(specs: Sequence[Spec], args: argparse.Namespace) -> Spec:
-    return {s.name: s for s in specs}[args.cmd]
-
-
-def dispatch(prog: str, specs: Sequence[Spec], argv=None) -> None:  # pragma: no cover  argv/exec boundary
-    args = build_parser(prog, specs).parse_args(argv)
-    route(specs, args).run(args)
+    @staticmethod
+    def dispatch(prog: str, specs: Sequence[Spec], argv=None) -> None:  # pragma: no cover  argv/exec boundary
+        args = Dispatch.build_parser(prog, specs).parse_args(argv)
+        Dispatch.route(specs, args).run(args)

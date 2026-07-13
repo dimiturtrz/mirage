@@ -63,22 +63,22 @@ class Harness:
     @staticmethod
     def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
         rows = res["per_category"]
-        tracking.metrics({"img_auroc_mean": res["mean"]["img_auroc"], "au_pro_mean": res["mean"]["au_pro"]})
+        tracking.Tracker.metrics({"img_auroc_mean": res["mean"]["img_auroc"], "au_pro_mean": res["mean"]["au_pro"]})
         if res.get("ece") is not None:
-            tracking.metrics({"ece": res["ece"]})
-        tracking.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
-        tracking.per_group("img_auroc", {r["category"]: r["img_auroc"] for r in rows})
-        tracking.per_group("au_pro_defect", {d["defect"]: d["au_pro"] for d in res["per_defect"]})
-        tracking.artifact_json("aggregate.json", res)
+            tracking.Tracker.metrics({"ece": res["ece"]})
+        tracking.Tracker.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
+        tracking.Tracker.per_group("img_auroc", {r["category"]: r["img_auroc"] for r in rows})
+        tracking.Tracker.per_group("au_pro_defect", {d["defect"]: d["au_pro"] for d in res["per_defect"]})
+        tracking.Tracker.artifact_json("aggregate.json", res)
 
     @staticmethod
     def run(method, m, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper; aggregate is pure
         cats = cats or mvtec.Mvtec.categories()
         res = Harness.aggregate(method, m.fit, m.score, cats)
         if run_id:                                       # log into an existing run (e.g. the train run)
-            with tracking.resume(run_id):
+            with tracking.Tracker.resume(run_id):
                 Harness._log(res)
         else:
-            with tracking.run("surfscan", method, params=params or {"method": method, "cats": ",".join(cats)}):
+            with tracking.Tracker.run("surfscan", method, params=params or {"method": method, "cats": ",".join(cats)}):
                 Harness._log(res)
         return res

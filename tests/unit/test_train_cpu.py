@@ -25,9 +25,9 @@ class _FakeSplit:
         return self.x.shape[0]
 
 
-class _StubTracking:
-    def __init__(self):
-        self.metric_steps = []
+class _StubTracker:
+    def __init__(self, metric_steps):
+        self.metric_steps = metric_steps
 
     @contextmanager
     def run(self, *_a, **_k):
@@ -41,6 +41,12 @@ class _StubTracking:
 
     def log_model(self, *_a, **_k):
         pass
+
+
+class _StubTracking:
+    def __init__(self):
+        self.metric_steps = []
+        self.Tracker = _StubTracker(self.metric_steps)
 
 
 def _patch(monkeypatch, size=32):

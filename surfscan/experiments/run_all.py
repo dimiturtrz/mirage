@@ -13,7 +13,7 @@ from core.compute import Compute
 from core.data import mvtec
 from core.obs import Obs
 from surfscan import tracking
-from surfscan.dispatch import Spec, add_cats
+from surfscan.dispatch import Dispatch, Spec
 from surfscan.evaluation.evaluate import Evaluate
 from surfscan.training.hparams import HParams
 from surfscan.training.train import TrainRun
@@ -26,7 +26,7 @@ class VaeRun:
 
     @staticmethod
     def _args(ap):
-        add_cats(ap)
+        Dispatch.add_cats(ap)
         ap.add_argument("--epochs", type=int, default=100)
 
     @staticmethod
@@ -47,10 +47,10 @@ class VaeRun:
             log.info(f"  {r['category']:12s}  img_auroc {r['img_auroc']:.3f}   au_pro {r['au_pro']:.3f}")
         log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
 
-        with tracking.run("surfscan", "vae_all", params={"method": "vae_per_category", "cats": ",".join(cats)}):
-            tracking.metrics({"img_auroc_mean": auroc, "au_pro_mean": aupro})
-            tracking.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
-            tracking.artifact_json("aggregate.json",
+        with tracking.Tracker.run("surfscan", "vae_all", params={"method": "vae_per_category", "cats": ",".join(cats)}):
+            tracking.Tracker.metrics({"img_auroc_mean": auroc, "au_pro_mean": aupro})
+            tracking.Tracker.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
+            tracking.Tracker.artifact_json("aggregate.json",
                                    {"per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro}})
 
 

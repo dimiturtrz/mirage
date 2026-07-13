@@ -33,7 +33,7 @@ from core.data.dataset import GpuSplit
 from core.data.defects import KINDS, Defects
 from core.method import Method
 from core.obs import Obs
-from surfscan.dispatch import Spec, add_cats
+from surfscan.dispatch import Dispatch, Spec
 from surfscan.evaluation import harness, scoring
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
@@ -170,7 +170,7 @@ class TriadRun:
 
     @staticmethod
     def _args(ap):
-        add_cats(ap)
+        Dispatch.add_cats(ap)
         CliConfig.add_config_args(ap, TriadCfg)
 
     @staticmethod

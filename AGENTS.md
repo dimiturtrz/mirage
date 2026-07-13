@@ -72,3 +72,18 @@ bd close <id>         # Complete work
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
+
+## Static analysis — the gates (CI blocks dev→main)
+
+Principles enforced **mechanically** via a **ratcheting** gate per axis — a rule graduates to blocking once at zero, then any regression fails CI (fix, don't suppress). Run before pushing:
+
+```bash
+uvx ruff@0.15.13 check core surfscan          # style/bugs (enforced)
+uvx vulture@2.16 --min-confidence 80          # dead code (blocks ≥80)
+uvx --from import-linter lint-imports         # core = independent kernel (imports no surfscan)
+uv run python -m devtools.graph --assert      # arch fitness: god-module / god-file / cycle
+uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan   # no import-time side-effects
+npx --yes jscpd@4 core surfscan --config devtools/jscpd.json                    # duplication (advisory)
+```
+
+**noqa policy: bare `# noqa: RULE`** (no prose). **surfscan is functional-core** — systole's "everything-in-a-class" rule is deliberately not ported. Full detail in `CLAUDE.md` → "Static analysis — the gates".

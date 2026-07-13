@@ -34,7 +34,7 @@ features = [
 # models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
-all = ["onnxruntime", "pytest"]
+all = ["pytest", "pytest-cov", "grimp", "networkx", "onnxruntime", "timm>=1.0.27", "torchvision"]  # dev+devtools+export+features
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

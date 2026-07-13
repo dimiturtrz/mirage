@@ -64,6 +64,21 @@ bd close <id>         # Complete work
 
 Env is **uv** (like the siblings): `uv sync --extra features` (creates `.venv`, resolves torch/torchvision cu130 for the RTX 5090), `uv run pytest tests/ -q`, one-root `paths.yaml` config.
 
+## Static analysis — the gates (CI blocks dev→main)
+
+Principles are enforced **mechanically**, not by review — a **ratcheting** gate per axis: a rule graduates to blocking once it hits zero, then any regression fails CI (fix, don't suppress; no limit-bumps, no `noqa` spray). Six axes:
+
+| Axis | Tool | What it catches | Config |
+|------|------|-----------------|--------|
+| Style/bugs | `ruff@0.15.13` (enforced on `core surfscan`) | logging-not-print (T201), named constants (PLR2004), keyword-only bools (FBT), specific-exception (BLE001/S110), low-complexity/strategy (C901/PLR09xx), config-objects (PLR0913), imports-at-top (PLC0415), dead noqa (RUF100) | `[tool.ruff]` |
+| Dead code | `vulture@2.16` | unused funcs/attrs — blocks conf≥80, warns conf≥60 | `[tool.vulture]` |
+| Import layers | `import-linter` (grimp) | `core` = independent kernel, imports no `surfscan` | `[tool.importlinter]` |
+| Arch fitness | `devtools/graph.py --assert` (grimp+networkx) | god-module (fan-in AND fan-out both >8), god-file (>750 lines), import cycle; line-floor/chokepoint advisory | `[tool.structure]` |
+| Module shape | `ast-grep` (`devtools/sgconfig.yml`) | no import-time side-effect call (`matplotlib.use` exempt) | `devtools/sg-rules/` |
+| Duplication | `jscpd` (advisory) | copy-paste over the DRY threshold | `devtools/jscpd.json` |
+
+**noqa policy: bare `# noqa: RULE`** — no prose reasons; minimal comments, prefer self-documenting names. **surfscan is functional-core** (module-level pure functions + `Method`/`AnomalyMethod` strategy objects) — systole's "everything-in-a-class" ast-grep rule is deliberately **not** ported (global principle is "strategy pattern for big things", not everything-in-a-class).
+
 ## Architecture Overview
 
 _See [`docs/PLAN.md`](docs/PLAN.md) → "Structure". Three pieces: `pipeline/` (data → model → anomaly → eval), `pointcloud-viewer/` (in-browser ONNX), `synth-gen-viz/` (the engine made visible). Added only when real._

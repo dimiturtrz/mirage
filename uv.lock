@@ -2600,8 +2600,13 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "grimp" },
+    { name = "networkx" },
     { name = "onnxruntime" },
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "timm" },
+    { name = "torchvision" },
 ]
 dev = [
     { name = "pytest" },
@@ -2621,9 +2626,11 @@ features = [
 
 [package.metadata]
 requires-dist = [
+    { name = "grimp", marker = "extra == 'all'" },
     { name = "grimp", marker = "extra == 'devtools'" },
     { name = "matplotlib" },
     { name = "mlflow" },
+    { name = "networkx", marker = "extra == 'all'" },
     { name = "networkx", marker = "extra == 'devtools'" },
     { name = "numpy" },
     { name = "omegaconf" },
@@ -2635,13 +2642,16 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "pytest", marker = "extra == 'all'" },
     { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'all'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "scikit-image" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "tifffile" },
+    { name = "timm", marker = "extra == 'all'", specifier = ">=1.0.27" },
     { name = "timm", marker = "extra == 'features'", specifier = ">=1.0.27" },
     { name = "torch", specifier = ">=2.7", index = "https://download.pytorch.org/whl/cu130" },
+    { name = "torchvision", marker = "extra == 'all'", index = "https://download.pytorch.org/whl/cu130" },
     { name = "torchvision", marker = "extra == 'features'", index = "https://download.pytorch.org/whl/cu130" },
     { name = "tqdm" },
 ]

@@ -75,28 +75,36 @@ based, not reconstruction — here, measured.
 ## Stage 1 — sim-to-real triad (the measured gap number)
 The Stage-1 deliverable: *"I modeled it" never stands in for "I measured it transferred."* ONE supervised
 defect-segmentation U-Net, trained from three label sources, scored on ONE shared real eval half (all-10,
-rgb, 100 ep, **3 seeds**). Only the label source varies → the drop IS the sim-to-real gap. Full method +
+rgb, early-stopped, **ONE deterministic run** with a **bootstrap CI** over the shared eval set — power
+from the test-set N, not a cross-seed std). Only the label source varies → the drop IS the sim-to-real gap.
+The GAP and DA-CLOSURE deltas carry a **paired** bootstrap CI (same resampled eval images hit both arms, so
+shared noise cancels). Full method +
 diagnosis → [`learning/2026-07-08_sim-to-real-triad.md`](../learning/2026-07-08_sim-to-real-triad.md).
 
 <!-- results:triad -->
-| arm | au_pro (3-seed) | img-AUROC | ECE |
+| arm | au_pro [95% boot CI] | img-AUROC | ECE |
 |---|---|---|---|
-| real → real (ceiling) | 0.804 ± 0.007 | 0.892 | 0.011 |
-| synth → real (the gap) | 0.537 ± 0.049 | 0.635 | 0.037 |
-| synth+DA → real (AdaBN) | 0.660 ± 0.045 | 0.579 | 0.013 |
-| synth + curriculum | 0.487 ± 0.057 | 0.617 | 0.083 |
+| real → real (ceiling) | 0.794 [0.772, 0.813] | 0.869 | 0.010 |
+| synth → real (the gap) | 0.628 [0.604, 0.650] | 0.618 | 0.075 |
+| synth+DA → real (AdaBN) | 0.643 [0.618, 0.669] | 0.526 | 0.076 |
 <!-- /results:triad -->
 
-- **Sim-to-real gap ≈ 27 pp** (real 0.804 → synth 0.537 AU-PRO). Ceiling rock-stable (±0.007).
-- **AdaBN (one DA method) closes ~46%** (+0.12) **and restores calibration** (ECE 0.037 → 0.013 ≈ ceiling)
-  — a cheap, label-free BN-stat realignment recovers both localization *and* trust. It *costs*
-  image-detection (img 0.64 → 0.58) — a measured trade.
-- **Real ceiling 0.80 < PatchCore 0.91 (unsupervised):** supervised-from-scarce-labels loses to the memory
+- **Sim-to-real gap = 0.166 AU-PRO [0.141, 0.190]** (real 0.794 → synth 0.628, paired macro bootstrap — CI
+  clears 0, a real gap). One deterministic early-stopped run; power is the test-set N, not seeds.
+- **The lever is "don't overtrain on synthetic," not domain adaptation.** Early-stopping the synth arm on a
+  held-out *synth* val lifts it 0.537 → **0.628** vs the earlier over-trained run — 100 epochs memorized
+  synthetic artifacts that don't transfer; stopping at the synth-val plateau generalizes to real. This
+  narrows the gap at the source (hypothesis: the confound is train-length + val-split, measured once).
+- **AdaBN is measured-marginal here — a reported reversal.** On the already-strong early-stopped baseline it
+  adds **+0.015 AU-PRO [−0.000, 0.030]** (CI touches 0 → *not* significant) and does **not** restore
+  calibration (ECE 0.075 → 0.076). The earlier "closes ~46% + restores calibration" was an artifact of the
+  *over-trained* baseline (0.537, ECE 0.037) leaving lots of headroom; fix the baseline and the headroom —
+  and AdaBN's apparent value — mostly vanishes. Honest negative, kept.
+- **Real ceiling 0.79 < PatchCore 0.90 (unsupervised):** supervised-from-scarce-labels loses to the memory
   bank. Synthetic data's payoff here is *volume* (real labels are scarce), not beating them.
-- **Closed-loop curriculum REGRESSED — the reported negative.** Kind-chasing scored 0.487 (−0.05 vs uniform)
-  and *doubled* ECE (0.083). Diagnosed (chases the noisiest kind, not the most learnable; single-kind
-  batches starve diversity) and kept in the repo — a refuted differentiator with a mechanism beats a
-  quietly-dropped one. Fix (Stage-1.5): adapt *difficulty*, not *kind*.
+- **Curriculum arm not re-measured** under the early-stopped protocol (the earlier 3-seed run scored a
+  *negative* 0.487, −0.05 vs uniform, ECE 0.083 — kind-chasing starves batch diversity; fix = adapt
+  *difficulty*, not *kind*). Dropped from the fresh bracketed table rather than mix protocols.
 
 ## Known caveats (the measured gaps to SOTA)
 - **PatchCore is rgb-only + *random* coreset** (not greedy). The gap to SOTA (~0.96) is exactly the

@@ -32,12 +32,15 @@ def _method(kind, n=12, h=48, w=48):
 def test_aggregate_structure_and_perfect():
     cats, fit, score = _method("perfect")
     res = Harness.aggregate("m", fit, score, cats)
-    assert set(res) == {"method", "per_category", "mean", "ece", "per_defect"}
+    assert set(res) == {"method", "per_category", "mean", "ci", "ece", "per_defect", "by_cat"}
     assert len(res["per_category"]) == 2
     assert res["mean"]["au_pro"] > 0.95
     assert res["mean"]["img_auroc"] > 0.95
     hole = next(d for d in res["per_defect"] if d["defect"] == "hole")
     assert hole["au_pro"] > 0.95                       # the defect type localizes
+    for metric in ("img_auroc", "au_pro"):             # bootstrap CI present + brackets the point
+        point, lo, hi = res["ci"][metric]
+        assert lo <= point <= hi
 
 
 def test_aggregate_random_near_diagonal():

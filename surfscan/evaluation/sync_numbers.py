@@ -33,12 +33,20 @@ class NumberSync:
         return "—" if x is None else f"{x:.{p}f}"
 
     @staticmethod
+    def _ci(obj: dict, base: str, p: int = 3) -> str:
+        """`point [lo, hi]` when a bootstrap interval is present (obj[base_lo/base_hi]), else bare point.
+        One run's honest uncertainty — the bracket, not a ± seed-scatter std."""
+        point = NumberSync._n(obj.get(base), p)
+        lo, hi = obj.get(f"{base}_lo"), obj.get(f"{base}_hi")
+        return f"{point} [{lo:.{p}f}, {hi:.{p}f}]" if lo is not None and hi is not None else point
+
+    @staticmethod
     def methods() -> str:
         rows = ["| method | modality | mean img-AUROC | mean pixel AU-PRO |", "|---|---|---|---|"]
         for m in R["methods"]:
             name = f"**{m['name']}**" if m.get("deployable") else m["name"]
-            rows.append(f"| {name} — ours | {m['modality']} | {NumberSync._n(m['img_auroc'])} "
-                        f"| {NumberSync._n(m['au_pro'])} |")
+            rows.append(f"| {name} — ours | {m['modality']} | {NumberSync._ci(m, 'img_auroc')} "
+                        f"| {NumberSync._ci(m, 'au_pro')} |")
         s = R["sota"]
         rows.append(f"| SOTA ({s['name']}) ⚠ | {s['modality']} | ~{s['img_auroc']:.2f} | ~{s['au_pro']:.2f} |")
         return "\n".join(rows)
@@ -55,9 +63,9 @@ class NumberSync:
     @staticmethod
     def triad() -> str:
         t = R["stage1_triad"]
-        rows = ["| arm | au_pro (3-seed) | img-AUROC | ECE |", "|---|---|---|---|"]
+        rows = ["| arm | au_pro [95% boot CI] | img-AUROC | ECE |", "|---|---|---|---|"]
         for a in t["arms"]:
-            rows.append(f"| {a['arm']} | {a['au_pro']:.3f} ± {a['au_pro_std']:.3f} | "
+            rows.append(f"| {a['arm']} | {NumberSync._ci(a, 'au_pro')} | "
                         f"{a['img_auroc']:.3f} | {a['ece']:.3f} |")
         return "\n".join(rows)
 

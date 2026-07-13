@@ -39,7 +39,7 @@ def test_btf_pipeline_produces_valid_aggregate():
         return amaps, valids, masks, scores, labels, defects
 
     res = Harness.aggregate("btf_fpfh", fit, score, ["a"])
-    assert set(res) == {"method", "per_category", "mean", "ece", "per_defect"}
+    assert set(res) == {"method", "per_category", "mean", "ci", "ece", "per_defect", "by_cat"}
     assert 0.0 <= res["mean"]["au_pro"] <= 1.0
     assert not np.isnan(res["mean"]["img_auroc"])                       # chain wired, values sane
     assert (amaps >= 0).all()                                          # NN distance is non-negative

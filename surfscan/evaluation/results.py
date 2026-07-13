@@ -66,7 +66,9 @@ class Results:
             row = Results._latest(rn)
             if row is None:
                 skipped.append(rn); continue
-            Results._apply(m, row, (("au_pro_mean", "au_pro"), ("img_auroc_mean", "img_auroc")))
+            Results._apply(m, row, (("au_pro_mean", "au_pro"), ("img_auroc_mean", "img_auroc"),
+                                    ("au_pro_lo", "au_pro_lo"), ("au_pro_hi", "au_pro_hi"),
+                                    ("img_auroc_lo", "img_auroc_lo"), ("img_auroc_hi", "img_auroc_hi")))
             if m.get("deployable"):                                   # per-category table + its derived mean
                 for c in R["patchcore_per_category"]:
                     Results._apply(c, row, ((f"au_pro/{c['category']}", "au_pro"),

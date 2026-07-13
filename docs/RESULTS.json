@@ -32,11 +32,12 @@
       "modality": "geometry",
       "paradigm": "memory bank",
       "img_auroc": 0.674,
-      "img_auroc_lo": 0.641,
-      "img_auroc_hi": 0.707,
       "au_pro": 0.65,
+      "mlflow_run": "btf_fpfh",
       "au_pro_lo": 0.637,
-      "au_pro_hi": 0.662
+      "au_pro_hi": 0.662,
+      "img_auroc_lo": 0.641,
+      "img_auroc_hi": 0.707
     },
     {
       "name": "PatchCore (feature memory bank)",

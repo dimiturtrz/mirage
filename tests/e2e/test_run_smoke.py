@@ -62,9 +62,9 @@ def test_train_then_evaluate_smoke():
     from core.compute import Compute  # noqa: PLC0415
     from surfscan.evaluation.evaluate import Evaluate  # noqa: PLC0415
     from surfscan.training.hparams import HParams  # noqa: PLC0415
-    from surfscan.training.train import train  # noqa: PLC0415
+    from surfscan.training.train import TrainRun  # noqa: PLC0415
     dev = Compute.pick_device()
-    run_id = train(HParams(cats=[CAT], epochs=2, compile=False), run_name="e2e_vae", device=dev)
+    run_id = TrainRun.train(HParams(cats=[CAT], epochs=2, compile=False), run_name="e2e_vae", device=dev)
     for image_score in ("residual", "mahalanobis"):
         res = Evaluate.evaluate(run_id, cats=[CAT], device=dev, image_score=image_score)
         assert len(res["per_category"]) == 1

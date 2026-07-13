@@ -15,7 +15,7 @@ import numpy as np
 
 from core.data import mvtec
 from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
-from core.obs import Obs
+from core.obs import Obs, Progress
 from surfscan import tracking
 from surfscan.evaluation import diagnostics, metrics, predictions
 
@@ -27,8 +27,12 @@ class Harness:
 
     @staticmethod
     def aggregate(method, fit_fn, score_fn, cats):
-        """Pure: run the method over categories, compute the metrics. No MLflow, no side effects."""
-        by_cat = [ScoreArrays(*score_fn(fit_fn(c), c)) for c in cats]   # named fields — no fragile tuple order
+        """Run the method over categories (per-category fit+score, ETA-logged), then compute the metrics."""
+        prog = Progress(len(cats), tag=method)
+        by_cat = []
+        for c in cats:
+            by_cat.append(ScoreArrays(*score_fn(fit_fn(c), c)))        # named fields — no fragile tuple order
+            prog.tick(c)                                               # done/total + ETA (spot a slow run live)
         return Harness.compute(method, by_cat, cats)
 
     @staticmethod
@@ -66,8 +70,9 @@ class Harness:
         # MACRO (mean-of-categories) to match the reported point: resample within each category, average.
         auroc_cat = [(sa.scores, sa.labels) for sa in by_cat]
         pro_cat = [(sa.amaps, sa.masks, sa.valids) for sa in by_cat]
-        ci = {"img_auroc": metrics.Metrics.boot_macro_ci(metrics.Metrics.image_auroc, auroc_cat),
-              "au_pro": metrics.Metrics.boot_macro_ci(metrics.Metrics.au_pro, pro_cat)}
+        with Progress.stage("bootstrap CI"):                   # the au_pro bootstrap is the usual slow stage
+            ci = {"img_auroc": metrics.Metrics.boot_macro_ci(metrics.Metrics.image_auroc, auroc_cat),
+                  "au_pro": metrics.Metrics.boot_macro_ci(metrics.Metrics.au_pro, pro_cat)}
         log.info(f"  img_auroc {ci['img_auroc'][0]:.3f} [{ci['img_auroc'][1]:.3f}, {ci['img_auroc'][2]:.3f}]   "
                  f"au_pro {ci['au_pro'][0]:.3f} [{ci['au_pro'][1]:.3f}, {ci['au_pro'][2]:.3f}]  (95% boot CI)")
 

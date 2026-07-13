@@ -1,6 +1,6 @@
 """Device policy — decided once at the root, injected down the tree.
 
-The root (a script's main / an experiment entry) calls `pick_device()` once and passes the string
+The root (a script's main / an experiment entry) calls `Compute.pick_device()` once and passes the string
 down; nothing deeper probes `torch.cuda.is_available()` or hardcodes "cuda". `autocast` is the same
 context on cuda (bf16) and cpu (a no-op), so one code path runs GPU-resident or edge/CPU unchanged.
 """

@@ -3,10 +3,11 @@
 Fewer entry points = better design: instead of one `__main__` per method/report/view, each of those is
 a `Spec` (name + how to register its args + what to run), and a single front-end routes to it by name.
 
-    Spec("patchcore", add_args, run)          # a method/report/view registers itself as a Spec
-    dispatch("surfscan.run", REGISTRY, argv)  # the front-end builds subparsers + routes to Spec.run
+    Spec("patchcore", add_args, run)                   # a method/report/view registers itself as a Spec
+    Dispatch.dispatch("surfscan.run", REGISTRY, argv)  # the front-end builds subparsers + routes to Spec.run
 
-`build_parser` is pure (specs -> parser) and `route` is pure (specs + parsed args -> the chosen Spec),
+`Dispatch.build_parser` is pure (specs -> parser) and `Dispatch.route` is pure (specs + parsed args ->
+the chosen Spec),
 so the wiring is unit-testable without touching argv or running any GPU/IO body.
 """
 from __future__ import annotations

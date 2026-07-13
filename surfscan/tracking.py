@@ -6,12 +6,12 @@ Every method run + training run is an MLflow run; compare them with
 directory — MLflow holds params, metrics (incl. per-category and per-defect), the aggregate
 artifact, and trained models.
 
-    with track.run("surfscan", "patchcore", params={...}) as run_id:
-        track.metrics({"au_pro_mean": x})
-        track.per_group("au_pro", {"bagel": .., ...})
-        track.artifact_json("aggregate.json", agg)
-        track.log_model(model)              # training runs
-    model = track.load_model(run_id)        # later, in evaluate
+    with Tracker.run("surfscan", "patchcore", params={...}) as run_id:
+        Tracker.metrics({"au_pro_mean": x})
+        Tracker.per_group("au_pro", {"bagel": .., ...})
+        Tracker.artifact_json("aggregate.json", agg)
+        Tracker.log_model(model)              # training runs
+    model = Tracker.load_model(run_id)        # later, in evaluate
 """
 from __future__ import annotations
 

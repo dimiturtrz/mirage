@@ -1,12 +1,13 @@
 """Turn a configured method class into a `surfscan.run` subcommand — the generic runner.
 
 A method that satisfies `AnomalyMethod` (fit/score) plus a typed config dataclass needs no bespoke
-runner: `method_spec(name, MethodClass, CfgClass)` builds the `Spec` whose args come from the config
-schema and whose run constructs the method and feeds it to the harness. The registry becomes data —
-adding a single-Method method is one `method_spec(...)` line, no new closures.
+runner: `MethodCli.method_spec(name, MethodClass, CfgClass)` builds the `Spec` whose args come from the
+config schema and whose run constructs the method and feeds it to the harness. The registry becomes data —
+adding a single-Method method is one `MethodCli.method_spec(...)` line, no new closures.
 
-`build_method` (namespace + device -> (run_name, method)) is the pure wiring, unit-testable with a fake
-method; only the final `pick_device()` + `harness.run` in the run closure is the device/mlflow boundary.
+`MethodCli.build_method` (namespace + device -> (run_name, method)) is the pure wiring, unit-testable with
+a fake method; only the final `Compute.pick_device()` + `harness.run` in the run closure is the
+device/mlflow boundary.
 """
 from __future__ import annotations
 

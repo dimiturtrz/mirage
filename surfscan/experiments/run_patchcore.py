@@ -1,6 +1,6 @@
 """PatchCore feature memory bank over categories -> aggregate (no training). Uses the eval harness.
 
-The reference `AnomalyMethod` — a configured object (`PatchCoreCfg`), no bespoke runner: `method_spec`
+The reference `AnomalyMethod` — a configured object (`PatchCoreCfg`), no bespoke runner: `MethodCli.method_spec`
 turns the class + config into the `surfscan.run patchcore` subcommand, and the same class is callable
 in code (`PatchCoreMethod(PatchCoreCfg(coreset=0.2), dev).fit("bagel")`).
 

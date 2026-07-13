@@ -86,4 +86,4 @@ uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan   #
 npx --yes jscpd@4 core surfscan --config devtools/jscpd.json                    # duplication (advisory)
 ```
 
-**noqa policy: bare `# noqa: RULE`** (no prose). **surfscan is functional-core** — systole's "everything-in-a-class" rule is deliberately not ported. Full detail in `CLAUDE.md` → "Static analysis — the gates".
+**noqa policy: bare `# noqa: RULE`** (no prose). **Everything-in-a-class** (matching systole): every top-level `def` is a method on the class that owns it (`main` exempt) — enforced by the ast-grep `py-top-level-function` rule (blocking, catches decorated defs too). Full detail in `CLAUDE.md` → "Static analysis — the gates".

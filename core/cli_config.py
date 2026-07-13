@@ -8,8 +8,8 @@ constructs directly. One config truth for CLI, programmatic calls, and the mlflo
         coreset_method: str = field(default="greedy", metadata={"choices": ["greedy", "random"]})
         size: int | None = None
 
-    add_config_args(ap, PatchCoreCfg)      # --coreset --coreset-method --size, typed + defaulted
-    cfg = build_config(PatchCoreCfg, args) # parsed namespace -> the frozen config instance
+    CliConfig.add_config_args(ap, PatchCoreCfg)      # --coreset --coreset-method --size, typed + defaulted
+    cfg = CliConfig.build_config(PatchCoreCfg, args)  # parsed namespace -> the frozen config instance
 
 Field type -> argument: bool -> BooleanOptionalAction (respects the default); list[...] -> nargs="*";
 Optional[T]/T -> type=T. `metadata={"choices": [...], "help": "..."}` flows through. Types are resolved

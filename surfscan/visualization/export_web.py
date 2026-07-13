@@ -28,7 +28,7 @@ class ExportWeb:
         cat, split, defect, idx = sample
         rgb, xyz, gt, valid = Show.load_processed(cat, split, defect, idx)
         v = valid.astype(bool)
-        an = Show.patchcore_map(cat, rgb, valid)[v]
+        an = Show(rgb, xyz, valid, gt).patchcore_map(cat)[v]
         pts, cols, g = xyz[v], rgb[v], (gt[v] > 0).astype(int)
         an = (an / (np.percentile(an, 99) + 1e-9)).clip(0, 1)        # robust 0..1
         pts = pts - pts.mean(0)                                       # center for the viewer

@@ -38,6 +38,21 @@ jobs:
       # [tool.importlinter]. Static AST analysis — no project env needed. bag/u3i.
       - name: Import layers — enforced (import-linter)
         run: uvx --from import-linter lint-imports
+      # Module shape — ast-grep (bag/ij6): the SYNTACTIC axis ruff has no plugin API for. Rules are data
+      # (devtools/sg-rules/*.yml), zero-bag, severity=error (BLOCKING). Enforces no import-time side-effect
+      # call (matplotlib.use exempt) — a new bare top-level call fails CI. surfscan is functional-core, so
+      # systole's everything-in-a-class rule is deliberately NOT ported (see devtools/sgconfig.yml).
+      - name: Module shape — enforced (ast-grep)
+        run: uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan
+      # Duplication — the DRY axis (bag/ij6) coupling tools can't see. jscpd over python; threshold in
+      # devtools/jscpd.json (repo ~0.43% today = REGRESSION GUARD). ADVISORY while the Node step proves
+      # stable; graduate to blocking after.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Duplication — advisory (jscpd, warns)
+        continue-on-error: true
+        run: npx --yes jscpd@4 core surfscan --config devtools/jscpd.json
       # Vulture — dead code, the axis ruff can't see. Config (paths/ignores) in [tool.vulture].
       # BLOCKS at conf>=80 (near-certain: redundant conditions, unreachable, unused locals — precision
       # high enough to fail the merge; currently zero).

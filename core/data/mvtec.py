@@ -42,7 +42,7 @@ class Sample:
 
 def categories(root: Path | None = None) -> list[str]:
     root = Path(root or config.mvtec_root())
-    return sorted(p.name for p in root.iterdir() if p.is_dir())
+    return sorted(p.name for p in root.iterdir() if p.is_dir()) if root.is_dir() else []
 
 
 def samples(root: Path | None = None, cats: list[str] | None = None) -> list[Sample]:

@@ -1,0 +1,10 @@
+# ast-grep (bag/ij6): the SYNTACTIC module-shape axis ruff can't express (no plugin API).
+# Rules are data (sg-rules/*.yml, relative to this file), zero-bag: only what we author fires.
+# Run: `ast-grep scan -c devtools/sgconfig.yml <paths>`.
+#
+# NOTE — surfscan is a FUNCTIONAL-CORE codebase (module-level pure functions + `Method`/`AnomalyMethod`
+# strategy objects), NOT cardioseg's "everything-in-a-class" house rule. So systole's
+# `py-top-level-function` rule is deliberately NOT ported (it would demand rewriting 141 correct pure
+# functions into classes — the opposite of good here). Only the universal shape rule travels.
+ruleDirs:
+  - sg-rules

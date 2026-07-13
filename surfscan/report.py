@@ -5,6 +5,7 @@
     python -m surfscan.report sync                      # render docs/RESULTS.md tables from the json
     python -m surfscan.report modelcard                 # regenerate docs/MODEL_CARD.md
     python -m surfscan.report triad-summary             # the sim-to-real gap across seeds
+    python -m surfscan.report recompute --run-id <id>   # re-derive numbers from persisted predictions (no GPU)
 
 Each is a `Spec` in its module; this front-end builds subparsers and routes. See also `surfscan.run`
 (experiments) and `surfscan.viz` (visualization).
@@ -12,10 +13,10 @@ Each is a `Spec` in its module; this front-end builds subparsers and routes. See
 from __future__ import annotations
 
 from surfscan.dispatch import Dispatch
-from surfscan.evaluation import evaluate, modelcard, results, sync_numbers
+from surfscan.evaluation import evaluate, modelcard, recompute, results, sync_numbers
 from surfscan.experiments import triad_summary
 
-REPORTS = [evaluate.SPEC, results.SPEC, sync_numbers.SPEC, modelcard.SPEC, triad_summary.SPEC]
+REPORTS = [evaluate.SPEC, results.SPEC, sync_numbers.SPEC, modelcard.SPEC, triad_summary.SPEC, recompute.SPEC]
 
 if __name__ == "__main__":
     Dispatch.dispatch("surfscan.report", REPORTS)

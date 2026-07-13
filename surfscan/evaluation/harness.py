@@ -17,7 +17,7 @@ from core.data import mvtec
 from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
 from core.obs import Obs
 from surfscan import tracking
-from surfscan.evaluation import diagnostics, metrics
+from surfscan.evaluation import diagnostics, metrics, predictions
 
 log = Obs.get()
 
@@ -28,10 +28,23 @@ class Harness:
     @staticmethod
     def aggregate(method, fit_fn, score_fn, cats):
         """Pure: run the method over categories, compute the metrics. No MLflow, no side effects."""
+        by_cat = [ScoreArrays(*score_fn(fit_fn(c), c)) for c in cats]   # named fields — no fragile tuple order
+        return Harness.compute(method, by_cat, cats)
+
+    @staticmethod
+    def from_artifact(npz):
+        """Recompute the full result OFFLINE from persisted per-image predictions (Predictions.pack npz) —
+        no fit/score, no GPU. A new bootstrap / macro fix / ECE variant becomes a re-`compute`, not a re-run."""
+        cats, by_cat = predictions.Predictions.unpack(npz)
+        return Harness.compute(f"recompute[{len(cats)}cat]", by_cat, cats)
+
+    @staticmethod
+    def compute(method, by_cat, cats):
+        """The pure metric/CI core over per-category ScoreArrays — shared by live eval (`aggregate`) and
+        offline recompute (`from_artifact`). Every headline number is a function of these arrays alone."""
         rows = []
         pool: dict[str, list] = {f: [] for f in ScoreArrays._fields}
-        for c in cats:
-            sa = ScoreArrays(*score_fn(fit_fn(c), c))          # named fields — no fragile tuple order
+        for c, sa in zip(cats, by_cat, strict=True):
             rows.append({"category": c, "n": int(len(sa.scores)),
                          "img_auroc": metrics.Metrics.image_auroc(sa.scores, sa.labels),
                          "au_pro": metrics.Metrics.au_pro(sa.amaps, sa.masks, sa.valids)})
@@ -43,7 +56,6 @@ class Harness:
         aupro = float(np.nanmean([r["au_pro"] for r in rows]))
         log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
 
-        by_cat = [ScoreArrays(**{f: pool[f][i] for f in ScoreArrays._fields}) for i in range(len(rows))]
         pooled = ScoreArrays(**{f: np.concatenate(pool[f]) for f in ScoreArrays._fields})
         defect_rows = diagnostics.Diagnostics.by_defect(pooled)
         log.info("  --- per defect type ---")
@@ -84,6 +96,8 @@ class Harness:
         tracking.Tracker.per_group("img_auroc", {r["category"]: r["img_auroc"] for r in rows})
         tracking.Tracker.per_group("au_pro_defect", {d["defect"]: d["au_pro"] for d in res["per_defect"]})
         tracking.Tracker.artifact_json("aggregate.json", {k: v for k, v in res.items() if k != "by_cat"})
+        cats = [r["category"] for r in rows]                   # persist per-image predictions -> offline recompute
+        tracking.Tracker.artifact_npz("predictions.npz", predictions.Predictions.pack(res["by_cat"], cats))
 
     @staticmethod
     def run(method, m, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper; aggregate is pure

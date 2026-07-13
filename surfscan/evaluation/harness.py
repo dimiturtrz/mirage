@@ -73,7 +73,7 @@ class Harness:
 
     @staticmethod
     def run(method, m, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper; aggregate is pure
-        cats = cats or mvtec.Mvtec.categories()
+        cats = cats or mvtec.Mvtec().categories()
         res = Harness.aggregate(method, m.fit, m.score, cats)
         if run_id:                                       # log into an existing run (e.g. the train run)
             with tracking.Tracker.resume(run_id):

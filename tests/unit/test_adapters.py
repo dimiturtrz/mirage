@@ -21,8 +21,8 @@ def _layout(root):
 
 def test_mvtec_categories_and_samples(tmp_path):
     _layout(tmp_path)
-    assert mvtec.Mvtec.categories(tmp_path) == ["bagel"]
-    s = mvtec.Mvtec.samples(tmp_path)
+    assert mvtec.Mvtec(tmp_path).categories() == ["bagel"]
+    s = mvtec.Mvtec(tmp_path).samples()
     assert len(s) == 2
     good = next(x for x in s if x.defect == "good")
     hole = next(x for x in s if x.defect == "hole")
@@ -32,9 +32,9 @@ def test_mvtec_categories_and_samples(tmp_path):
 
 def test_synth_mirrors_mvtec_layout(tmp_path):
     _layout(tmp_path)
-    assert synth.Synth.categories(tmp_path) == ["bagel"]
-    assert len(synth.Synth.samples(tmp_path)) == 2
+    assert synth.Synth(tmp_path).categories() == ["bagel"]
+    assert len(synth.Synth(tmp_path).samples()) == 2
 
 
 def test_synth_categories_empty_when_missing(tmp_path):
-    assert synth.Synth.categories(tmp_path / "nope") == []
+    assert synth.Synth(tmp_path / "nope").categories() == []

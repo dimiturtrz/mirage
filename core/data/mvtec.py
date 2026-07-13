@@ -41,18 +41,23 @@ class Sample:
 
 
 class Mvtec:
-    """Raw MVTec 3D-AD reader (the adapter): enumerate samples + load raw channels."""
+    """Raw MVTec 3D-AD reader (the adapter): enumerate samples + load raw channels.
 
-    @staticmethod
-    def categories(root: Path | None = None) -> list[str]:
-        root = Path(root or config.Config.mvtec_root())
+    The dataset `root` is the adapter's identity (state_candidates 2sc: threaded through categories +
+    samples) -> held in __init__ (default resolved there), so one adapter is bound to one root. `load_raw`
+    takes a Sample, not the root -> genuinely stateless, stays @staticmethod."""
+
+    def __init__(self, root: Path | None = None):
+        self.root = Path(root or config.Config.mvtec_root())
+
+    def categories(self) -> list[str]:
+        root = self.root
         return sorted(p.name for p in root.iterdir() if p.is_dir()) if root.is_dir() else []
 
-    @staticmethod
-    def samples(root: Path | None = None, cats: list[str] | None = None) -> list[Sample]:
+    def samples(self, cats: list[str] | None = None) -> list[Sample]:
         """Enumerate every (category, split, defect, idx) sample on disk."""
-        root = Path(root or config.Config.mvtec_root())
-        cats = cats or Mvtec.categories(root)
+        root = self.root
+        cats = cats or self.categories()
         out: list[Sample] = []
         for cat in cats:
             for split in SPLITS:

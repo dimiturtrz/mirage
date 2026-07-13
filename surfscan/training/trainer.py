@@ -10,8 +10,44 @@ torchvision — so it's unit-testable on a tiny cpu model.
 from __future__ import annotations
 
 import math
+from time import perf_counter
 
 import torch
+
+from core.obs import Obs
+
+log = Obs.get()
+
+
+class Telemetry:
+    """Per-epoch training telemetry — so a bad run shows itself in the first epochs instead of after a
+    24-minute blind wait. Emits loss, optional val metric, epoch wall-time + imgs/s to stdout, and the
+    early-stop event (stopped-epoch, best-val, restored). Injected into `Trainer`, so every method that
+    uses the shared loop gets it free; pass a `sink(dict, step)` (e.g. Tracker.metrics) to also log
+    step-metrics to MLflow. `Telemetry.off()` is the silent no-op for tests/tight loops."""
+
+    def __init__(self, tag: str = "train", sink=None):
+        self.tag = tag
+        self.sink = sink
+
+    @staticmethod
+    def off():
+        return Telemetry(sink=None, tag="")
+
+    def epoch(self, i, n, loss, val, secs):
+        rate = n / secs if secs > 0 else 0.0
+        if self.tag:
+            v = f"  val {val:.4f}" if val is not None else ""
+            log.info(f"[{self.tag}] epoch {i:3d}  loss {loss:.4f}{v}  {secs:.2f}s  {rate:.0f} img/s")
+        if self.sink is not None:
+            row = {f"{self.tag}.loss": loss, f"{self.tag}.epoch_s": secs}
+            if val is not None:
+                row[f"{self.tag}.val"] = val
+            self.sink(row, step=i)
+
+    def stopped(self, i, best):
+        if self.tag:
+            log.info(f"[{self.tag}] early-stop @ epoch {i}  best-val {best:.4f}  (best weights restored)")
 
 
 class EarlyStop:
@@ -26,10 +62,12 @@ class EarlyStop:
         self.best = -math.inf
         self.best_state = None
         self.since = 0
+        self.last = None            # most recent val (for telemetry — set each step)
 
     def step(self, model) -> bool:
         """Score the epoch; snapshot on improvement. -> True when patience is exhausted (stop now)."""
         v = float(self.val_fn())
+        self.last = v
         if v > self.best:
             self.best, self.since = v, 0
             self.best_state = {k: t.detach().clone() for k, t in model.state_dict().items()}
@@ -44,27 +82,36 @@ class EarlyStop:
 
 
 class Trainer:
-    def __init__(self, model, opt, device, *, batch: int = 16):
+    def __init__(self, model, opt, device, *, batch: int = 16, telem=None):
         self.model = model
         self.opt = opt
         self.device = device
         self.batch = batch
+        self.telem = telem if telem is not None else Telemetry()
 
     def fit(self, n: int, epochs: int, step_fn, *, after_epoch=None, stop=None):
         """`epochs` passes over `n` items in shuffled minibatches (an UPPER bound when `stop` is set);
         `step_fn(idx)` returns the loss tensor to backprop. `after_epoch()` fires once per epoch (e.g. a
-        curriculum's end_epoch). `stop` (an EarlyStop) ends early on val-metric patience + restores best."""
-        for _ in range(epochs):
+        curriculum's end_epoch). `stop` (an EarlyStop) ends early on val-metric patience + restores best.
+        Per-epoch telemetry (loss / val / wall-time) is emitted via `self.telem`."""
+        for ep in range(epochs):
+            t0 = perf_counter()
             self.model.train()
             order = torch.randperm(n, device=self.device)
+            total, nb = 0.0, 0
             for i in range(0, n, self.batch):
                 loss = step_fn(order[i:i + self.batch])
                 self.opt.zero_grad(set_to_none=True)
                 loss.backward()
                 self.opt.step()
+                total += float(loss.detach()); nb += 1
             if after_epoch is not None:
                 after_epoch()
-            if stop is not None and stop.step(self.model):
+            done = stop is not None and stop.step(self.model)
+            self.telem.epoch(ep, n, total / max(nb, 1), (stop.last if stop is not None else None),
+                             perf_counter() - t0)
+            if done:
+                self.telem.stopped(ep, stop.best)
                 break
         if stop is not None:
             stop.restore(self.model)

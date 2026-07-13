@@ -22,6 +22,7 @@ from pathlib import Path
 
 import mlflow
 import mlflow.pytorch
+import numpy as np
 
 _ROOT = Path(__file__).resolve().parents[1]
 _TRACKING_URI = f"sqlite:///{(_ROOT / 'mlflow.db').as_posix()}"
@@ -80,6 +81,21 @@ class Tracker:
             p = Path(d) / name
             p.write_text(json.dumps(obj, indent=2))
             mlflow.log_artifact(str(p))
+
+    @staticmethod
+    def artifact_npz(name, arrays):  # pragma: no cover  mlflow artifact write (disk/db)
+        """Persist a flat {key: ndarray} dict as a compressed .npz run artifact (the per-image predictions)."""
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / name
+            np.savez_compressed(p, **arrays)
+            mlflow.log_artifact(str(p))
+
+    @staticmethod
+    def load_npz(run_id, name="predictions.npz"):  # pragma: no cover  mlflow artifact download (network/db)
+        """Download + load a run's persisted predictions -> an np.load handle (the offline-recompute input)."""
+        Tracker._ensure_backend()
+        p = mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path=name)
+        return np.load(p, allow_pickle=False)
 
     @staticmethod
     def log_model(model):  # pragma: no cover  mlflow model serialization (disk/db)

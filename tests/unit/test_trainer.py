@@ -5,7 +5,22 @@ per minibatch (ceil(n/batch) per epoch), after_epoch once per epoch, and drives 
 """
 import torch
 
-from surfscan.training.trainer import EarlyStop, Trainer
+from surfscan.training.trainer import EarlyStop, Telemetry, Trainer
+
+
+class _RecTelem(Telemetry):
+    """Records per-epoch + stop events for assertions."""
+
+    def __init__(self):
+        super().__init__(tag="")
+        self.epochs = []
+        self.stop_event = None
+
+    def epoch(self, i, n, loss, val, secs):
+        self.epochs.append({"i": i, "loss": loss, "val": val, "secs": secs})
+
+    def stopped(self, i, best):
+        self.stop_event = {"epoch": i, "best": best}
 
 
 def test_calls_step_per_minibatch_and_after_each_epoch():
@@ -79,3 +94,28 @@ def test_early_stop_restores_best_weights():
         4, epochs=10, step_fn=lambda idx: (model(torch.zeros(1, 2)) ** 2).mean(),
         after_epoch=drift, stop=stop)
     assert float(model.weight.detach().sum()) == 2.0         # epoch-1 snapshot (weight=1 each), not the drift
+
+
+def test_telemetry_fires_per_epoch_with_loss_and_time():
+    torch.manual_seed(0)
+    model = torch.nn.Linear(4, 1)
+    x, y = torch.randn(16, 4), torch.randn(16, 1)
+    opt = torch.optim.SGD(model.parameters(), lr=0.01)
+    telem = _RecTelem()
+    Trainer(model, opt, "cpu", batch=8, telem=telem).fit(
+        16, epochs=4, step_fn=lambda idx: ((model(x[idx]) - y[idx]) ** 2).mean())
+    assert [e["i"] for e in telem.epochs] == [0, 1, 2, 3]    # one telemetry call per epoch, in order
+    assert all(e["loss"] > 0 and e["secs"] >= 0 for e in telem.epochs)
+    assert all(e["val"] is None for e in telem.epochs)       # no EarlyStop -> no val metric
+
+
+def test_telemetry_stop_event_carries_best_and_epoch():
+    torch.manual_seed(0)
+    model = torch.nn.Linear(2, 1)
+    vals = iter([0.5, 0.9, 0.4, 0.3] + [0.0] * 20)           # peak at epoch 1 (val 0.9)
+    stop = EarlyStop(lambda: next(vals), patience=2)
+    telem = _RecTelem()
+    Trainer(model, torch.optim.SGD(model.parameters(), lr=0.0), "cpu", telem=telem).fit(
+        4, epochs=20, step_fn=lambda idx: (model(torch.zeros(1, 2)) ** 2).mean(), stop=stop)
+    assert telem.stop_event == {"epoch": 3, "best": 0.9}     # stalls after epoch 1 -> stops at epoch 3
+    assert telem.epochs[1]["val"] == 0.9                     # val metric threaded into telemetry

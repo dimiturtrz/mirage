@@ -15,7 +15,7 @@ def _cmds(specs):
 
 
 def test_report_commands():
-    assert _cmds(report.REPORTS) == {"evaluate", "results", "sync", "modelcard", "triad-summary"}
+    assert _cmds(report.REPORTS) == {"evaluate", "results", "sync", "modelcard", "triad-summary", "recompute"}
     Dispatch.build_parser("surfscan.report", report.REPORTS)
 
 

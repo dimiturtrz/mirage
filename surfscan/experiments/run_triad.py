@@ -35,10 +35,11 @@ from core.method import Method
 from core.obs import Obs
 from surfscan.dispatch import Dispatch, Spec
 from surfscan.evaluation import harness, scoring
+from surfscan.evaluation.invariants import Invariants
 from surfscan.evaluation.metrics import Metrics
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
-from surfscan.training.trainer import EarlyStop, Trainer
+from surfscan.training.trainer import EarlyStop, Telemetry, Trainer
 
 log = Obs.get()
 
@@ -126,7 +127,7 @@ class TriadRun:
 
         stop = EarlyStop(lambda: TriadRun._synth_val_au_pro(model, good.x[val_t], good.valid[val_t], ch,
                                                             cfg.seed), PATIENCE)
-        return Trainer(model, opt, dev, batch=BATCH).fit(
+        return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"synth:{cat}")).fit(
             tr_t.shape[0], cfg.epochs, step, after_epoch=(ctrl.end_epoch if ctrl else None), stop=stop)
 
     def fit_real(self, cat):
@@ -148,7 +149,8 @@ class TriadRun:
                 logits = model(x[idx].to(memory_format=torch.channels_last))
                 return F.binary_cross_entropy_with_logits(logits.float(), g[idx], weight=v[idx])
 
-        return Trainer(model, opt, dev, batch=BATCH).fit(x.shape[0], cfg.epochs, step)
+        return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"real:{cat}")).fit(
+            x.shape[0], cfg.epochs, step)
 
     @staticmethod
     @torch.no_grad()
@@ -235,12 +237,16 @@ class TriadRun:
         one deterministic run, uncertainty from the shared eval set (no seed scatter)."""
         if "real" not in res or "synth" not in res:
             return
+        real_ap, synth_ap = res["real"]["mean"]["au_pro"], res["synth"]["mean"]["au_pro"]
         gap, glo, ghi = TriadRun._pro_delta_ci(res["synth"], res["real"])   # real − synth (the gap)
-        log.info(f"\n>>> SIM-TO-REAL GAP (au_pro): real {res['real']['mean']['au_pro']:.3f} "
-                 f"- synth {res['synth']['mean']['au_pro']:.3f} = {gap:+.3f} pp  [{glo:+.3f}, {ghi:+.3f}]")
+        Invariants.reconciles(gap, synth_ap, real_ap, "gap")               # macro delta must == mean diff
+        log.info(f"\n>>> SIM-TO-REAL GAP (au_pro): real {real_ap:.3f} "
+                 f"- synth {synth_ap:.3f} = {gap:+.3f} pp  [{glo:+.3f}, {ghi:+.3f}]")
         if "synth_da" in res:
+            da_ap = res["synth_da"]["mean"]["au_pro"]
             clo_pt, clo_lo, clo_hi = TriadRun._pro_delta_ci(res["synth"], res["synth_da"])  # DA − synth
-            log.info(f">>> DA CLOSURE (AdaBN): synth+DA {res['synth_da']['mean']['au_pro']:.3f} "
+            Invariants.reconciles(clo_pt, synth_ap, da_ap, "da_closure")
+            log.info(f">>> DA CLOSURE (AdaBN): synth+DA {da_ap:.3f} "
                      f"(+{clo_pt:.3f} vs synth)  [{clo_lo:+.3f}, {clo_hi:+.3f}]")
 
 

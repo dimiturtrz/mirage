@@ -74,7 +74,7 @@ class PointMAEMethod:
         amaps = np.stack([self._amap(bank, a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])
-        scores = scoring.image_scores(amaps, valids)
+        scores = scoring.Scoring.image_scores(amaps, valids)
         return (amaps, valids, masks, scores,
                 dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 

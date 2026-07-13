@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from surfscan.evaluation.harness import aggregate
+from surfscan.evaluation.harness import Harness
 from surfscan.method_cli import build_method
 
 
@@ -49,7 +49,7 @@ def test_method_class_flows_through_harness():
     run_name, method = build_method(_Method, _Cfg, args, "cpu")   # the runner's construction path
     assert run_name == "fake_class" and method.dev == "cpu"
 
-    res = aggregate(run_name, method.fit, method.score, ["a", "b"])
+    res = Harness.aggregate(run_name, method.fit, method.score, ["a", "b"])
     assert set(res) == {"method", "per_category", "mean", "ece", "per_defect"}
     assert len(res["per_category"]) == 2
     assert res["mean"]["au_pro"] > 0.9                  # class-form method integrates + localizes

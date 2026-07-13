@@ -14,7 +14,7 @@ from core.data import mvtec
 from core.obs import Obs
 from surfscan import tracking
 from surfscan.dispatch import Spec, add_cats
-from surfscan.evaluation.evaluate import evaluate
+from surfscan.evaluation.evaluate import Evaluate
 from surfscan.training.hparams import HParams
 from surfscan.training.train import train
 
@@ -34,7 +34,7 @@ def _run(args):
         log.info(f"\n===== {c} =====")
         hp = HParams(cats=[c], epochs=args.epochs, compile=False)
         run_id = train(hp, run_name=f"vae_{c}", device=dev)
-        rows.append(evaluate(run_id, cats=[c], device=dev)["per_category"][0])
+        rows.append(Evaluate.evaluate(run_id, cats=[c], device=dev)["per_category"][0])
 
     auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
     aupro = float(np.nanmean([r["au_pro"] for r in rows]))

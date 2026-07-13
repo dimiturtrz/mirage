@@ -49,7 +49,7 @@ class FusedMethod:
         _, test_arr = store.Store.arrays(cat, "test")
         fp_maps = fbank.score_maps([(a["xyz"], a["valid"]) for a in test_arr])
         fused = (_zscore(pc_maps, valids) + _zscore(fp_maps, valids)) * valids
-        return scoring.score_arrays(fused, test)
+        return scoring.Scoring.score_arrays(fused, test)
 
 
 SPEC = method_spec("fused", FusedMethod, FusedCfg)

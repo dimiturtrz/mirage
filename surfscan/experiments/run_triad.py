@@ -160,7 +160,7 @@ def score(model, cat, cfg, dev, batch=BATCH):
     amaps = torch.cat(amaps).numpy()
     valids = v.squeeze(1).cpu().numpy().astype(bool)
     masks = g.squeeze(1).cpu().numpy().astype(bool)
-    scores = scoring.image_scores(amaps, valids)
+    scores = scoring.Scoring.image_scores(amaps, valids)
     return amaps, valids, masks, scores, labels[ei], defects[ei]
 
 
@@ -186,7 +186,7 @@ def _run(args):
     for arm in cfg.arms:
         tag = f"triad_{arm}" + ("_curric" if cfg.curriculum and arm != "real" else "")
         log.info(f"\n===== {tag} (seed {cfg.seed}) =====")
-        res[arm] = harness.run(tag, Method(fits[arm], score_fn), cats=args.cats,
+        res[arm] = harness.Harness.run(tag, Method(fits[arm], score_fn), cats=args.cats,
                                params={"arm": arm, "seed": cfg.seed, "epochs": cfg.epochs,
                                        "curriculum": cfg.curriculum})
     if "real" in res and "synth" in res:

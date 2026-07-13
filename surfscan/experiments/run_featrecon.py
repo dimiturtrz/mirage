@@ -69,7 +69,7 @@ class FeatReconMethod:
         H, W = test.x.shape[-2:]
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
         amaps = _score_maps(self.ext, ae, test.x, (H, W)) * valids
-        return scoring.score_arrays(amaps, test)
+        return scoring.Scoring.score_arrays(amaps, test)
 
 
 SPEC = method_spec("featrecon", FeatReconMethod, FeatReconCfg)

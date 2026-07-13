@@ -44,7 +44,7 @@ class PatchCoreMethod:
 
     def score(self, state, cat):
         test = GpuSplit.load_split(split="test", cats=[cat], channels=["rgb"], device=self.dev, size=self.cfg.size)
-        return scoring.score_arrays(state.score_maps(test.x), test)
+        return scoring.Scoring.score_arrays(state.score_maps(test.x), test)
 
 
 SPEC = method_spec("patchcore", PatchCoreMethod, PatchCoreCfg)

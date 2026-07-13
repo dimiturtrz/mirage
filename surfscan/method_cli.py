@@ -31,6 +31,6 @@ def method_spec(name: str, method_cls, cfg_cls) -> Spec:
     def run(args):  # pragma: no cover  device pick + mlflow harness boundary; build_method is the core
         Compute.enable_tf32()
         run_name, method = build_method(method_cls, cfg_cls, args, Compute.pick_device())
-        harness.run(run_name or name, method, cats=args.cats)
+        harness.Harness.run(run_name or name, method, cats=args.cats)
 
     return Spec(name, add_args, run)

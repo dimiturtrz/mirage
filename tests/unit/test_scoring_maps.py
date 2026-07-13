@@ -7,7 +7,7 @@ import numpy as np
 import polars as pl
 import torch
 
-from surfscan.evaluation.scoring import anomaly_maps, inpaint_maps, latents, mahalanobis, score_arrays
+from surfscan.evaluation.scoring import Scoring
 from surfscan.models.inpaint import InpaintAE
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import ModelCfg
@@ -28,7 +28,7 @@ def _cfg():
 
 def test_anomaly_maps_cpu():
     data = _Data(torch.randn(3, 3, 32, 32), torch.ones(3, 1, 32, 32))
-    a = anomaly_maps(ConvVAE(_cfg()), data, batch=2)
+    a = Scoring.anomaly_maps(ConvVAE(_cfg()), data, batch=2)
     assert a.shape == (3, 32, 32)
     assert (a >= 0).all()
 
@@ -36,20 +36,20 @@ def test_anomaly_maps_cpu():
 def test_anomaly_maps_zeroed_outside_valid():
     valid = torch.zeros(2, 1, 32, 32)
     valid[:, :, 8:24, 8:24] = 1.0
-    a = anomaly_maps(ConvVAE(_cfg()), _Data(torch.randn(2, 3, 32, 32), valid), batch=2)
+    a = Scoring.anomaly_maps(ConvVAE(_cfg()), _Data(torch.randn(2, 3, 32, 32), valid), batch=2)
     assert a[:, 0, 0].sum() == 0                     # background corner -> zero
 
 
 def test_inpaint_maps_cpu():
     data = _Data(torch.randn(3, 3, 32, 32), torch.ones(3, 1, 32, 32))
-    a = inpaint_maps(InpaintAE(_cfg()), data, grid=4, batch=2)
+    a = Scoring.inpaint_maps(InpaintAE(_cfg()), data, grid=4, batch=2)
     assert a.shape == (3, 32, 32)
     assert (a >= 0).all()
 
 
 def test_latents_shape_cpu():
     data = _Data(torch.randn(5, 3, 32, 32), torch.ones(5, 1, 32, 32))
-    z = latents(ConvVAE(_cfg()), data, batch=2)
+    z = Scoring.latents(ConvVAE(_cfg()), data, batch=2)
     assert z.shape == (5, 16)                         # N x latent
 
 
@@ -57,7 +57,7 @@ def test_mahalanobis_far_scores_higher():
     rng = np.random.RandomState(0)
     train = rng.randn(200, 8)                         # normal latent cloud ~ N(0, I)
     test = np.stack([np.zeros(8), np.full(8, 6.0)])   # a near point + a far point
-    d = mahalanobis(train, test)
+    d = Scoring.mahalanobis(train, test)
     assert d.shape == (2,)
     assert d[1] > d[0] and d[0] < 2.0                 # far off-cloud >> at the mean
 
@@ -73,7 +73,7 @@ def test_score_arrays_assembles_tuple():
     valid = torch.ones(n, 1, 8, 8)
     gt = torch.zeros(n, 1, 8, 8); gt[1, 0, 2:4, 2:4] = 1
     amaps = np.random.RandomState(0).rand(n, 8, 8)
-    a, v, m, s, labels, defects = score_arrays(amaps, _Split(valid, gt, [0, 1, 0], ["good", "hole", "good"]))
+    a, v, m, s, labels, defects = Scoring.score_arrays(amaps, _Split(valid, gt, [0, 1, 0], ["good", "hole", "good"]))
     assert v.shape == (n, 8, 8) and v.all() and v.dtype == bool
     assert m[1].any() and not m[0].any()              # gt -> boolean mask, only sample 1 has a defect
     assert s.shape == (n,) and labels.tolist() == [0, 1, 0] and list(defects) == ["good", "hole", "good"]
@@ -82,5 +82,5 @@ def test_score_arrays_assembles_tuple():
 def test_score_arrays_scores_override():
     split = _Split(torch.ones(2, 1, 4, 4), torch.zeros(2, 1, 4, 4), [0, 1], ["good", "hole"])
     custom = np.array([0.1, 0.9])
-    _, _, _, s, _, _ = score_arrays(np.zeros((2, 4, 4)), split, scores=custom)
+    _, _, _, s, _, _ = Scoring.score_arrays(np.zeros((2, 4, 4)), split, scores=custom)
     assert (s == custom).all()                        # passed-in scores are used verbatim

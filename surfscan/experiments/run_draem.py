@@ -71,7 +71,7 @@ class DraemMethod:
                 x, v = test.x[i:i + 16], test.valid[i:i + 16]
                 _, logits = model(x.to(memory_format=torch.channels_last))
                 amaps.append((torch.sigmoid(logits.float()) * v).squeeze(1).cpu())
-        return scoring.score_arrays(torch.cat(amaps).numpy(), test)
+        return scoring.Scoring.score_arrays(torch.cat(amaps).numpy(), test)
 
 
 SPEC = method_spec("draem", DraemMethod, DraemCfg)

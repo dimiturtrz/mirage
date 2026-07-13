@@ -13,14 +13,6 @@ import open3d as o3d
 import torch
 
 
-def _normals(pts, knn):
-    pc = o3d.geometry.PointCloud()
-    pc.points = o3d.utility.Vector3dVector(pts)
-    pc.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn))
-    pc.orient_normals_towards_camera_location((0.0, 0.0, 0.0))
-    return pc
-
-
 @dataclass(frozen=True)
 class FpfhCfg:
     normal_knn: int = 30
@@ -29,35 +21,43 @@ class FpfhCfg:
     graze: float = 0.3
 
 
-def fpfh_for_sample(xyz, valid, cfg=None):
-    cfg = cfg or FpfhCfg()
-    """-> (n,33) FPFH descriptors + (n,2) pixel (row,col) for each valid point.
-
-    clean: drop grazing-angle points (surface nearly perpendicular to the view ray) — that's the
-    sparse/noisy periphery that gives garbage normals + FPFH. Recompute normals on the clean set.
-    """
-    coords = np.argwhere(valid)
-    pts = xyz[valid].astype(np.float64)
-    pc = _normals(pts, cfg.normal_knn)
-    if cfg.clean:
-        n = np.asarray(pc.normals)
-        view = -pts / (np.linalg.norm(pts, axis=1, keepdims=True) + 1e-9)   # scanner at origin
-        keep = np.abs((n * view).sum(1)) > cfg.graze                            # ~1 = facing, ~0 = grazing
-        pts, coords = pts[keep], coords[keep]
-        pc = _normals(pts, cfg.normal_knn)
-    f = o3d.pipelines.registration.compute_fpfh_feature(pc, o3d.geometry.KDTreeSearchParamKNN(cfg.fpfh_knn))
-    return np.asarray(f.data).T.astype(np.float32), coords
-
-
-def _fpfh_batch(samples, cfg=None):
-    """fpfh_for_sample over samples. Serial by measurement: open3d's normals/FPFH hold the GIL, so a
-    ThreadPool gave 1.0x (no speedup, benchmarked on real data); a ProcessPool's Windows-spawn +
-    per-sample point-cloud pickle overhead doesn't pay for these small clouds. A real speedup needs a
-    vectorized/GPU FPFH, not a pool — out of scope. Kept as a batch helper (fit + score_maps)."""
-    return [fpfh_for_sample(xyz, valid, cfg) for xyz, valid in samples]
-
-
 class FpfhBank:
+    @staticmethod
+    def _normals(pts, knn):
+        pc = o3d.geometry.PointCloud()
+        pc.points = o3d.utility.Vector3dVector(pts)
+        pc.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn))
+        pc.orient_normals_towards_camera_location((0.0, 0.0, 0.0))
+        return pc
+
+    @staticmethod
+    def fpfh_for_sample(xyz, valid, cfg=None):
+        cfg = cfg or FpfhCfg()
+        """-> (n,33) FPFH descriptors + (n,2) pixel (row,col) for each valid point.
+
+        clean: drop grazing-angle points (surface nearly perpendicular to the view ray) — that's the
+        sparse/noisy periphery that gives garbage normals + FPFH. Recompute normals on the clean set.
+        """
+        coords = np.argwhere(valid)
+        pts = xyz[valid].astype(np.float64)
+        pc = FpfhBank._normals(pts, cfg.normal_knn)
+        if cfg.clean:
+            n = np.asarray(pc.normals)
+            view = -pts / (np.linalg.norm(pts, axis=1, keepdims=True) + 1e-9)   # scanner at origin
+            keep = np.abs((n * view).sum(1)) > cfg.graze                            # ~1 = facing, ~0 = grazing
+            pts, coords = pts[keep], coords[keep]
+            pc = FpfhBank._normals(pts, cfg.normal_knn)
+        f = o3d.pipelines.registration.compute_fpfh_feature(pc, o3d.geometry.KDTreeSearchParamKNN(cfg.fpfh_knn))
+        return np.asarray(f.data).T.astype(np.float32), coords
+
+    @staticmethod
+    def _fpfh_batch(samples, cfg=None):
+        """fpfh_for_sample over samples. Serial by measurement: open3d's normals/FPFH hold the GIL, so a
+        ThreadPool gave 1.0x (no speedup, benchmarked on real data); a ProcessPool's Windows-spawn +
+        per-sample point-cloud pickle overhead doesn't pay for these small clouds. A real speedup needs a
+        vectorized/GPU FPFH, not a pool — out of scope. Kept as a batch helper (fit + score_maps)."""
+        return [FpfhBank.fpfh_for_sample(xyz, valid, cfg) for xyz, valid in samples]
+
     def __init__(self, device="cuda", per_sample=2000, coreset=0.25, seed=0):
         self.device = device
         self.per_sample = per_sample      # cap FPFH per training sample (keeps the bank tractable)
@@ -68,7 +68,7 @@ class FpfhBank:
     def fit(self, samples):               # samples: list of (xyz, valid)
         rng = np.random.RandomState(self.seed)
         feats = []
-        for f, _ in _fpfh_batch(samples):
+        for f, _ in FpfhBank._fpfh_batch(samples):
             if self.per_sample and len(f) > self.per_sample:
                 f = f[rng.choice(len(f), self.per_sample, replace=False)]
             feats.append(f)
@@ -89,11 +89,11 @@ class FpfhBank:
         return amap
 
     def score_map(self, xyz, valid, chunk=4096):
-        f, coords = fpfh_for_sample(xyz, valid)
+        f, coords = FpfhBank.fpfh_for_sample(xyz, valid)
         return self._score_one(f, coords, valid, chunk)
 
     def score_maps(self, samples, chunk=4096):
         """Batch score -> (N,H,W): FPFH per sample (see _fpfh_batch), then GPU nearest-bank distance.
         Identical to np.stack([score_map(x, v) for x, v in samples]) — a convenience, not a speedup."""
         return np.stack([self._score_one(f, coords, valid, chunk)
-                         for (f, coords), (_, valid) in zip(_fpfh_batch(samples), samples, strict=True)])
+                         for (f, coords), (_, valid) in zip(FpfhBank._fpfh_batch(samples), samples, strict=True)])

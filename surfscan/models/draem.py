@@ -14,23 +14,23 @@ import torch.nn as nn
 from skimage.transform import resize as sk_resize
 
 
-def _block(ci, co):
-    return nn.Sequential(
-        nn.Conv2d(ci, co, 3, 1, 1), nn.BatchNorm2d(co), nn.SiLU(),
-        nn.Conv2d(co, co, 3, 1, 1), nn.BatchNorm2d(co), nn.SiLU())
-
-
 class UNet(nn.Module):
+    @staticmethod
+    def _block(ci, co):
+        return nn.Sequential(
+            nn.Conv2d(ci, co, 3, 1, 1), nn.BatchNorm2d(co), nn.SiLU(),
+            nn.Conv2d(co, co, 3, 1, 1), nn.BatchNorm2d(co), nn.SiLU())
+
     def __init__(self, in_ch, out_ch, base=32):
         super().__init__()
-        self.e1, self.e2 = _block(in_ch, base), _block(base, base * 2)
-        self.e3, self.e4 = _block(base * 2, base * 4), _block(base * 4, base * 8)
-        self.bott = _block(base * 8, base * 16)
+        self.e1, self.e2 = UNet._block(in_ch, base), UNet._block(base, base * 2)
+        self.e3, self.e4 = UNet._block(base * 2, base * 4), UNet._block(base * 4, base * 8)
+        self.bott = UNet._block(base * 8, base * 16)
         self.pool = nn.MaxPool2d(2)
-        self.u4 = nn.ConvTranspose2d(base * 16, base * 8, 2, 2); self.d4 = _block(base * 16, base * 8)
-        self.u3 = nn.ConvTranspose2d(base * 8, base * 4, 2, 2); self.d3 = _block(base * 8, base * 4)
-        self.u2 = nn.ConvTranspose2d(base * 4, base * 2, 2, 2); self.d2 = _block(base * 4, base * 2)
-        self.u1 = nn.ConvTranspose2d(base * 2, base, 2, 2); self.d1 = _block(base * 2, base)
+        self.u4 = nn.ConvTranspose2d(base * 16, base * 8, 2, 2); self.d4 = UNet._block(base * 16, base * 8)
+        self.u3 = nn.ConvTranspose2d(base * 8, base * 4, 2, 2); self.d3 = UNet._block(base * 8, base * 4)
+        self.u2 = nn.ConvTranspose2d(base * 4, base * 2, 2, 2); self.d2 = UNet._block(base * 4, base * 2)
+        self.u1 = nn.ConvTranspose2d(base * 2, base, 2, 2); self.d1 = UNet._block(base * 2, base)
         self.out = nn.Conv2d(base, out_ch, 1)
 
     def forward(self, x):
@@ -55,18 +55,22 @@ class Draem(nn.Module):
         return rec, logits
 
 
-def _perlin_mask(h, w, rng, res=16):
-    low = rng.rand(res, res).astype(np.float32)
-    m = sk_resize(low, (h, w), order=1, preserve_range=True)
-    return (m > rng.uniform(0.6, 0.8)).astype(np.float32)
+class DraemSynth:
+    """The crude Perlin proxy-anomaly synthesis (public `synthesize` name kept as a staticmethod)."""
 
+    @staticmethod
+    def _perlin_mask(h, w, rng, res=16):
+        low = rng.rand(res, res).astype(np.float32)
+        m = sk_resize(low, (h, w), order=1, preserve_range=True)
+        return (m > rng.uniform(0.6, 0.8)).astype(np.float32)
 
-def synthesize(x, valid, rng):
-    """x: (B,C,H,W), valid: (B,1,H,W) -> (aug, mask) with a noise-filled blob inside the object."""
-    B, C, H, W = x.shape
-    masks = np.stack([_perlin_mask(H, W, rng) for _ in range(B)])[:, None]      # B,1,H,W
-    m = torch.from_numpy(masks).to(x.device) * valid
-    beta = float(rng.uniform(0.2, 1.0))
-    noise = torch.randn_like(x) * x.std()
-    aug = x * (1 - m) + (beta * noise + (1 - beta) * x) * m
-    return aug, m
+    @staticmethod
+    def synthesize(x, valid, rng):
+        """x: (B,C,H,W), valid: (B,1,H,W) -> (aug, mask) with a noise-filled blob inside the object."""
+        B, C, H, W = x.shape
+        masks = np.stack([DraemSynth._perlin_mask(H, W, rng) for _ in range(B)])[:, None]      # B,1,H,W
+        m = torch.from_numpy(masks).to(x.device) * valid
+        beta = float(rng.uniform(0.2, 1.0))
+        noise = torch.randn_like(x) * x.std()
+        aug = x * (1 - m) + (beta * noise + (1 - beta) * x) * m
+        return aug, m

@@ -23,36 +23,40 @@ class FitCfg:
     pool_cap: int = 200_000
 
 
-@torch.no_grad()
-def greedy_coreset(feats, n, seed):
-    """k-center greedy: iteratively pick the point farthest from the current selection (no host
-    syncs in the loop)."""
-    g = torch.Generator(device=feats.device).manual_seed(seed)
-    sel = torch.empty(n, dtype=torch.long, device=feats.device)
-    sel[0] = torch.randint(len(feats), (1,), generator=g, device=feats.device)
-    min_d = torch.cdist(feats, feats[sel[0:1]]).squeeze(1)
-    for i in range(1, n):
-        sel[i] = min_d.argmax()
-        torch.minimum(min_d, torch.cdist(feats, feats[sel[i:i + 1]]).squeeze(1), out=min_d)
-    return feats[sel]
+class Coreset:
+    """Coreset subsampling + the edge-deployable nearest-neighbour scoring math (public names kept)."""
 
+    @staticmethod
+    @torch.no_grad()
+    def greedy_coreset(feats, n, seed):
+        """k-center greedy: iteratively pick the point farthest from the current selection (no host
+        syncs in the loop)."""
+        g = torch.Generator(device=feats.device).manual_seed(seed)
+        sel = torch.empty(n, dtype=torch.long, device=feats.device)
+        sel[0] = torch.randint(len(feats), (1,), generator=g, device=feats.device)
+        min_d = torch.cdist(feats, feats[sel[0:1]]).squeeze(1)
+        for i in range(1, n):
+            sel[i] = min_d.argmax()
+            torch.minimum(min_d, torch.cdist(feats, feats[sel[i:i + 1]]).squeeze(1), out=min_d)
+        return feats[sel]
 
-def bank_linear(bank):
-    """The frozen linear layer that computes the distance field `‖b‖² − 2·x·b` for a fixed bank:
-    -> (weight [M,D] = −2·B, bias [M] = ‖b‖²). Load into an nn.Linear(D, M) / Conv1×1 for export —
-    this is the accelerator-native half of the nearest-neighbour lookup."""
-    weight = -2.0 * bank
-    bias = (bank * bank).sum(1)
-    return weight, bias
+    @staticmethod
+    def bank_linear(bank):
+        """The frozen linear layer that computes the distance field `‖b‖² − 2·x·b` for a fixed bank:
+        -> (weight [M,D] = −2·B, bias [M] = ‖b‖²). Load into an nn.Linear(D, M) / Conv1×1 for export —
+        this is the accelerator-native half of the nearest-neighbour lookup."""
+        weight = -2.0 * bank
+        bias = (bank * bank).sum(1)
+        return weight, bias
 
-
-@torch.no_grad()
-def bank_nn_dist(feats, bank):
-    """Nearest-neighbour distance of each feat to the bank via the matmul form — identical to
-    `torch.cdist(feats, bank).min(1).values`, but as `Linear(x) + ‖x‖²` then a min-reduce, so the
-    heavy part is the accelerator-native frozen linear and only the min stays host-side."""
-    weight, bias = bank_linear(bank)
-    field = feats @ weight.T + bias                        # (N,M)  ‖b‖² − 2·x·b
-    xx = (feats * feats).sum(1)                            # (N,)   ‖x‖²
-    d2 = xx + field.min(1).values                         # (N,)   min squared distance
-    return d2.clamp_min(0).sqrt()
+    @staticmethod
+    @torch.no_grad()
+    def bank_nn_dist(feats, bank):
+        """Nearest-neighbour distance of each feat to the bank via the matmul form — identical to
+        `torch.cdist(feats, bank).min(1).values`, but as `Linear(x) + ‖x‖²` then a min-reduce, so the
+        heavy part is the accelerator-native frozen linear and only the min stays host-side."""
+        weight, bias = Coreset.bank_linear(bank)
+        field = feats @ weight.T + bias                        # (N,M)  ‖b‖² − 2·x·b
+        xx = (feats * feats).sum(1)                            # (N,)   ‖x‖²
+        d2 = xx + field.min(1).values                         # (N,)   min squared distance
+        return d2.clamp_min(0).sqrt()

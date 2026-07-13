@@ -20,10 +20,9 @@ from core.data.dataset import GpuSplit
 from core.data.defects import Defects  # channel-aware coherent defects
 from surfscan.evaluation import scoring
 from surfscan.method_cli import method_spec
-from surfscan.models.draem import Draem
-from surfscan.models.draem import (
-    synthesize as synth_perlin,  # the original crude Perlin (control)
-)
+from surfscan.models.draem import Draem, DraemSynth
+
+synth_perlin = DraemSynth.synthesize  # the original crude Perlin (control)
 from surfscan.training.trainer import Trainer
 
 

@@ -17,9 +17,9 @@ import torch
 from core.data import store
 from surfscan.evaluation import scoring
 from surfscan.method_cli import method_spec
-from surfscan.models.coreset import bank_nn_dist, greedy_coreset
-from surfscan.models.pointmae import load_pointmae, pointmae_features
-from surfscan.models.pointmae_group import square_distance
+from surfscan.models.coreset import Coreset
+from surfscan.models.pointmae import Pointmae
+from surfscan.models.pointmae_group import PointmaeGroup
 
 
 @dataclass(frozen=True)
@@ -36,7 +36,7 @@ class PointMAEMethod:
         self.cfg = cfg
         self.dev = dev
         self.size = cfg.size or 256
-        self.net = load_pointmae(dev, ckpt="pointmae_pretrain.pth")
+        self.net = Pointmae.load_pointmae(dev, ckpt="pointmae_pretrain.pth")
 
     def _norm(self, pts):
         """Unit-sphere normalize (ShapeNet pc_normalize) — the frame Point-MAE was pretrained on:
@@ -52,19 +52,19 @@ class PointMAEMethod:
         if len(pts) > self.cfg.n_points:
             pts = pts[torch.randperm(len(pts), device=self.dev)[:self.cfg.n_points]]
         pn, mean, scale = self._norm(pts)
-        f, c = pointmae_features(self.net, pn.unsqueeze(0))
+        f, c = Pointmae.pointmae_features(self.net, pn.unsqueeze(0))
         return f[0], c[0], mean, scale
 
     def fit(self, cat):
         _, train = store.Store.arrays(cat, "train", 0, self.size)
         feats = torch.cat([self._features(a["xyz"], a["valid"])[0] for a in train])   # (sum G, C)
-        return greedy_coreset(feats, max(1, int(len(feats) * self.cfg.coreset)), 0)
+        return Coreset.greedy_coreset(feats, max(1, int(len(feats) * self.cfg.coreset)), 0)
 
     def _amap(self, bank, xyz, valid):
         f, centers, mean, scale = self._features(xyz, valid)
-        gd = bank_nn_dist(f, bank)                                                     # per-group anomaly (G,)
+        gd = Coreset.bank_nn_dist(f, bank)                                             # per-group anomaly (G,)
         pn = (torch.from_numpy(xyz[valid]).float().to(self.dev) - mean) / scale        # all valid pts, same frame
-        nearest = square_distance(pn.unsqueeze(0), centers.unsqueeze(0))[0].argmin(1)  # each pixel -> nearest group
+        nearest = PointmaeGroup.square_distance(pn.unsqueeze(0), centers.unsqueeze(0))[0].argmin(1)  # each px->group
         amap = np.zeros(valid.shape, np.float32)
         amap[valid] = gd[nearest].cpu().numpy()
         return amap

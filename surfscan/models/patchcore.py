@@ -17,7 +17,7 @@ import torch.nn.functional as F
 import torchvision
 
 from core.compute import Compute
-from surfscan.models.coreset import FitCfg, bank_nn_dist, greedy_coreset
+from surfscan.models.coreset import Coreset, FitCfg
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
@@ -72,7 +72,7 @@ class PatchCore:
             pool = pool[torch.randperm(len(pool), generator=g, device=feats.device)[:cfg.pool_cap]]
         target = max(1, int(len(pool) * cfg.coreset))               # coreset of the capped pool -> bounded bank
         if cfg.method == "greedy":
-            self.bank = greedy_coreset(pool, target, cfg.seed)
+            self.bank = Coreset.greedy_coreset(pool, target, cfg.seed)
         else:
             self.bank = pool[torch.randperm(len(pool), generator=g, device=pool.device)[:target]]
         return self
@@ -90,7 +90,7 @@ class PatchCore:
             q = e.reshape(-1, e.shape[-1])                          # (n*h*w, C)
             nn = torch.empty(len(q), device=q.device)
             for j in range(0, len(q), qchunk):
-                nn[j:j + qchunk] = bank_nn_dist(q[j:j + qchunk], self.bank)
+                nn[j:j + qchunk] = Coreset.bank_nn_dist(q[j:j + qchunk], self.bank)
             nn = nn.reshape(n, h, w)
             m = F.interpolate(nn[:, None], size=(H, W), mode="bilinear", align_corners=False)[:, 0]
             out.append(m.cpu())

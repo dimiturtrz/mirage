@@ -20,7 +20,7 @@ from core.compute import Compute
 from core.data.dataset import GpuSplit
 from core.obs import Obs
 from surfscan import tracking
-from surfscan.models.inpaint import InpaintAE, random_mask
+from surfscan.models.inpaint import InpaintAE
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import HParams
 from surfscan.training.losses import kl_loss, masked_recon_loss
@@ -46,7 +46,7 @@ def _vae_step(run_model, x, m, hp):
 
 def _inpaint_step(run_model, x, m, hp):
     patch = hp.size // hp.grid
-    keep = random_mask(x.shape[0], hp.size, patch, hp.mask_ratio, x.device)
+    keep = InpaintAE.random_mask(x.shape[0], hp.size, patch, hp.mask_ratio, x.device)
     recon = run_model(x * keep)                 # reconstruct FULL image from masked input
     return masked_recon_loss(recon, x, m), {}
 

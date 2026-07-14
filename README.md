@@ -125,6 +125,17 @@ Two layers: a wide **unit** base (partition each input space, one representative
 an **integration** layer over module pairs (A's output is a valid B input). `tests/unit/` **mirrors the
 source tree** — enforced by the arch-fitness gate — so a module's tests live where the module does.
 
+## Development
+The quality gates — style/bugs, dead code, import layering, architecture fitness, module shape, duplication —
+run in one command locally and identically in CI:
+```bash
+uvx nox -s lint        # ruff · vulture · import-linter · graph --assert · ast-grep · jscpd
+```
+(tests are the section above; CI runs both.) Their config, `devtools/`, and the nox/CI/pre-commit runners
+are provisioned by an in-house copier template
+([sdlc-scaffold](https://github.com/dimiturtrz/sdlc-scaffold)) — refresh with `uvx copier update` (version
+pinned in `.copier-answers.yml`). Template-owned: fix a gate upstream, don't hand-edit it to pass.
+
 ## How it's built
 Agent-driven build, human-owned judgment — the modeling, measurement correctness, and evaluation are
 mine; coding agents scaffold the plumbing. Data-structure reasoning and evaluation discipline carry over
@@ -145,10 +156,6 @@ from prior ML work; the 3D specifics I learn as I go ([`learning/`](learning/)).
   3D Industrial Anomaly Detection*, Sensors 26(2):412, 2026 ([doi:10.3390/s26020412](https://doi.org/10.3390/s26020412)).
 - **SiM3D** — the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real),
   [arXiv:2506.21549](https://arxiv.org/abs/2506.21549), 2025.
-
-## Development
-Tooling + quality gates are provisioned by an in-house copier template (**sdlc-scaffold**). Refresh with
-`uvx copier update`; `.copier-answers.yml` pins the template version.
 
 ## License
 Code: see [LICENSE](LICENSE). The dataset is **not** included and carries its own license

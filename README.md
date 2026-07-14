@@ -118,16 +118,15 @@ method/training run logs params, metrics (per-category + per-defect), the aggreg
 
 ## Tests
 ```bash
-uv sync --extra features
 uv run pytest tests/ -q        # unit (equivalence-class) + integration (module pairs)
 ```
 Two layers: a wide **unit** base (partition each input space, one representative per class + boundaries) and
 an **integration** layer over module pairs (A's output is a valid B input). `tests/unit/` **mirrors the
 source tree** — enforced by the arch-fitness gate — so a module's tests live where the module does.
 
-## Development
-The quality gates — style/bugs, dead code, import layering, architecture fitness, module shape, duplication —
-run in one command locally and identically in CI:
+## Quality gates
+The static-analysis gates — style/bugs, dead code, import layering, architecture fitness, module shape,
+duplication — run in one command locally and identically in CI:
 ```bash
 uvx nox -s lint        # ruff · vulture · import-linter · graph --assert · ast-grep · jscpd
 ```

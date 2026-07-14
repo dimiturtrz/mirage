@@ -202,12 +202,12 @@ class TriadRun:
         return amaps, valids, masks, scores, labels[ei], defects[ei]
 
     @staticmethod
-    def _args(ap):
+    def args(ap):
         Dispatch.add_cats(ap)
         CliConfig.add_config_args(ap, TriadCfg)
 
     @staticmethod
-    def _run(args):
+    def run(args):
         Compute.enable_tf32()
         cfg = CliConfig.build_config(TriadCfg, args)
         run = TriadRun(cfg, Compute.pick_device())
@@ -250,4 +250,4 @@ class TriadRun:
                      f"(+{clo_pt:.3f} vs synth)  [{clo_lo:+.3f}, {clo_hi:+.3f}]")
 
 
-SPEC = Spec("triad", TriadRun._args, TriadRun._run)
+SPEC = Spec("triad", TriadRun.args, TriadRun.run)

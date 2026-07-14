@@ -84,4 +84,4 @@ class Mvtec:
         return rgb, xyz, gt
 
 
-__all__ = ["SPLITS", "Sample", "Mvtec"]
+__all__ = ["SPLITS", "Mvtec", "Sample"]

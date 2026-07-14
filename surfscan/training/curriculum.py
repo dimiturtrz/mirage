@@ -21,7 +21,7 @@ class KindCurriculum:
         self.rng = np.random.RandomState(seed)
         self.alpha = alpha            # EMA weight on the newest loss
         self.temp = temp              # softmax temperature (low = chase weakest harder)
-        self.loss: dict[str, float | None] = {k: None for k in self.kinds}
+        self.loss: dict[str, float | None] = dict.fromkeys(self.kinds)
         self.history: list[dict] = []
 
     def _weights(self) -> np.ndarray:

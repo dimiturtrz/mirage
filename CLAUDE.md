@@ -76,6 +76,7 @@ Principles are enforced **mechanically**, not by review — a **ratcheting** gat
 | Arch fitness | `devtools/graph.py --assert` (grimp+networkx) | god-module (fan-in AND fan-out both >8), god-file (>750 lines), import cycle; line-floor/chokepoint advisory | `[tool.structure]` |
 | Module shape | `ast-grep` (`devtools/sgconfig.yml`) | no import-time side-effect call (`matplotlib.use` exempt); **everything-in-a-class** — every top-level `def` is a method on the class that owns it (`main` exempt) | `devtools/sg-rules/` |
 | Duplication | `jscpd` (advisory) | copy-paste over the DRY threshold | `devtools/jscpd.json` |
+| Shape contracts | `devtools/shape_contracts.py` (advisory) | public array/tensor boundary carries a `jaxtyping` shape (`Float[Tensor, "b c h w"]`), not bare `np.ndarray`/`Tensor`; `@shapecheck` (jaxtyping+beartype) makes it live at runtime | `[tool.shape_contracts]` |
 
 **noqa policy: bare `# noqa: RULE`** — no prose reasons; minimal comments, prefer self-documenting names. **Everything-in-a-class** (qc5, matching systole): a top-level function belongs as a method on the class that owns its state/responsibility; a pure stateless helper is a `@staticmethod` on that class. `main`/`_main` exempt. The rule catches decorated top-level defs too (a `@contextmanager`/`@torch.no_grad()` free func can't slip past).
 

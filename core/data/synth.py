@@ -50,4 +50,4 @@ class Synth:
 
 load_raw = Mvtec.load_raw  # identical on-disk format -> reuse the loader
 
-__all__ = ["Sample", "load_raw", "Synth"]
+__all__ = ["Sample", "Synth", "load_raw"]

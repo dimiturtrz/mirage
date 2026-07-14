@@ -25,12 +25,12 @@ class VaeRun:
     """Per-category VAE train+eval over all categories -> aggregate mean. Logs to MLflow."""
 
     @staticmethod
-    def _args(ap):
+    def args(ap):
         Dispatch.add_cats(ap)
         ap.add_argument("--epochs", type=int, default=100)
 
     @staticmethod
-    def _run(args):
+    def run(args):
         dev = Compute.pick_device()
         cats = args.cats or mvtec.Mvtec().categories()
         rows = []
@@ -54,4 +54,4 @@ class VaeRun:
                                    {"per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro}})
 
 
-SPEC = Spec("vae", VaeRun._args, VaeRun._run)
+SPEC = Spec("vae", VaeRun.args, VaeRun.run)

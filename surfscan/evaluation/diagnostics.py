@@ -22,7 +22,7 @@ class Diagnostics:
         amaps, valids, masks, scores, labels, defects = sa
         labels = np.asarray(labels)
         defects = np.asarray(defects)
-        types = sorted({d for d, l in zip(defects, labels, strict=True) if l == 1})
+        types = sorted({d for d, lab in zip(defects, labels, strict=True) if lab == 1})
         rows = []
         for t in types:
             is_t = (defects == t) & (labels == 1)

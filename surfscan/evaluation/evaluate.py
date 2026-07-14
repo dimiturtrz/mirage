@@ -45,14 +45,14 @@ class Evaluate:
         return harness.Harness.run(hp.model_type, Method(fit, score), cats=cats or hp.cats, run_id=run_id)
 
     @staticmethod
-    def _args(ap):
+    def args(ap):
         ap.add_argument("--run-id", required=True)
         ap.add_argument("--cats", nargs="*", default=None)
         ap.add_argument("--image-score", default="residual", choices=["residual", "mahalanobis"])
 
     @staticmethod
-    def _run(args):  # pragma: no cover  CLI glue; evaluate() is the logic (mlflow-omitted whole-file)
+    def run(args):  # pragma: no cover  CLI glue; evaluate() is the logic (mlflow-omitted whole-file)
         Evaluate.evaluate(args.run_id, cats=args.cats, device=Compute.pick_device(), image_score=args.image_score)
 
 
-SPEC = Spec("evaluate", Evaluate._args, Evaluate._run)
+SPEC = Spec("evaluate", Evaluate.args, Evaluate.run)

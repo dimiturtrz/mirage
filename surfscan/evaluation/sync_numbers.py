@@ -26,7 +26,7 @@ from surfscan.dispatch import Spec
 log = Obs.get()
 
 ROOT = Path(__file__).resolve().parents[2]
-R = json.loads((ROOT / "docs" / "RESULTS.json").read_text(encoding="utf-8"))
+RESULTS = json.loads((ROOT / "docs" / "RESULTS.json").read_text(encoding="utf-8"))
 
 
 class NumberSync:
@@ -47,42 +47,42 @@ class NumberSync:
     @staticmethod
     def methods() -> str:
         rows = ["| method | modality | mean img-AUROC | mean pixel AU-PRO |", "|---|---|---|---|"]
-        for m in R["methods"]:
-            name = f"**{m['name']}**" if m.get("deployable") else m["name"]
-            rows.append(f"| {name} — ours | {m['modality']} | {NumberSync._ci(m, 'img_auroc')} "
-                        f"| {NumberSync._ci(m, 'au_pro')} |")
-        s = R["sota"]
-        mark = "†" if s.get("verified") else " ⚠"
-        rows.append(f"| SOTA ({s['name']}){mark} | {s['modality']} | ~{s['img_auroc']:.2f} | ~{s['au_pro']:.2f} |")
+        for method in RESULTS["methods"]:
+            name = f"**{method['name']}**" if method.get("deployable") else method["name"]
+            rows.append(f"| {name} — ours | {method['modality']} | {NumberSync._ci(method, 'img_auroc')} "
+                        f"| {NumberSync._ci(method, 'au_pro')} |")
+        sota = RESULTS["sota"]
+        mark = "†" if sota.get("verified") else " ⚠"
+        rows.append(f"| SOTA ({sota['name']}){mark} | {sota['modality']} "
+                    f"| ~{sota['img_auroc']:.2f} | ~{sota['au_pro']:.2f} |")
         return "\n".join(rows)
 
     @staticmethod
     def per_category() -> str:
         rows = ["| category | img-AUROC | AU-PRO |", "|---|---|---|"]
-        for c in R["patchcore_per_category"]:
-            rows.append(f"| {c['category']} | {c['img_auroc']:.3f} | {c['au_pro']:.3f} |")
-        m = R["patchcore_mean"]
-        rows.append(f"| **MEAN** | **{m['img_auroc']:.3f}** | **{m['au_pro']:.3f}** |")
+        rows.extend(f"| {cat['category']} | {cat['img_auroc']:.3f} | {cat['au_pro']:.3f} |"
+                    for cat in RESULTS["patchcore_per_category"])
+        mean_row = RESULTS["patchcore_mean"]
+        rows.append(f"| **MEAN** | **{mean_row['img_auroc']:.3f}** | **{mean_row['au_pro']:.3f}** |")
         return "\n".join(rows)
 
     @staticmethod
     def triad() -> str:
-        t = R["stage1_triad"]
+        triad_data = RESULTS["stage1_triad"]
         rows = ["| arm | au_pro [95% boot CI] | img-AUROC | ECE |", "|---|---|---|---|"]
-        for a in t["arms"]:
-            rows.append(f"| {a['arm']} | {NumberSync._ci(a, 'au_pro')} | "
-                        f"{a['img_auroc']:.3f} | {a['ece']:.3f} |")
+        rows.extend(f"| {arm['arm']} | {NumberSync._ci(arm, 'au_pro')} | "
+                    f"{arm['img_auroc']:.3f} | {arm['ece']:.3f} |" for arm in triad_data["arms"])
         return "\n".join(rows)
 
     @staticmethod
     def _refs() -> dict[str, float]:
         """Canonical scalars quotable inline in prose via `<!--r:key-->…<!--/r-->` — one source, no drift.
         Only headline figures restated in prose; experiment-narrative intermediates stay hand-written."""
-        by_run = {m["mlflow_run"]: m for m in R["methods"] if "mlflow_run" in m}
-        t = R["stage1_triad"]
-        arms = {a["arm"]: a for a in t["arms"]}
+        by_run = {method["mlflow_run"]: method for method in RESULTS["methods"] if "mlflow_run" in method}
+        triad_data = RESULTS["stage1_triad"]
+        arms = {arm["arm"]: arm for arm in triad_data["arms"]}
         return {
-            "recon.au_pro": R["methods"][0]["au_pro"],
+            "recon.au_pro": RESULTS["methods"][0]["au_pro"],
             "patchcore.au_pro": by_run["patchcore_rgb_greedy"]["au_pro"],
             "featrecon.au_pro": by_run["feat_recon"]["au_pro"],
             "fused.au_pro": by_run["fused_rgb_fpfh"]["au_pro"],
@@ -90,8 +90,8 @@ class NumberSync:
             "triad.synth.au_pro": arms["synth → real (the gap)"]["au_pro"],
             "triad.synth.ece": arms["synth → real (the gap)"]["ece"],
             "triad.da.ece": arms["synth+DA → real (AdaBN)"]["ece"],
-            "triad.gap": t["gap_pp"], "triad.gap_lo": t["gap_lo"], "triad.gap_hi": t["gap_hi"],
-            "triad.da_closure": t["da_closure_pp"],
+            "triad.gap": triad_data["gap_pp"], "triad.gap_lo": triad_data["gap_lo"],
+            "triad.gap_hi": triad_data["gap_hi"], "triad.da_closure": triad_data["da_closure_pp"],
         }
 
     @staticmethod

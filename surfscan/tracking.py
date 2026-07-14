@@ -67,7 +67,7 @@ class Tracker:
     @staticmethod
     def metrics(d, step=None):  # pragma: no cover  mlflow metric logging (network/db)
         for k, v in d.items():
-            if isinstance(v, (int, float)) and v == v:   # skip None / NaN
+            if isinstance(v, (int, float)) and not np.isnan(v):   # skip None / NaN
                 mlflow.log_metric(k, float(v), step=step)
 
     @staticmethod

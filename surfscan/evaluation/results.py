@@ -11,6 +11,7 @@ Then render the docs:  python -m surfscan.report sync
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import mlflow
@@ -29,7 +30,7 @@ class Results:
     """Refresh the measured numbers in docs/RESULTS.json from MLflow — the canonical source in one place."""
 
     @staticmethod
-    def _latest(run_name: str):  # pragma: no cover  mlflow run query (network/db)
+    def latest(run_name: str):  # pragma: no cover  mlflow run query (network/db)
         df = mlflow.search_runs(
             experiment_names=["surfscan"],
             filter_string=f"tags.`mlflow.runName` = '{run_name}'",
@@ -40,7 +41,7 @@ class Results:
     @staticmethod
     def _get(row: dict, key: str):
         v = row.get(f"metrics.{key}")
-        return round(float(v), 3) if v is not None and v == v else None   # skip None / NaN
+        return round(float(v), 3) if v is not None and not math.isnan(v) else None   # skip None / NaN
 
     @staticmethod
     def _apply(obj: dict, row: dict, pairs) -> None:
@@ -57,26 +58,26 @@ class Results:
 
     @staticmethod
     def refresh() -> None:  # pragma: no cover  reads RESULTS.json + mlflow; _get/_apply are the pure core
-        R = json.loads(RJSON.read_text(encoding="utf-8"))
+        data = json.loads(RJSON.read_text(encoding="utf-8"))
         done, skipped = [], []
-        for m in R["methods"]:
+        for m in data["methods"]:
             rn = m.get("mlflow_run")
             if not rn:
                 continue
-            row = Results._latest(rn)
+            row = Results.latest(rn)
             if row is None:
                 skipped.append(rn); continue
             Results._apply(m, row, (("au_pro_mean", "au_pro"), ("img_auroc_mean", "img_auroc"),
                                     ("au_pro_lo", "au_pro_lo"), ("au_pro_hi", "au_pro_hi"),
                                     ("img_auroc_lo", "img_auroc_lo"), ("img_auroc_hi", "img_auroc_hi")))
             if m.get("deployable"):                                   # per-category table + its derived mean
-                for c in R["patchcore_per_category"]:
+                for c in data["patchcore_per_category"]:
                     Results._apply(c, row, ((f"au_pro/{c['category']}", "au_pro"),
                                             (f"img_auroc/{c['category']}", "img_auroc")))
-                R["patchcore_mean"] = Results._table_mean(R["patchcore_per_category"])
+                data["patchcore_mean"] = Results._table_mean(data["patchcore_per_category"])
             done.append(m["name"])
 
-        RJSON.write_text(json.dumps(R, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        RJSON.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         log.info(f"refreshed from mlflow: {done or '(nothing)'}")
         if skipped:
             log.info(f"  no run found (kept curated): {skipped}")

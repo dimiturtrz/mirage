@@ -81,8 +81,8 @@ class TriadSummary:
             log.info(f">>> CURRICULUM: {cu[0]:.3f} (+{cu[0] - synth[0]:.3f} vs uniform synth)")
 
     @staticmethod
-    def _args(ap):
+    def args(ap):
         ap.add_argument("--uri", default="sqlite:///mlflow.db")
 
 
-SPEC = Spec("triad-summary", TriadSummary._args, lambda args: TriadSummary.summarize(args.uri))
+SPEC = Spec("triad-summary", TriadSummary.args, lambda args: TriadSummary.summarize(args.uri))

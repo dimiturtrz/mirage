@@ -172,7 +172,7 @@ class Show:
         return False
 
     @staticmethod
-    def _args(ap):
+    def args(ap):
         ap.add_argument("--data-root", default=None,
                         help="MVTec 3D-AD root (default: <paths.yaml data>/raw/mvtec_3d_anomaly_detection)")
         ap.add_argument("--cat", default="bagel")
@@ -204,7 +204,7 @@ class Show:
                              "original rgb. See what it actually rebuilds. Requires --processed.")
 
     @staticmethod
-    def _run(args):
+    def run(args):
         if args.processed:
             rgb, xyz, gt, valid = Show.load_processed(args.cat, args.split, args.defect, args.idx, args.size)
         else:
@@ -242,4 +242,4 @@ class Show:
                                           point_show_normal=show_normals)
 
 
-SPEC = Spec("show", Show._args, Show._run)
+SPEC = Spec("show", Show.args, Show.run)

@@ -49,7 +49,7 @@ class Harness:
         rows = []
         pool: dict[str, list] = {f: [] for f in ScoreArrays._fields}
         for c, sa in zip(cats, by_cat, strict=True):
-            rows.append({"category": c, "n": int(len(sa.scores)),
+            rows.append({"category": c, "n": len(sa.scores),
                          "img_auroc": metrics.Metrics.image_auroc(sa.scores, sa.labels),
                          "au_pro": metrics.Metrics.au_pro(sa.amaps, sa.masks, sa.valids)})
             log.info(f"  {c:12s}  img_auroc {rows[-1]['img_auroc']:.3f}   au_pro {rows[-1]['au_pro']:.3f}")
@@ -71,10 +71,12 @@ class Harness:
         auroc_cat = [(sa.scores, sa.labels) for sa in by_cat]
         pro_cat = [(sa.amaps, sa.masks, sa.valids) for sa in by_cat]
         with Progress.stage("bootstrap CI"):                   # the au_pro bootstrap is the usual slow stage
-            ci = {"img_auroc": metrics.Metrics.boot_macro_ci(metrics.Metrics.image_auroc, auroc_cat),
-                  "au_pro": metrics.Metrics.boot_macro_ci(metrics.Metrics.au_pro, pro_cat)}
-        log.info(f"  img_auroc {ci['img_auroc'][0]:.3f} [{ci['img_auroc'][1]:.3f}, {ci['img_auroc'][2]:.3f}]   "
-                 f"au_pro {ci['au_pro'][0]:.3f} [{ci['au_pro'][1]:.3f}, {ci['au_pro'][2]:.3f}]  (95% boot CI)")
+            brackets = {"img_auroc": metrics.Metrics.boot_macro_ci(metrics.Metrics.image_auroc, auroc_cat),
+                        "au_pro": metrics.Metrics.boot_macro_ci(metrics.Metrics.au_pro, pro_cat)}
+        log.info(f"  img_auroc {brackets['img_auroc'][0]:.3f} "
+                 f"[{brackets['img_auroc'][1]:.3f}, {brackets['img_auroc'][2]:.3f}]   "
+                 f"au_pro {brackets['au_pro'][0]:.3f} "
+                 f"[{brackets['au_pro'][1]:.3f}, {brackets['au_pro'][2]:.3f}]  (95% boot CI)")
 
         # calibration (ECE) — only meaningful when amaps are probabilities in [0,1] (e.g. the triad's
         # sigmoid outputs); residual/distance methods aren't calibrated, so skip them cleanly.
@@ -84,36 +86,39 @@ class Harness:
             calib = metrics.Metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
-        res = {"method": method, "per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro},
-               "ci": ci, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
-        invariants.Invariants.check(res)                       # loud at run end if a number is inconsistent
-        return res
+        result = {"method": method, "per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro},
+               "ci": brackets, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
+        invariants.Invariants.check(result)                       # loud at run end if a number is inconsistent
+        return result
 
     @staticmethod
-    def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
-        rows = res["per_category"]
-        tracking.Tracker.metrics({"img_auroc_mean": res["mean"]["img_auroc"], "au_pro_mean": res["mean"]["au_pro"]})
-        ci = res.get("ci", {})
-        for metric, (_p, lo, hi) in ci.items():                # bootstrap brackets next to the point metric
-            if lo == lo:                                        # skip NaN (metric undefined on the run)
-                tracking.Tracker.metrics({f"{metric}_lo": lo, f"{metric}_hi": hi})
-        if res.get("ece") is not None:
-            tracking.Tracker.metrics({"ece": res["ece"]})
-        tracking.Tracker.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
-        tracking.Tracker.per_group("img_auroc", {r["category"]: r["img_auroc"] for r in rows})
-        tracking.Tracker.per_group("au_pro_defect", {d["defect"]: d["au_pro"] for d in res["per_defect"]})
-        tracking.Tracker.artifact_json("aggregate.json", {k: v for k, v in res.items() if k != "by_cat"})
-        cats = [r["category"] for r in rows]                   # persist per-image predictions -> offline recompute
-        tracking.Tracker.artifact_npz("predictions.npz", predictions.Predictions.pack(res["by_cat"], cats))
+    def log(result):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
+        rows = result["per_category"]
+        mean = result["mean"]
+        tracking.Tracker.metrics({"img_auroc_mean": mean["img_auroc"], "au_pro_mean": mean["au_pro"]})
+        brackets = result.get("ci", {})
+        for metric, (_point, low, high) in brackets.items():   # bootstrap brackets next to the point metric
+            if not np.isnan(low):                               # skip NaN (metric undefined on the run)
+                tracking.Tracker.metrics({f"{metric}_lo": low, f"{metric}_hi": high})
+        if result.get("ece") is not None:
+            tracking.Tracker.metrics({"ece": result["ece"]})
+        tracking.Tracker.per_group("au_pro", {row["category"]: row["au_pro"] for row in rows})
+        tracking.Tracker.per_group("img_auroc", {row["category"]: row["img_auroc"] for row in rows})
+        tracking.Tracker.per_group("au_pro_defect",
+                                   {row["defect"]: row["au_pro"] for row in result["per_defect"]})
+        tracking.Tracker.artifact_json("aggregate.json",
+                                       {key: value for key, value in result.items() if key != "by_cat"})
+        cats = [row["category"] for row in rows]                # persist per-image predictions -> offline recompute
+        tracking.Tracker.artifact_npz("predictions.npz", predictions.Predictions.pack(result["by_cat"], cats))
 
     @staticmethod
-    def run(method, m, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper; aggregate is pure
+    def run(method, method_obj, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper
         cats = cats or mvtec.Mvtec().categories()
-        res = Harness.aggregate(method, m.fit, m.score, cats)
+        result = Harness.aggregate(method, method_obj.fit, method_obj.score, cats)
         if run_id:                                       # log into an existing run (e.g. the train run)
             with tracking.Tracker.resume(run_id):
-                Harness._log(res)
+                Harness.log(result)
         else:
             with tracking.Tracker.run("surfscan", method, params=params or {"method": method, "cats": ",".join(cats)}):
-                Harness._log(res)
-        return res
+                Harness.log(result)
+        return result

@@ -25,7 +25,7 @@ jobs:
       # ENFORCED (blocks the merge): the full house select over shipped source. Clean on a fresh gen;
       # catches REGRESSION (new unused import / undefined name / unsorted imports / magic number / ...).
       - name: Lint — enforced (shipped source, full select)
-        run: uvx ruff@0.15.13 check core surfscan --select F,B,E501,I,T201,FBT,BLE001,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100,SIM
+        run: uvx ruff@0.15.13 check core surfscan --select F,B,E501,I,T201,FBT,BLE001,S101,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100,N,E741,E742,E743,PLR0124,PLR1714,PLW3301,RUF012,RUF005,RUF007,RUF010,RUF022,RUF046,C408,C420,SIM,PERF401,PLW0108,E731,E402,ICN001,S603,S607,PTH123,SLF001
       # ADVISORY (never blocks): full curated config over the whole tree, surfaces any pending families.
       - name: Lint — advisory full (non-blocking)
         run: uvx ruff@0.15.13 check . --statistics || true
@@ -89,13 +89,20 @@ jobs:
       # categorical contracts can't express. Thresholds in [tool.structure]. Runs here for the synced env.
       - name: Architecture fitness — enforced (devtools/graph.py --assert)
         run: uv run python -m devtools.graph --assert core surfscan
+      # Magic literals — ENFORCED ratchet: the recurring-string / repeated-key-set count is frozen as a
+      # ceiling in [tool.magic_literals]; a NEW magic literal pushes it over and blocks. Mechanism is the
+      # base gate; the ceiling NUMBERS are a per-repo FACT (fresh repo = 0/0). The non-comparison axis
+      # ruff PLR2004 can't see.
+      - name: Magic literals — enforced (ratchet over [tool.magic_literals] ceiling)
+        run: uv run python -m devtools.magic_literals core surfscan
       # Class-shape smells — ADVISORY explorers (never block): LCOM4 cohesion, Fowler data-clumps, and
-      # namespace-classes with latent shared state. Heuristics that rank refactor candidates — surfaced
-      # for the reviewer, never a merge gate. Each only prints a ranked report and exits 0.
-      - name: Class-shape + magic-literal smells — advisory (LCOM / data-clumps / namespace-state / literals)
+      # namespace-classes with latent shared state + shape-contracts (bare array/tensor boundaries).
+      # Heuristics that rank refactor candidates — surfaced for the reviewer, never a merge gate.
+      - name: Class-shape smells — advisory (LCOM / data-clumps / namespace-state / shape-contracts)
         continue-on-error: true
         run: |
           uv run python -m devtools.state_candidates core surfscan
           uv run python -m devtools.lcom core surfscan
           uv run python -m devtools.data_clumps core surfscan
-          uv run python -m devtools.magic_literals core surfscan
+          uv run python -m devtools.shape_contracts core surfscan
+

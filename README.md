@@ -146,6 +146,10 @@ from prior ML work; the 3D specifics I learn as I go ([`learning/`](learning/)).
 - **SiM3D** — the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real),
   [arXiv:2506.21549](https://arxiv.org/abs/2506.21549), 2025.
 
+## Development
+Tooling + quality gates are provisioned by an in-house copier template (**sdlc-scaffold**). Refresh with
+`uvx copier update`; `.copier-answers.yml` pins the template version.
+
 ## License
 Code: see [LICENSE](LICENSE). The dataset is **not** included and carries its own license
 (CC BY-NC-SA 4.0) — obtain it from [MVTec](https://www.mvtec.com/company/research/datasets/mvtec-3d-ad).

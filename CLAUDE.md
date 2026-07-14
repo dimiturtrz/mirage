@@ -79,6 +79,10 @@ Principles are enforced **mechanically**, not by review — a **ratcheting** gat
 
 **noqa policy: bare `# noqa: RULE`** — no prose reasons; minimal comments, prefer self-documenting names. **Everything-in-a-class** (qc5, matching systole): a top-level function belongs as a method on the class that owns its state/responsibility; a pure stateless helper is a `@staticmethod` on that class. `main`/`_main` exempt. The rule catches decorated top-level defs too (a `@contextmanager`/`@torch.no_grad()` free func can't slip past).
 
+## Scaffolding
+
+Guardrails provisioned by **sdlc-scaffold** via copier — `.copier-answers.yml` pins the version. The gate config, `devtools/`, and the nox/CI/pre-commit runners are **template-owned**: don't hand-edit them to pass a gate — fix upstream in the scaffold and `uvx copier update`, or edit only within `# >>> LOCAL-SLOT` regions. `copier update` pulls scaffold improvements as reviewable steps.
+
 ## Architecture Overview
 
 _See [`docs/PLAN.md`](docs/PLAN.md) → "Structure". Three pieces: `pipeline/` (data → model → anomaly → eval), `pointcloud-viewer/` (in-browser ONNX), `synth-gen-viz/` (the engine made visible). Added only when real._

@@ -1,7 +1,7 @@
 # devtools — the guardrail tools shipped with this project
 
 Each tool is engine + config, invoked identically in `noxfile.py` and CI. Targets are the `packages`
-list (space-separated below as `<packages>`). Only the tools this project enabled are shipped.
+list (space-separated below as `<packages>`). Every tool ships — the gates are the non-optional house bar.
 
 - **graph.py** — import-graph arch fitness (god-module = fan-in AND fan-out over a degree / import cycle / god-file / **test-mirror gap**). Gate: `python -m devtools.graph --assert <packages>` (thresholds in `pyproject [tool.structure]`). Explorer: drop `--assert` for ranked fan-in/out/bottleneck/chokepoint tables.
 - **test-mirror rule** — every logic module needs a unit test. `[tool.structure] test_layout` sets *where*: `"mirror"` (default, strict — `<pkg>/<path>/foo.py` → `tests/unit/<pkg>/<path>/test_foo.py`, one home per module), `"flat"` (a `test_foo.py` anywhere under `tests/`), or `"off"`. `__init__`/`__main__` and coverage-**omitted** shells (`[tool.coverage] omit`, via **omit.py**) are exempt — a non-unit-testable shell isn't forced to carry a stub.
@@ -12,6 +12,8 @@ list (space-separated below as `<packages>`). Only the tools this project enable
 - **state_candidates.py** — namespace classes with latent shared instance state. `python -m devtools.state_candidates <packages>`.
 
   The three class-shape tools are ADVISORY explorers — they print a ranked report and always exit 0, never blocking.
+- **magic_literals.py** — the non-comparison, cross-file axis ruff PLR2004 can't see: recurring identifier-shaped string literals (>= 4x → `StrEnum`/named-constant candidate) + repeated dict key-sets (a drift-prone implicit record → dataclass/TypedDict). `python -m devtools.magic_literals <packages>` (advisory report). Opt into a regression **count-ratchet** by passing `--max-strings N --max-key-sets N` in CI — the current floor freezes as a ceiling, a NEW recurring literal fails the merge (migrate it, or raise the ceiling with a reason).
+- **analytics.py** — a one-shot **explorer** (not a gate, not CI-wired): per-area code lines, def count, McCabe branch-proxy, branches-per-def (logic leaking into fat leaves), src:test ratio, and the top-N largest files. `python -m devtools.analytics --areas <packages> devtools` (add `--flag-over 250` for a code-line budget list). Run it by hand when you want the size/complexity radar.
 
 ## Directional layer contracts — import-linter
 

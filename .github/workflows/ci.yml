@@ -25,7 +25,7 @@ jobs:
       # ENFORCED (blocks the merge): the full house select over shipped source. Clean on a fresh gen;
       # catches REGRESSION (new unused import / undefined name / unsorted imports / magic number / ...).
       - name: Lint — enforced (shipped source, full select)
-        run: uvx ruff@0.15.13 check core surfscan --select F,B,E501,I,T201,FBT,BLE001,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100
+        run: uvx ruff@0.15.13 check core surfscan --select F,B,E501,I,T201,FBT,BLE001,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100,SIM
       # ADVISORY (never blocks): full curated config over the whole tree, surfaces any pending families.
       - name: Lint — advisory full (non-blocking)
         run: uvx ruff@0.15.13 check . --statistics || true
@@ -48,20 +48,16 @@ jobs:
       - name: Import layers — enforced (import-linter)
         run: uvx --from import-linter lint-imports
       
-      
       # Module shape — ast-grep: the SYNTACTIC axis ruff has no plugin API for (in-a-class house rule +
       # no import-time side effects). Rules are data under devtools/sg-rules/*.yml, severity=error (BLOCKS).
       - name: "Module shape — enforced (ast-grep)"
         run: uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan
-      
-      
       # Duplication — the DRY axis (jscpd) the coupling tools can't see. Threshold in devtools/jscpd.json.
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
       - name: Duplication — enforced (jscpd, DRY axis; blocks over threshold)
         run: npx --yes jscpd core surfscan --config devtools/jscpd.json
-      
 
   tests:
     runs-on: ubuntu-latest
@@ -88,21 +84,18 @@ jobs:
         if: always()
         continue-on-error: true
         run: uv run coverage report --fail-under=95 || echo "::warning::coverage below the 95% target"
-      
       # Architecture fitness — the METRIC arch axis (god-module = fan-in AND fan-out over a degree /
       # import cycle / god-file) as a GATE on the grimp+networkx import graph, the axis import-linter's
       # categorical contracts can't express. Thresholds in [tool.structure]. Runs here for the synced env.
       - name: Architecture fitness — enforced (devtools/graph.py --assert)
         run: uv run python -m devtools.graph --assert core surfscan
-      
-      
       # Class-shape smells — ADVISORY explorers (never block): LCOM4 cohesion, Fowler data-clumps, and
       # namespace-classes with latent shared state. Heuristics that rank refactor candidates — surfaced
       # for the reviewer, never a merge gate. Each only prints a ranked report and exits 0.
-      - name: Class-shape smells — advisory (LCOM / data-clumps / namespace-state)
+      - name: Class-shape + magic-literal smells — advisory (LCOM / data-clumps / namespace-state / literals)
         continue-on-error: true
         run: |
           uv run python -m devtools.state_candidates core surfscan
           uv run python -m devtools.lcom core surfscan
           uv run python -m devtools.data_clumps core surfscan
-      
+          uv run python -m devtools.magic_literals core surfscan

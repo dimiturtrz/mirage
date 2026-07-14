@@ -6,7 +6,7 @@ repos:
     hooks:
       - id: ruff-gate
         name: ruff — enforced (full select)
-        entry: uvx ruff@0.15.13 check core surfscan --select F,B,E501,I,T201,FBT,BLE001,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100
+        entry: uvx ruff@0.15.13 check core surfscan --select F,B,E501,I,T201,FBT,BLE001,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100,SIM
         language: system
         pass_filenames: false
         always_run: true
@@ -33,23 +33,20 @@ repos:
         pass_filenames: false
         always_run: true
       
-      
       - id: arch-fitness
         name: architecture fitness (graph.py --assert)
         entry: uv run --extra devtools python -m devtools.graph --assert core surfscan
         language: system
         pass_filenames: false
         always_run: true
-      
-      
+
       - id: astgrep-gate
         name: ast-grep — module shape
         entry: uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan
         language: system
         pass_filenames: false
         always_run: true
-      
-      
+
       # Class-shape smells — advisory explorers (LCOM4 cohesion / Fowler data-clumps / namespace-state).
       # They only print a ranked report and always exit 0, so as commit hooks they surface findings
       # without ever blocking — advisory by construction, not by continue-on-error.
@@ -71,5 +68,10 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-      
+      - id: magic-literals
+        name: magic-literals — recurring string vocab + dict schemas (advisory)
+        entry: uv run python -m devtools.magic_literals core surfscan
+        language: system
+        pass_filenames: false
+        always_run: true
       

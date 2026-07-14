@@ -15,7 +15,7 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | **PatchCore (feature memory bank)** — ours | rgb | 0.838 [0.812, 0.866] | 0.902 [0.892, 0.910] |
 | Feature-recon / RD4AD-lite — ours | rgb | 0.805 [0.777, 0.833] | 0.907 [0.899, 0.915] |
 | Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.782 | 0.904 |
-| SOTA (DCRDF-Net) ⚠ | rgb + 3D | ~0.97 | ~0.99 |
+| SOTA (DCRDF-Net)† | rgb + 3D | ~0.97 | ~0.99 |
 <!-- /results:methods -->
 
 <sub>¹ fused all-10 (0.904) is **net-neutral** vs rgb-only (0.908): it *helps* where geometry is decent (bagel 0.928→0.937, carrot) but *hurts* where our weak BTF geometry is bad (cookie, foam). Our BTF is preprocessing-limited (below), so fusion can't pay until native-res FPFH lands — a reported negative: rgb-only is the current deployable.</sub>
@@ -124,7 +124,9 @@ the working paradigm (feature memory bank) standing near SOTA at **0.91** with t
 not the single number.
 
 *Reproduce: `python -m surfscan.run vae` (reconstruction) · `... run patchcore` · `... run btf`.
-⚠ = verify against the primary source before any public claim.*
+† = verified against the primary source. SOTA row: DCRDF-Net (Wang, Chen, Zhang), *Sensors* 26(2):412,
+2026, [doi:10.3390/s26020412](https://doi.org/10.3390/s26020412) — dual-channel reverse-distillation
+RGB+3D fusion, mean I-AUROC 0.971 / pixel PRO 0.988. Classic reference: M3DM (CVPR 2023) 0.945/0.964.*
 
 
 ## Drill: where PatchCore's ceiling actually is (decisive)

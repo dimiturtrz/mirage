@@ -1,28 +1,57 @@
-# Python
+# Python bytecode / build
 __pycache__/
-*.py[cod]
+*.pyc
 *.egg-info/
-.eggs/
-build/
-dist/
-.venv/
-venv/
-.env
 
-# Local machine config — the data root lives outside the repo
-paths.yaml
+# Test / lint / type caches
+.pytest_cache/
+.ruff_cache/
+.import_linter_cache/
+.grimp_cache/
+
+# Virtualenv
+.venv/
+
+# Logs / local DBs — anchored to root (`/logs/`, not `logs/`, so a source dir named logs/ isn't ignored)
+/logs/
+*.db
+
+# External git-repo deps: checked out under external/, never vendored. Anchored — a package may
+# legitimately have an `external/` submodule.
+/external/
+
+# Coverage artifacts
+.coverage*
+coverage.xml
+htmlcov/
 
 # Private/local-only docs (generic pattern — reveals no intent in the ignore list itself)
 *.local.md
 .local/
 
-# sim engine scratch (Replicator smoke renders)
-sim/_smoke_out/
+# ML workflow: data lives OUTSIDE the repo (paths.yaml points at it), MLflow tracking, training runs.
+# Anchored to root (`/data/`, not `data/`) so a source package like core/data/ isn't silently
+# untracked, hiding its tests (bd hhy).
+/data/
+/paths.yaml
+/runs/
+/mlruns/
 
-# Data / weights / artifacts (never commit large or licensed data)
-data/raw/
-data/processed/
+# Beads / Dolt engine bits (issues.jsonl is tracked; the embedded engine is not)
+.dolt/
+.beads/*.db
+.beads-credential-key
+
+# jscpd (node) — pulled transiently by npx for the duplication gate
+node_modules/
+
+# --- mirage-specific (domain extras the template does not ship) ---
+# Datasets / weights / large or licensed artifacts (never commit)
 datasets/
+mlflow.db
+mlartifacts/
+checkpoints/
+wandb/
 *.bin
 *.pcd
 *.npy
@@ -30,51 +59,15 @@ datasets/
 *.pth
 *.onnx
 *.engine
-mlflow.db
-mlartifacts/
-mlruns/
-checkpoints/
-logs/
-wandb/
+
+# Web viewer data (MVTec-derived, CC BY-NC-SA — generate locally, do not redistribute)
+pointcloud-viewer/data/
+
+# sim engine scratch (Replicator smoke renders)
+sim/_smoke_out/
 
 # Editor / OS
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
-
-# Beads / Dolt files (added by bd init)
-.dolt/
-*.db
-.beads-credential-key
-
-# Web viewer data (MVTec-derived, CC BY-NC-SA — generate locally, do not redistribute)
-pointcloud-viewer/data/
-.coverage
-
-# external git-repo deps: checked out, never vendored (CLAUDE.md)
-external/
-
-# --- from sdlc-scaffold ---
-# Beads / Dolt engine bits (issues.jsonl is tracked; the embedded engine is not)
-# Coverage artifacts
-# Data lives OUTSIDE the repo (paths.yaml points at it); never commit datasets/weights.
-# External git-repo deps: checked out under external/, never vendored.
-# MLflow local tracking store
-# Python bytecode / build
-# Run outputs / logs / local DBs
-# Test / lint / type caches
-# Virtualenv
-# jscpd (node) — pulled transiently by npx for the duplication gate
-*.pyc
-.beads/*.db
-.coverage*
-.grimp_cache/
-.import_linter_cache/
-.pytest_cache/
-.ruff_cache/
-coverage.xml
-/data/
-htmlcov/
-node_modules/
-runs/

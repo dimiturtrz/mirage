@@ -35,7 +35,7 @@ contribution.
 
 ## Coverage checklist (✅ theory done · ⬜ pending)
 - [x] FPFH, surface normals, neighborhoods — handcrafted geometric descriptor (`2026-06-25`)
-- [x] DRAEM synthesis: realism-vs-signal, multi-seed discipline (`2026-07-06_draem-synthesis-comparison`)
+- [x] DRAEM synthesis: realism-vs-signal, multi-seed discipline (`interpretations/synthesis/2026-07-06_draem-synthesis-comparison`)
 - [ ] **the anomaly paradigms + why feature-space beats pixel reconstruction** ← THE headline; next
 - [ ] PatchCore mechanism (frozen features, coreset, NN-distance)
 - [ ] 3D data representation (position map, point cloud, 2.5D, background/valid mask)

@@ -25,7 +25,7 @@
       "paradigm": "synthesis-discriminative",
       "img_auroc": 0.79,
       "au_pro": 0.32,
-      "note": "BAGEL-ONLY 3-seed. Surface-normal displacement (core/geometry.grid_normals) fixed the v2 z-axis bug: au_pro tied with Perlin (0.32±0.07 vs 0.36±0.09, bands overlap), img_auroc higher on all 3 seeds — decisively on 2, seed-1 a near dead-heat (mean 0.79 vs 0.61). See learning/2026-07-06_draem-synthesis-comparison.md."
+      "note": "BAGEL-ONLY 3-seed. Surface-normal displacement (core/geometry.grid_normals) fixed the v2 z-axis bug: au_pro tied with Perlin (0.32±0.07 vs 0.36±0.09, bands overlap), img_auroc higher on all 3 seeds — decisively on 2, seed-1 a near dead-heat (mean 0.79 vs 0.61). See interpretations/synthesis/2026-07-06_draem-synthesis-comparison.md."
     },
     {
       "name": "BTF (FPFH memory bank)",

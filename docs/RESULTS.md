@@ -36,7 +36,7 @@ normal**, so on the bagel's curved sides a "dent" was a lateral shear. **Fixed (
 Perlin, the deficit gone)** and **0.79 img_auroc vs Perlin 0.61 (higher on all 3 seeds, decisively on 2 —
 seed-1 a near dead-heat)**. So realistic-normal is now *tied on localization, better on image-detection*. The eval spine refuted the assumption, exposed
 a cherry-picked number, then caught the over-correction. See
-`learning/2026-07-06_draem-synthesis-comparison.md`.
+`interpretations/synthesis/2026-07-06_draem-synthesis-comparison.md`.
 
 ### Per-defect-type (PatchCore-rgb, pooled across categories)
 Most defect types localize 0.87–0.96 AU-PRO; weak spots: **thread 0.59**, color hardest to *detect*
@@ -78,7 +78,7 @@ rgb, early-stopped, **ONE deterministic run** with a **bootstrap CI** over the s
 from the test-set N, not a cross-seed std). Only the label source varies → the drop IS the sim-to-real gap.
 The GAP and DA-CLOSURE deltas carry a **paired** bootstrap CI (same resampled eval images hit both arms, so
 shared noise cancels). Full method +
-diagnosis → [`learning/2026-07-08_sim-to-real-triad.md`](../learning/2026-07-08_sim-to-real-triad.md).
+diagnosis → [`interpretations/sim-to-real/2026-07-08_sim-to-real-triad.md`](../interpretations/sim-to-real/2026-07-08_sim-to-real-triad.md).
 
 <!-- results:triad -->
 | arm | au_pro [95% boot CI] | img-AUROC | ECE |

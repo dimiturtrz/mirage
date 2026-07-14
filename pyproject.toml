@@ -62,7 +62,7 @@ addopts = "--import-mode=importlib"
 [tool.ruff]
 line-length = 120
 # >>> LOCAL-SLOT: ruff-exclude — edit freely, the template will not overwrite intent here
-extend-exclude = ["sim", "docs", "learning", "research"]   # sim/ has its own isaacsim env; docs/learning/research aren't lint targets
+extend-exclude = ["sim", "docs", "learning", "research", "interpretations"]   # sim/ has its own isaacsim env; docs/learning/research/interpretations aren't lint targets
 # <<< LOCAL-SLOT: ruff-exclude
 
 [tool.ruff.lint]

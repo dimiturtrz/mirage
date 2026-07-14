@@ -1,0 +1,88 @@
+"""Task runner for mirage.
+
+Every session shells out to ``uvx``/``uv run`` with pinned tool versions so a local ``nox`` run
+executes exactly what CI executes. Sessions declare ``venv_backend="none"`` — nox does not build an
+environment; ``uv`` owns dependency resolution.
+"""
+
+import nox
+
+nox.options.sessions = ["lint", "test", "cov"]
+
+RUFF = "ruff@0.15.13"
+VULTURE = "vulture@2.16"
+SELECT = "F,B,E501,I,T201,FBT,BLE001,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100"
+LAYERS = ["core", "surfscan"]
+
+
+@nox.session(venv_backend="none")
+def lint(session: nox.Session) -> None:
+    """ruff check (enforced) + ruff format --check (advisory) + vulture + import-linter + arch-fitness."""
+    session.run("uvx", RUFF, "check", *LAYERS, "--select", SELECT, external=True)
+    # Advisory (mirrors CI, never blocks): full curated config over the whole tree + format drift.
+    session.run("uvx", RUFF, "check", ".", "--statistics", external=True, success_codes=[0, 1])
+    session.run("uvx", RUFF, "format", "--check", ".", external=True, success_codes=[0, 1])
+    session.run("uvx", VULTURE, *LAYERS, "--min-confidence", "80", external=True)
+    # Advisory: conf60 dead-code (real signal, but eats no-fan-in FPs so it can't block). vulture exits 3
+    # when it finds dead code — success_codes swallows that (0=clean, 3=found), only a usage error blocks.
+    session.run("uvx", VULTURE, *LAYERS, "--min-confidence", "60", external=True, success_codes=[0, 3])
+    session.run("uvx", "--from", "import-linter", "lint-imports", external=True)
+    # --extra devtools: graph.py needs grimp+networkx (optional extra), same as CI's synced tests job.
+    session.run(
+        "uv", "run", "--extra", "devtools", "python", "-m", "devtools.graph", "--assert", *LAYERS, external=True
+    )
+    session.run(
+        "uvx",
+        "--from",
+        "ast-grep-cli",
+        "ast-grep",
+        "scan",
+        "-c",
+        "devtools/sgconfig.yml",
+        *LAYERS,
+        external=True,
+    )
+    # DRY gate — ENFORCED (blocks over the jscpd.json threshold), matching the cardiac/mindscape majority.
+    session.run(
+        "npx",
+        "--yes",
+        "jscpd",
+        *LAYERS,
+        "--config",
+        "devtools/jscpd.json",
+        external=True,
+    )
+    # Advisory class-shape explorers — print a ranked report, always exit 0 (never block).
+    for _tool in ("state_candidates", "lcom", "data_clumps"):
+        session.run("uv", "run", "python", "-m", f"devtools.{_tool}", *LAYERS, external=True)
+
+
+@nox.session(venv_backend="none")
+def test(session: nox.Session) -> None:
+    """pytest."""
+    session.run("uv", "run", "pytest", "tests", "-q", external=True)
+
+
+@nox.session(venv_backend="none")
+def cov(session: nox.Session) -> None:
+    """pytest with coverage, failing under the floor."""
+    session.run(
+        "uv",
+        "run",
+        "pytest",
+        "tests",
+        "--cov",
+        "--cov-report=term-missing",
+        external=True,
+    )
+    session.run("uv", "run", "coverage", "report", "--fail-under=80", external=True)
+    # Advisory: 95% target — warns, never fails (coverage exits 2 when under; success_codes swallows it).
+    session.run("uv", "run", "coverage", "report", "--fail-under=95", external=True, success_codes=[0, 2])
+
+
+@nox.session(venv_backend="none")
+def gates(session: nox.Session) -> None:
+    """Run every gate: lint + test + cov."""
+    lint(session)
+    test(session)
+    cov(session)

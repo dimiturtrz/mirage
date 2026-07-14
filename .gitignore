@@ -54,3 +54,27 @@ pointcloud-viewer/data/
 
 # external git-repo deps: checked out, never vendored (CLAUDE.md)
 external/
+
+# --- from sdlc-scaffold ---
+# Beads / Dolt engine bits (issues.jsonl is tracked; the embedded engine is not)
+# Coverage artifacts
+# Data lives OUTSIDE the repo (paths.yaml points at it); never commit datasets/weights.
+# External git-repo deps: checked out under external/, never vendored.
+# MLflow local tracking store
+# Python bytecode / build
+# Run outputs / logs / local DBs
+# Test / lint / type caches
+# Virtualenv
+# jscpd (node) — pulled transiently by npx for the duplication gate
+*.pyc
+.beads/*.db
+.coverage*
+.grimp_cache/
+.import_linter_cache/
+.pytest_cache/
+.ruff_cache/
+coverage.xml
+data/
+htmlcov/
+node_modules/
+runs/

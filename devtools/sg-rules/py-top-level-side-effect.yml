@@ -3,7 +3,7 @@
 # `log = getLogger(...)` assignments, and the `if __name__ == "__main__"` block are fine — this targets a
 # top-level expression-statement that IS a call. `matplotlib.use(...)` is exempt: the Agg backend MUST be
 # selected at module scope before pyplot imports, so it's a required top-level call, not a smell.
-# BLOCKING (severity error): clean today, so it ratchets — a new accidental import-time call fails.
+# Severity `error`: clean on a fresh project, so it ratchets — a new accidental import-time call fails.
 id: py-top-level-side-effect
 language: python
 severity: error

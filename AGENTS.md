@@ -83,7 +83,7 @@ uvx vulture@2.16 --min-confidence 80          # dead code (blocks ≥80)
 uvx --from import-linter lint-imports         # core = independent kernel (imports no surfscan)
 uv run python -m devtools.graph --assert      # arch fitness: god-module / god-file / cycle
 uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan   # no import-time side-effects
-uv run python -m devtools.shape_contracts     # shape contracts (advisory): jaxtyping shapes on array/tensor boundaries
+uv run python -m devtools.shape_contracts core surfscan --assert   # shape contracts (enforced): jaxtyping shapes on array/tensor boundaries
 npx --yes jscpd@4 core surfscan --config devtools/jscpd.json                    # duplication (advisory)
 ```
 

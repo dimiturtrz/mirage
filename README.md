@@ -41,19 +41,33 @@ nearest-neighbour distance — no rebuilding at all) and **reconstruction moved 
 multimodal RGB+3D fusion (M3DM through current DCRDF-Net ~0.99), not bank/resolution tuning. The contribution is the eval rigor + the
 measured mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg) reported its triad.
 
-## The hard question (Stage 1, the differentiator)
-The easy demo trains on real defects and reports a flattering number. The real questions: can a model
+## Stage 1 — the sim-to-real gap, measured (the differentiator)
+The easy demo trains on real defects and reports a flattering number. The real question: can a model
 trained on **synthetic** defects detect **real** ones, *how much does it lose*, and is it **calibrated**
-under that shift? Sim-to-real for 3D anomaly is only now being charted — [SiM3D](https://arxiv.org/abs/2506.21549)
-(2025) is the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real). A physics-based
-*defect-generation* engine + closed-loop curriculum + a measured gap on commodity MVTec-style
-scans is still open ground — that's the contribution.
+under that shift? Stage 1 answers it with a **measured triad** — one segmenter, three label sources, one
+shared real eval half, bootstrap CIs from a single deterministic run:
+
+| arm | AU-PRO [95% CI] | ECE |
+|---|---|---|
+| real → real (ceiling) | 0.794 [0.772, 0.813] | 0.010 |
+| synth → real (**the gap**) | 0.628 [0.604, 0.650] | 0.075 |
+| synth + DA → real (AdaBN) | 0.643 [0.618, 0.669] | 0.076 |
+
+**Sim-to-real gap = 0.166 AU-PRO [0.141, 0.190]** (paired bootstrap, clears 0 — a real gap). Domain
+adaptation (AdaBN) adds only **+0.015 [−0.000, 0.030]** — not significant, and doesn't restore calibration:
+a reported negative, kept. The lever that *did* move the number was **not overtraining on synthetic**
+(early-stopping on a held-out synth val lifted synth→real 0.54 → 0.63). Full method + diagnosis →
+[`docs/RESULTS.md`](docs/RESULTS.md).
+
+Sim-to-real for 3D anomaly is only now being charted ([SiM3D](https://arxiv.org/abs/2506.21549), 2025 — the
+first synthetic→real benchmark, single-instance CAD→real). What's still open — a physics-based generator
+that shrinks the gap **at the source**, and a closed-loop curriculum — is the forward edge, not the whole task.
 
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
-- **Sim-to-real gap is real and open.** Synthetic-trained → real is **0.166 AU-PRO** below the real-trained
-  ceiling [0.141, 0.190] (paired bootstrap, clears 0). Domain adaptation (AdaBN) does **not** significantly
-  close it (+0.015 [−0.000, 0.030]) — a reported negative, kept.
+- **Sim-to-real gap is real and open (0.166 AU-PRO).** Domain adaptation doesn't significantly close it
+  (see [Stage 1](#stage-1--the-sim-to-real-gap-measured-the-differentiator)); the physics generator that
+  shrinks it at the source is the forward work.
 - **PatchCore is rgb-only + random coreset.** The ~3-pt gap to SOTA (~0.96) is **3D-feature fusion** (M3DM) +
   greedy coreset — named and measured, not bank or resolution tuning (rgb tops out ~0.93).
 - **Our BTF underperforms paper-BTF** (0.65 vs ~0.96): FPFH runs on the 256-resized / grazing-noisy processed

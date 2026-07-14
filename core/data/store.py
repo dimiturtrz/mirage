@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +26,24 @@ from core.data import preprocess as pp
 from core.obs import Obs
 
 log = Obs.get()
+
+
+@dataclass(frozen=True)
+class Source:
+    """A raw MVTec-layout dataset + its processed-store namespace. `real` = the MVTec download;
+    `twin` = the rendered digital-twin scans — same schema, a parallel store, so the triad can
+    swap the training good/defect source without touching the loaders."""
+
+    name: str
+    root: Path
+
+    @staticmethod
+    def real() -> "Source":
+        return Source("mvtec3d", config.Config.mvtec_root())
+
+    @staticmethod
+    def twin() -> "Source":
+        return Source("twin", config.Config.twin_synth_root())
 
 # unified cloud columns. `file` -> the npz in data/; `raw_*` -> the original channels.
 META_FIELDS = ["sample_id", "category", "split", "defect", "label", "has_gt", "file",
@@ -39,8 +58,9 @@ class Store:
         return f"s{size}_so{nb}-{str(std).replace('.', 'p')}"
 
     @staticmethod
-    def dataset_dir(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD) -> Path:
-        return config.Config.processed_dir() / "mvtec3d" / Store.param_key(size, nb, std)
+    def dataset_dir(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, source=None) -> Path:
+        src = source or Source.real()
+        return config.Config.processed_dir() / src.name / Store.param_key(size, nb, std)
 
     @staticmethod
     def _row(s: mvtec.Sample, arr: dict, file: str) -> dict:
@@ -67,13 +87,14 @@ class Store:
         return {k: dt(k) for k in META_FIELDS}
 
     @staticmethod
-    def build(p=None, cats=None, workers=None, *, rebuild=False) -> Path:  # pragma: no cover  disk write
-        """Consolidate into processed/mvtec3d/<paramkey>/. Process-if-missing; (re)writes meta.csv."""
+    def build(p=None, cats=None, workers=None, source=None, *, rebuild=False) -> Path:  # pragma: no cover  disk write
+        """Consolidate into processed/<source>/<paramkey>/. Process-if-missing; (re)writes meta.csv."""
         p = p or pp.PP()
-        out = Store.dataset_dir(p.size, p.nb, p.std)
+        src = source or Source.real()
+        out = Store.dataset_dir(p.size, p.nb, p.std, src)
         data_dir = out / "data"
         data_dir.mkdir(parents=True, exist_ok=True)
-        samples = mvtec.Mvtec().samples(cats=cats)
+        samples = mvtec.Mvtec(src.root).samples(cats=cats)
         todo = samples if rebuild else [s for s in samples if not (data_dir / f"{s.sample_id}.npz").exists()]
 
         def _one(s: mvtec.Sample):
@@ -95,13 +116,14 @@ class Store:
         return out
 
     @staticmethod
-    def load(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, cats=None, workers=None) -> pl.DataFrame:  # pragma: no cover
+    def load(size=pp.SIZE, cats=None, source=None) -> pl.DataFrame:  # pragma: no cover
         """Ensure consolidated, return one polars frame (the cloud) with an absolute `path` column."""
         if size is None:                                    # callers may pass size=None -> use the default store
             size = pp.SIZE
-        out = Store.dataset_dir(size, nb, std)
+        src = source or Source.real()
+        out = Store.dataset_dir(size, pp.SO_NB, pp.SO_STD, src)
         if not (out / "meta.csv").exists():
-            Store.build(pp.PP(size=size, nb=nb, std=std), cats=cats, workers=workers)   # build takes a PP
+            Store.build(pp.PP(size=size), cats=cats, source=src)
         df = pl.read_csv(out / "meta.csv", infer_schema_length=10000)
         return df.with_columns((pl.lit(str(out / "data")) + "/" + pl.col("file")).alias("path"))
 

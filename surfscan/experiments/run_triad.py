@@ -31,6 +31,7 @@ from core.cli_config import CliConfig
 from core.compute import Compute
 from core.data.dataset import GpuSplit
 from core.data.defects import KINDS, Defects
+from core.data.store import Source
 from core.method import Method
 from core.obs import Obs
 from surfscan.dispatch import Dispatch, Spec
@@ -97,14 +98,17 @@ class TriadRun:
         return Metrics.au_pro(amaps, mask.squeeze(1).cpu().numpy().astype(bool),
                               v.squeeze(1).cpu().numpy().astype(bool))
 
-    def fit_synth(self, cat):
+    def fit_synth(self, cat, source=None):
         """Train on good scans + on-the-fly synthetic defects, EARLY-STOPPED on a held-out synth val
-        (one optimized run, best weights restored). The synth->real arm."""
+        (one optimized run, best weights restored). The synth->real arm. `source` selects the GOOD
+        scans: real (classical) or the digital twin (twin_grid arm) — same on-the-fly grid defect, so
+        the only variable is the shape source."""
         cfg, dev = self.cfg, self.dev
         ch = tuple(cfg.channels)
         rng = np.random.RandomState(cfg.seed)
         torch.manual_seed(cfg.seed)
-        good = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=ch, device=dev)
+        good = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=ch, device=dev,
+                                   source=source)
         perm = np.random.RandomState(cfg.seed).permutation(good.x.shape[0])
         nval = max(BATCH, good.x.shape[0] // VAL_FRAC)
         val_t = torch.as_tensor(perm[:nval], device=dev)
@@ -152,6 +156,27 @@ class TriadRun:
         return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"real:{cat}")).fit(
             x.shape[0], cfg.epochs, step)
 
+    def fit_twin_phys(self, cat):
+        """Train on the twin's RENDERED physical-defect scans + their depth-diff gt (all of them —
+        synthetic, so no eval leakage). The full physics-twin arm: shape AND defect come from the
+        Isaac render, scored on the shared real eval half."""
+        cfg, dev = self.cfg, self.dev
+        ch = tuple(cfg.channels)
+        torch.manual_seed(cfg.seed)
+        twin = GpuSplit.load_split(split="test", label=1, cats=[cat], channels=ch, device=dev,
+                                   source=Source.twin())
+        x, v, g = twin.x, twin.valid, twin.gt
+        model = self._new(twin.in_ch)
+        opt = optim.AdamW(model.parameters(), lr=1e-3)
+
+        def step(idx):
+            with Compute.autocast(x):
+                logits = model(x[idx].to(memory_format=torch.channels_last))
+                return F.binary_cross_entropy_with_logits(logits.float(), g[idx], weight=v[idx])
+
+        return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"twin_phys:{cat}")).fit(
+            x.shape[0], cfg.epochs, step)
+
     @staticmethod
     @torch.no_grad()
     def _adabn(model, x, passes=2, batch=BATCH):
@@ -170,6 +195,11 @@ class TriadRun:
                     model(x[i:i + batch].to(memory_format=torch.channels_last))
         model.eval()
         return model
+
+    def fit_twin_grid(self, cat):
+        """twin good scans + the same on-the-fly grid defect as classical — isolates the SHAPE source
+        (reconstructed twin vs real scan) against the classical synth arm."""
+        return self.fit_synth(cat, source=Source.twin())
 
     def fit_synth_da(self, cat):
         """synth-trained, then AdaBN-adapted to the real eval images (unlabeled). The closure arm."""
@@ -212,7 +242,8 @@ class TriadRun:
         cfg = CliConfig.build_config(TriadCfg, args)
         run = TriadRun(cfg, Compute.pick_device())
 
-        fits = {"real": run.fit_real, "synth": run.fit_synth, "synth_da": run.fit_synth_da}
+        fits = {"real": run.fit_real, "synth": run.fit_synth, "synth_da": run.fit_synth_da,
+                "twin_grid": run.fit_twin_grid, "twin_phys": run.fit_twin_phys}
         res = {}
         for arm in cfg.arms:
             tag = f"triad_{arm}" + ("_curric" if cfg.curriculum and arm != "real" else "")
@@ -248,6 +279,15 @@ class TriadRun:
             Invariants.reconciles(clo_pt, synth_ap, da_ap, "da_closure")
             log.info(f">>> DA CLOSURE (AdaBN): synth+DA {da_ap:.3f} "
                      f"(+{clo_pt:.3f} vs synth)  [{clo_lo:+.3f}, {clo_hi:+.3f}]")
+        for arm in ("twin_grid", "twin_phys"):                              # digital-twin synth sources
+            if arm in res:
+                ap = res[arm]["mean"]["au_pro"]
+                g, lo, hi = TriadRun._pro_delta_ci(res[arm], res["real"])   # real − twin (the twin gap)
+                log.info(f">>> {arm.upper()}->real gap: real {real_ap:.3f} - {arm} {ap:.3f} "
+                         f"= {g:+.3f} pp  [{lo:+.3f}, {hi:+.3f}]")
+        if "twin_grid" in res:                                             # shape-source effect (same defect)
+            d, lo, hi = TriadRun._pro_delta_ci(res["synth"], res["twin_grid"])   # twin_grid − synth
+            log.info(f">>> SHAPE-SOURCE (twin_grid - synth, same defect): {d:+.3f} pp  [{lo:+.3f}, {hi:+.3f}]")
 
 
 SPEC = Spec("triad", TriadRun.args, TriadRun.run)

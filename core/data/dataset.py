@@ -45,9 +45,9 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
 
     @staticmethod
     def load_split(split=None, label=None, cats=None, channels=("xyz",),  # noqa: PLR0913  # pragma: no cover  store query + GpuSplit (disk)
-                   device="cuda", size=None) -> "GpuSplit":
+                   device="cuda", size=None, source=None) -> "GpuSplit":
         """Query the store (filter by split / label / category) -> GPU-resident tensors."""
-        df = store.Store.load(size=size or pp.SIZE)
+        df = store.Store.load(size=size or pp.SIZE, source=source)
         if cats:
             df = df.filter(pl.col("category").is_in(cats))
         if split is not None:

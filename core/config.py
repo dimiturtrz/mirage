@@ -51,3 +51,8 @@ class Config:
     def twin_dir() -> Path:
         """Reconstructed digital-twin assets (per-category meshes): <data>/twin."""
         return Config.data_root() / "twin"
+
+    @staticmethod
+    def twin_synth_root() -> Path:
+        """Rendered twin synthetic scans, MVTec layout: <data>/synth/twin."""
+        return Config.data_root() / "synth" / "twin"

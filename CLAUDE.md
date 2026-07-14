@@ -86,5 +86,5 @@ _See [`docs/PLAN.md`](docs/PLAN.md) → "Structure". Three pieces: `pipeline/` (
 ## Conventions & Patterns
 
 - Data lives OUT of the repo (licensing + size); one-root `paths.yaml`, per-source adapters → common schema.
-- `learning/<date>_<topic>.md` for theory ramp; build log = git history.
+- Three doc layers: `research/` = external / field synthesis (theirs) · `learning/<date>_<topic>.md` = the study ramp / general understanding · `interpretations/<task>/<date>_<topic>.md` = sense-making of *our own* results (per task, `converging/` for cross-task). Build log = git history; portfolio READMEs carry the result + link to the interpretation.
 - Test layout: unit (equivalence-class) + integration (module-pairs).

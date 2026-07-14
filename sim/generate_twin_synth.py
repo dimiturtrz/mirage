@@ -94,6 +94,26 @@ def jitter_pose(mesh, rng, cz):
     _ = cz
 
 
+def deform(verts, rng, sign):
+    """Physical defect: Gaussian z-displacement of a local surface patch (dent sign=+1 pushes the
+    surface away from the sensor, bump sign=-1 toward it) — the 3D-mesh analogue of the classical
+    normal-displacement defect, but rendered through the path tracer."""
+    extent = float(np.linalg.norm(verts.max(0) - verts.min(0)))
+    radius = extent * rng.uniform(0.05, 0.12)
+    amp = sign * extent * rng.uniform(0.03, 0.06)
+    c = verts[rng.randint(len(verts))]
+    w = np.exp(-((verts - c) ** 2).sum(1) / (2 * radius ** 2))
+    out = verts.copy()
+    out[:, 2] += amp * w
+    return out, abs(amp)
+
+
+def render_depth_rgb(rgb_a, dep_a):
+    for _ in range(3):
+        rep.orchestrator.step(delta_time=0.0, rt_subframes=SUBFRAMES)
+    return np.asarray(rgb_a.get_data())[..., :3], np.asarray(dep_a.get_data())
+
+
 def categories():
     if ARGS.cats:
         return ARGS.cats.split(",")
@@ -117,8 +137,8 @@ for cat in categories():
     stage = omni.usd.get_context().get_stage()
     rep.orchestrator.set_capture_on_play(False)
 
-    mesh = build_mesh(stage, verts - centroid, faces)      # centre at origin so pose jitter is about it
-    UsdGeom.XformCommonAPI(mesh.GetPrim())                  # ensure xformable
+    vc = (verts - centroid).astype(np.float32)             # centred so pose jitter + deform are local
+    mesh = build_mesh(stage, vc, faces)
     light = UsdLux.DistantLight.Define(stage, Sdf.Path("/World/Light"))
     dome = UsdLux.DomeLight.Define(stage, Sdf.Path("/World/Dome"))
 
@@ -129,26 +149,48 @@ for cat in categories():
     dep_a = rep.annotators.get("distance_to_image_plane"); dep_a.attach(rp)
     fx, fy = intrinsics(stage, ARGS.res, ARGS.res)
 
-    gdir = f"{OUT_ROOT}/{cat}/train/good"
-    os.makedirs(f"{gdir}/rgb", exist_ok=True)
-    os.makedirs(f"{gdir}/xyz", exist_ok=True)
+    def set_points(v):
+        mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
 
-    timeline.play()
-    npx = 0
-    for i in range(ARGS.views):
+    def randomize_scene():
         jitter_pose(mesh, rng, cz)
         light.CreateIntensityAttr(float(rng.uniform(2000, 4000)))
         dome.CreateIntensityAttr(float(rng.uniform(600, 1400)))
-        for _ in range(3):
-            rep.orchestrator.step(delta_time=0.0, rt_subframes=SUBFRAMES)
-        rgb = np.asarray(rgb_a.get_data())[..., :3]
-        depth = np.asarray(dep_a.get_data())
+
+    timeline.play()
+
+    gdir = f"{OUT_ROOT}/{cat}/train/good"
+    os.makedirs(f"{gdir}/rgb", exist_ok=True); os.makedirs(f"{gdir}/xyz", exist_ok=True)
+    npx = 0
+    for i in range(ARGS.views):
+        set_points(vc); randomize_scene()
+        rgb, depth = render_depth_rgb(rgb_a, dep_a)
         xyz = backproject(depth, fx, fy)
         Image.fromarray(rgb.astype(np.uint8)).save(f"{gdir}/rgb/{i:03d}.png")
         tifffile.imwrite(f"{gdir}/xyz/{i:03d}.tiff", xyz)
         npx += int((np.abs(xyz).sum(-1) > 0).sum())
+
+    n_def = max(1, ARGS.views // 3)
+    for dtype, sign in [("dent", 1.0), ("bump", -1.0)]:
+        ddir = f"{OUT_ROOT}/{cat}/test/{dtype}"
+        for sub in ("rgb", "xyz", "gt"):
+            os.makedirs(f"{ddir}/{sub}", exist_ok=True)
+        for i in range(n_def):
+            set_points(vc); randomize_scene()
+            _, good_depth = render_depth_rgb(rgb_a, dep_a)          # baseline at this exact pose
+            dverts, amp = deform(vc, rng, sign)
+            set_points(dverts)
+            rgb, depth = render_depth_rgb(rgb_a, dep_a)             # defect at the same pose
+            xyz = backproject(depth, fx, fy)
+            obj = np.isfinite(depth) & np.isfinite(good_depth)
+            gt = (obj & (np.abs(depth - good_depth) > amp * 0.3)).astype(np.uint8) * 255
+            Image.fromarray(rgb.astype(np.uint8)).save(f"{ddir}/rgb/{i:03d}.png")
+            tifffile.imwrite(f"{ddir}/xyz/{i:03d}.tiff", xyz)
+            Image.fromarray(gt).save(f"{ddir}/gt/{i:03d}.png")
+
     timeline.stop()
-    print(f"CAT {cat:12s} views={ARGS.views} mean_obj_px={npx // ARGS.views} -> {gdir}", flush=True)
+    print(f"CAT {cat:12s} good={ARGS.views} defect={2 * n_def} mean_obj_px={npx // ARGS.views}",
+          flush=True)
 
 print("DONE", flush=True)
 app.close()

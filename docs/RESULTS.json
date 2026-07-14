@@ -79,8 +79,8 @@
     "modality": "rgb + 3D",
     "img_auroc": 0.971,
     "au_pro": 0.988,
-    "cite": "DCRDF-Net 2026 (PMC12846035) — current top; M3DM CVPR2023 (0.945/0.964) is the classic reference. Field cluster 2025-26: MMRD 0.950/0.976 · Shape-Guided 0.947/0.976.",
-    "verified": "2026-07-06"
+    "cite": "DCRDF-Net 2026 (Sensors 26(2):412, doi:10.3390/s26020412, PMC12846035) — current top; M3DM CVPR2023 (0.945/0.964) is the classic reference. Field cluster 2025-26: MMRD 0.950/0.976 · Shape-Guided 0.947/0.976.",
+    "verified": "2026-07-14"
   },
   "patchcore_per_category": [
     {

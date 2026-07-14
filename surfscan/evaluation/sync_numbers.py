@@ -48,7 +48,8 @@ class NumberSync:
             rows.append(f"| {name} — ours | {m['modality']} | {NumberSync._ci(m, 'img_auroc')} "
                         f"| {NumberSync._ci(m, 'au_pro')} |")
         s = R["sota"]
-        rows.append(f"| SOTA ({s['name']}) ⚠ | {s['modality']} | ~{s['img_auroc']:.2f} | ~{s['au_pro']:.2f} |")
+        mark = "†" if s.get("verified") else " ⚠"
+        rows.append(f"| SOTA ({s['name']}){mark} | {s['modality']} | ~{s['img_auroc']:.2f} | ~{s['au_pro']:.2f} |")
         return "\n".join(rows)
 
     @staticmethod

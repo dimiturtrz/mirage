@@ -27,7 +27,7 @@ eval harness (image-AUROC + pixel-AU-PRO). Full table + diagnostics → [`docs/R
 | method | paradigm | pixel AU-PRO |
 |---|---|---|
 | VAE / inpaint / DRAEM / fused (4+ variants) | reconstruct pixels → error | **0.095** (≈ random) |
-| **PatchCore** (the deployable) | **memory bank** — nearest-neighbour to normal features, *no reconstruction* | **0.91** |
+| **PatchCore** (the deployable) | **memory bank** — nearest-neighbour to normal features, *no reconstruction* | **0.90** |
 | feature-recon | reconstruct *features* → error | 0.91 |
 | SOTA (multimodal fusion, *papers*) | RGB + 3D geometry fusion (M3DM 0.96 → DCRDF-Net 0.99) | ~0.96–0.99 |
 
@@ -36,7 +36,7 @@ then *diagnosed*: raw-residual tracks geometric **complexity** (a curved rim is 
 **defect-ness** (a smooth defect rebuilds fine → low residual). What works is **"compare to normal"** —
 and two *different* paradigms get there: a **memory bank** (PatchCore: store normal features, score by
 nearest-neighbour distance — no rebuilding at all) and **reconstruction moved into feature space**
-(feature-recon). Both 0.91. The deployable is the memory bank. The gap to SOTA is named and measured:
+(feature-recon). Both land ~0.90–0.91. The deployable is the memory bank. The gap to SOTA is named and measured:
 multimodal RGB+3D fusion (M3DM through current DCRDF-Net ~0.99), not bank/resolution tuning. The contribution is the eval rigor + the
 measured mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg) reported its triad.
 

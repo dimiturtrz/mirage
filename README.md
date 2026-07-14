@@ -16,9 +16,8 @@ detector + an eval harness on **real** data and runs a like-for-like comparison 
 a **synthetic-defect generator** and measures the **sim-to-real gap**.
 
 It's also how **I'm** ramping into 3D perception: built on public data, the data-engine + evaluation
-discipline carried from prior acoustic-detection work, the 3D modality learned as I go. Sibling project,
-same philosophy, different domain: [systole](https://github.com/dimiturtrz/cardiac-seg) (cardiac MRI →
-ejection fraction, rigorously evaluated). Full plan → **[docs/PLAN.md](docs/PLAN.md)**.
+discipline carried from prior acoustic-detection work, the 3D modality learned as I go. Full plan →
+**[docs/PLAN.md](docs/PLAN.md)**.
 
 ## Stage 0 result — the measured investigation
 Not a leaderboard number — the *measured contrast*. Per-category models, scored through one verified

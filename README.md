@@ -1,6 +1,7 @@
-# mirage
+# mirage — physics-based synthetic-data engine for 3D anomaly detection + robust sim-to-real eval
 
-**Personal learning project — 3D surface-defect anomaly detection on MVTec 3D-AD, toward a physics-based synthetic-data engine and robust sim-to-real evaluation. Edge-deployable.**
+**Personal learning project.** 3D surface-defect anomaly detection on MVTec 3D-AD, toward a physics-based
+synthetic-defect generator and the **sim-to-real gap** measurement the field lacks. Edge-deployable.
 
 > Working name `mirage` (synthetic that must survive contact with the real). Repo folder may differ.
 
@@ -15,10 +16,10 @@ detector + a rigorous eval harness on **real** data and runs a like-for-like com
 differentiator (Stage 1) is a **synthetic-defect generator** + the **sim-to-real gap** measurement the
 field lacks.
 
-It's also how I'm ramping into 3D perception: the data-engine + evaluation discipline carry over from
-prior acoustic-detection work; the 3D modality I learn as I go. Sibling project, same philosophy,
-different domain: [systole](https://github.com/dimiturtrz/cardiac-seg) (cardiac MRI → ejection fraction,
-rigorously evaluated).
+It's also how **I'm** ramping into 3D perception: built on public data, the data-engine + evaluation
+discipline carried from prior acoustic-detection work, the 3D modality learned as I go. Sibling project,
+same philosophy, different domain: [systole](https://github.com/dimiturtrz/cardiac-seg) (cardiac MRI →
+ejection fraction, rigorously evaluated). Full plan → **[docs/PLAN.md](docs/PLAN.md)**.
 
 ## Stage 0 result — the measured investigation
 Not a leaderboard number — the *measured contrast*. Per-category models, scored through one verified
@@ -47,6 +48,19 @@ under that shift? Sim-to-real for 3D anomaly is only now being charted — [SiM3
 (2025) is the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real). A physics-based
 *defect-generation* engine + closed-loop curriculum + a measured gap on commodity MVTec-style
 scans is still open ground — that's the contribution.
+
+## Limits (measured, not assumed)
+Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
+- **Sim-to-real gap is real and open.** Synthetic-trained → real is **0.166 AU-PRO** below the real-trained
+  ceiling [0.141, 0.190] (paired bootstrap, clears 0). Domain adaptation (AdaBN) does **not** significantly
+  close it (+0.015 [−0.000, 0.030]) — a reported negative, kept.
+- **PatchCore is rgb-only + random coreset.** The ~3-pt gap to SOTA (~0.96) is **3D-feature fusion** (M3DM) +
+  greedy coreset — named and measured, not bank or resolution tuning (rgb tops out ~0.93).
+- **Our BTF underperforms paper-BTF** (0.65 vs ~0.96): FPFH runs on the 256-resized / grazing-noisy processed
+  cloud, not native-resolution clean point clouds. A preprocessing limit, diagnosed, not a method failure.
+- **3D is a ramp.** The data-engine + eval discipline carry from prior work; the 3D-perception specifics are
+  the genuinely new skill, learned as I go.
+- **Not a device.** Public research data only; edge deploy is real (ONNX), production-scale serving is not claimed.
 
 ## Data
 **MVTec 3D-AD** (Bergmann et al., VISAPP 2022) — real industrial 3D anomaly benchmark, 10 categories
@@ -89,10 +103,35 @@ uv run python -m surfscan.viz show --cat bagel --split test --defect hole --idx 
 Experiment tracking is **MLflow** (canonical store: `mlflow.db` + `mlartifacts/`, gitignored) — every
 method/training run logs params, metrics (per-category + per-defect), the aggregate, and trained models.
 
+## Tests
+```bash
+uv sync --extra features
+uv run pytest tests/ -q        # unit (equivalence-class) + integration (module pairs)
+```
+Two layers: a wide **unit** base (partition each input space, one representative per class + boundaries) and
+an **integration** layer over module pairs (A's output is a valid B input). `tests/unit/` **mirrors the
+source tree** — enforced by the arch-fitness gate — so a module's tests live where the module does.
+
 ## How it's built
 Agent-driven build, human-owned judgment — the modeling, measurement correctness, and evaluation are
 mine; coding agents scaffold the plumbing. Data-structure reasoning and evaluation discipline carry over
 from prior ML work; the 3D specifics I learn as I go ([`learning/`](learning/)).
+
+## References
+- **MVTec 3D-AD** — Bergmann et al., *The MVTec 3D-AD Dataset for Unsupervised 3D Anomaly Detection and
+  Localization*, VISAPP 2022.
+- **PatchCore** — Roth et al., *Towards Total Recall in Industrial Anomaly Detection*, CVPR 2022.
+- **DRAEM** — Zavrtanik et al., *DRÆM — A Discriminatively Trained Reconstruction Embedding for Surface
+  Anomaly Detection*, ICCV 2021.
+- **Reverse Distillation (RD4AD)** — Deng & Li, *Anomaly Detection via Reverse Distillation from One-Class
+  Embedding*, CVPR 2022. (Basis for feature-recon.)
+- **BTF** — Horwitz & Hoshen, *Back to the Feature: Classical 3D Features are (Almost) All You Need for 3D
+  Anomaly Detection*, CVPR-W (VAND) 2023.
+- **M3DM** — Wang et al., *Multimodal Industrial Anomaly Detection via Hybrid Fusion*, CVPR 2023.
+- **DCRDF-Net** (current SOTA) — Wang, Chen & Zhang, *A Dual-Channel Reverse-Distillation Fusion Network for
+  3D Industrial Anomaly Detection*, Sensors 26(2):412, 2026 ([doi:10.3390/s26020412](https://doi.org/10.3390/s26020412)).
+- **SiM3D** — the first synthetic→real 3D-anomaly benchmark (single-instance, CAD→real),
+  [arXiv:2506.21549](https://arxiv.org/abs/2506.21549), 2025.
 
 ## License
 Code: see [LICENSE](LICENSE). The dataset is **not** included and carries its own license

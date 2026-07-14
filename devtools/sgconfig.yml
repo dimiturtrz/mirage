@@ -1,10 +1,5 @@
-# ast-grep (bag/ij6, qc5): the SYNTACTIC module-shape axis ruff can't express (no plugin API).
+# ast-grep: the SYNTACTIC module-shape axis ruff can't express (no plugin API).
 # Rules are data (sg-rules/*.yml, relative to this file), zero-bag: only what we author fires.
 # Run: `ast-grep scan -c devtools/sgconfig.yml <paths>`.
-#
-# Both rules are BLOCKING (severity: error): no import-time side-effect call (py-top-level-side-effect),
-# and everything-in-a-class (py-top-level-function) — every top-level `def` is a method on the class that
-# owns it (`main` exempt). The 129 free funcs were migrated to namespace classes / methods (epic qc5)
-# then the rule graduated to error, matching systole's house rule.
 ruleDirs:
   - sg-rules

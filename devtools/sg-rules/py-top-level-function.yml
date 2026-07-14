@@ -1,11 +1,10 @@
-# House rule (owner): everything meaningful is an object — a top-level function should be a method of the
-# class that owns its state/responsibility (a named, injectable seam), not a free function; a pure
-# stateless helper becomes a @staticmethod on that class. `main`/`_main` (the CLI entrypoint) is exempt.
-# GRADUATED TO BLOCKING (severity: error, qc5/bvd): the whole codebase was migrated (129 free funcs -> 0),
-# so CI now fails on any NEW top-level function. Mirrors systole's cardiac-seg-y2fi (328 -> 0 -> error).
-# Two branches: a bare `function_definition`, AND a `decorated_definition` wrapping one (so a
-# @contextmanager / @torch.no_grad() top-level func can't slip past the gate). Class methods don't match:
-# their decorated_definition sits inside the class `block`, not directly inside `module`.
+# House rule: everything meaningful is an object — a top-level function should be a method of the class
+# that owns its state/responsibility (a named, injectable seam), not a free function. `main`/`_main`
+# (the CLI entrypoint) is exempt. Severity `error`: clean on a fresh project, so it RATCHETS — CI fails
+# on any NEW top-level function.
+# Two branches: a bare `function_definition`, AND a `decorated_definition` wrapping one — so a decorated
+# free function (`@contextmanager`, `@cache`, a framework's `@torch.no_grad()`) can't slip past the gate.
+# Class methods don't match: their definition sits inside the class `block`, not directly inside `module`.
 id: py-top-level-function
 language: python
 severity: error

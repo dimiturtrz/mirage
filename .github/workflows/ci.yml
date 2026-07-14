@@ -1,16 +1,15 @@
 name: ci
 
-# Gate for the dev -> main flow: `tests` + `lint` must pass on every PR (and on pushes to main).
-# pull_request validates the dev->main PR (the MERGE PREVIEW) and reruns on every push to the PR head;
-# push:[main] is the post-merge safety net. A dev push isn't a push to main, so one event handles a
-# given commit — no double-run.
+# Gate for the dev -> main flow: `lint` + `tests` must pass on every PR (and on pushes to main).
+# Enforced as required status checks via branch protection. Shipped example code is clean, so the
+# gates BLOCK from the first generation (they are regression guards, not a mid-ratchet backlog).
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-# a newer push to the same branch cancels the older in-flight run
+# A newer push to the same ref cancels the older in-flight run (no stacking on rapid pushes).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -23,79 +22,87 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      # ENFORCED (blocks the merge): the FULL curated select is at zero on core+surfscan — the ruff
-      # ratchet is complete. Runs the whole pyproject [tool.ruff.lint].select as the merge gate.
-      - name: Lint — enforced (full curated select, at zero)
-        run: uvx ruff@0.15.13 check core surfscan
-      # ADVISORY (never blocks): full check over the whole tree.
+      # ENFORCED (blocks the merge): the full house select over shipped source. Clean on a fresh gen;
+      # catches REGRESSION (new unused import / undefined name / unsorted imports / magic number / ...).
+      - name: Lint — enforced (shipped source, full select)
+        run: uvx ruff@0.15.13 check core surfscan --select F,B,E501,I,T201,FBT,BLE001,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100
+      # ADVISORY (never blocks): full curated config over the whole tree, surfaces any pending families.
       - name: Lint — advisory full (non-blocking)
         run: uvx ruff@0.15.13 check . --statistics || true
-      # ADVISORY: `ruff format` not applied yet — shows the pending reformat, does not block.
+      # ADVISORY: format drift, shown but never blocks.
       - name: Format — advisory (non-blocking)
         run: uvx ruff@0.15.13 format --check . || true
-      # Import layers — the dependency rule as a STATIC import-graph contract (grimp engine). Enforces
-      # core = independent kernel (imports no surfscan); fails the day a new upward edge lands. Config in
-      # [tool.importlinter]. Static AST analysis — no project env needed. bag/u3i.
-      - name: Import layers — enforced (import-linter)
-        run: uvx --from import-linter lint-imports
-      # Module shape — ast-grep (bag/ij6): the SYNTACTIC axis ruff has no plugin API for. Rules are data
-      # (devtools/sg-rules/*.yml), zero-bag, severity=error (BLOCKING). Enforces no import-time side-effect
-      # call (matplotlib.use exempt) — a new bare top-level call fails CI. surfscan is functional-core, so
-      # systole's everything-in-a-class rule is deliberately NOT ported (see devtools/sgconfig.yml).
-      - name: Module shape — enforced (ast-grep)
-        run: uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan
-      # Duplication — the DRY axis (bag/ij6) coupling tools can't see. jscpd over python; threshold in
-      # devtools/jscpd.json (repo ~0.43% today = REGRESSION GUARD). ADVISORY while the Node step proves
-      # stable; graduate to blocking after.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Duplication — advisory (jscpd, warns)
-        continue-on-error: true
-        run: npx --yes jscpd@4 core surfscan --config devtools/jscpd.json
-      # Vulture — dead code, the axis ruff can't see. Config (paths/ignores) in [tool.vulture].
-      # BLOCKS at conf>=80 (near-certain: redundant conditions, unreachable, unused locals — precision
-      # high enough to fail the merge; currently zero).
+      # Dead code — the axis ruff can't see (paths/ignores in [tool.vulture]). BLOCKS at conf>=80
+      # (near-certain: unreachable, unused locals — precision high enough to fail the merge).
       - name: Dead code — enforced (vulture conf>=80)
         run: uvx vulture@2.16 --min-confidence 80
-      # WARNS at conf>=60 (dead functions/classes — real signal, but eats no-fan-in FPs so it can't
-      # block). continue-on-error keeps the job green; output reshaped to ::warning:: PR annotations.
+      # WARNS at conf>=60 (dead funcs/classes — real signal, but eats no-fan-in FPs so it can't block).
+      # continue-on-error keeps the job green (yellow); output is reshaped to ::warning:: PR annotations.
       - name: Dead code — advisory (vulture conf>=60, warns)
         continue-on-error: true
         run: |
           uvx vulture@2.16 --min-confidence 60 | sed -E 's#^([^:]+):([0-9]+): (.*)$#::warning file=\1,line=\2::\3#'
+      
+      # Import layers — ENFORCED: forbidden-import (directional) contracts, the axis graph.py's cycle
+      # check can't express (a one-way core->trainer import is no cycle). Contracts in [tool.importlinter].
+      - name: Import layers — enforced (import-linter)
+        run: uvx --from import-linter lint-imports
+      
+      
+      # Module shape — ast-grep: the SYNTACTIC axis ruff has no plugin API for (in-a-class house rule +
+      # no import-time side effects). Rules are data under devtools/sg-rules/*.yml, severity=error (BLOCKS).
+      - name: "Module shape — enforced (ast-grep)"
+        run: uvx --from ast-grep-cli ast-grep scan -c devtools/sgconfig.yml core surfscan
+      
+      
+      # Duplication — the DRY axis (jscpd) the coupling tools can't see. Threshold in devtools/jscpd.json.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Duplication — enforced (jscpd, DRY axis; blocks over threshold)
+        run: npx --yes jscpd core surfscan --config devtools/jscpd.json
+      
 
   tests:
     runs-on: ubuntu-latest
-    # no dataset on the runner -> point the data root at an empty POSIX dir so data-gated tests skip
-    # cleanly instead of erroring on a missing paths.yaml.
+    # No dataset on the runner -> point the data root at an empty POSIX dir so data-gated tests skip
+    # cleanly (adapters glob an absent raw/ -> no subjects -> pytest.skip) instead of erroring.
     env:
-      SURFSCAN_DATA: /tmp/surfscan-nodata
+      MIRAGE_DATA: /tmp/nodata
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Install dependencies (locked, + dev extra for pytest + coverage, + devtools for the arch gate)
+      - name: Install dependencies (locked, + dev/devtools extras for pytest + graph tests)
         run: uv sync --frozen --extra dev --extra devtools
-      # One instrumented run = the test gate AND the coverage data. Config in [tool.coverage.*].
+      # One instrumented run = the test gate AND the coverage data (.coverage), no double suite exec.
+      # Config (source/omit/exclude) is in [tool.coverage.*].
       - name: Tests + coverage (tests block)
         run: uv run pytest tests --cov --cov-report=term-missing -q
-      # Coverage floor — ENFORCED regression guard. Now measures LOGIC coverage (~99%): dependency
-      # boundaries (torchvision backbone / mlflow / disk / GPU / CLI) are pragma'd or omitted per
-      # [tool.coverage] with the pure cores extracted + tested. Floor sits well below current so only a
-      # real drop blocks the merge; the 95 warn flags erosion before it reaches the hard floor.
+      # Coverage floor — below the floor fails the merge. Reads the .coverage from the run above.
       - name: Coverage floor — enforced (>=80, blocks)
         run: uv run coverage report --fail-under=80
-      # Architecture fitness — the METRIC arch axis (god-module = fan-in AND fan-out both over a degree /
-      # import cycle / god-file) as a GATE on the grimp+networkx import graph, the axis import-linter's
-      # categorical contracts can't express. BLOCKS on the rules clean today (they ratchet — a new
-      # god-module/cycle/oversized file fails CI); line-floor + chokepoint are advisory. Thresholds in
-      # pyproject [tool.structure]. Runs in the tests job for the synced grimp/networkx env. bag/169.
-      - name: Architecture fitness — enforced (devtools/graph.py --assert)
-        run: uv run python -m devtools.graph --assert
-      # ADVISORY early-warning — 95 warns, never blocks (drift toward the floor surfaces here first).
+      # Coverage target — advisory (>=95 warns, never blocks). always() so it shows even if the floor failed.
       - name: Coverage target — advisory (>=95, warns)
         if: always()
         continue-on-error: true
-        run: uv run coverage report --fail-under=95 || echo "::warning::coverage below the 95% early-warning line"
+        run: uv run coverage report --fail-under=95 || echo "::warning::coverage below the 95% target"
+      
+      # Architecture fitness — the METRIC arch axis (god-module = fan-in AND fan-out over a degree /
+      # import cycle / god-file) as a GATE on the grimp+networkx import graph, the axis import-linter's
+      # categorical contracts can't express. Thresholds in [tool.structure]. Runs here for the synced env.
+      - name: Architecture fitness — enforced (devtools/graph.py --assert)
+        run: uv run python -m devtools.graph --assert core surfscan
+      
+      
+      # Class-shape smells — ADVISORY explorers (never block): LCOM4 cohesion, Fowler data-clumps, and
+      # namespace-classes with latent shared state. Heuristics that rank refactor candidates — surfaced
+      # for the reviewer, never a merge gate. Each only prints a ranked report and exits 0.
+      - name: Class-shape smells — advisory (LCOM / data-clumps / namespace-state)
+        continue-on-error: true
+        run: |
+          uv run python -m devtools.state_candidates core surfscan
+          uv run python -m devtools.lcom core surfscan
+          uv run python -m devtools.data_clumps core surfscan
+      

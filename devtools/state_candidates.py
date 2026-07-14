@@ -1,15 +1,16 @@
-"""Namespace-class detector (qc5 Phase B / 6sc): the everything-in-a-class migration folded free funcs as
-`@staticmethod`, so a class whose methods all thread the SAME param(s) is a namespace bag with LATENT
-instance state — that shared param belongs in `__init__`, not every signature. This ranks those
-promotion candidates so the cleanup is evidence-driven, not eyeballed.
+"""Namespace-class detector: a class whose methods (folded from free funcs as `@staticmethod`) all thread
+the SAME param(s) is a namespace bag with LATENT instance state — that shared param belongs in `__init__`,
+not every signature. This ranks those promotion candidates so the cleanup is evidence-driven, not
+eyeballed.
 
 Signal: for each class with >=2 staticmethods and no `__init__`, count how many methods share each param
 name; a param carried by >=half the methods (and >=2) is latent state. Score = sum of those shared
 counts, so a class where many methods thread many common params ranks highest. Dispatcher command classes
 (`add_args`+`run`) and already-stateful classes (have `__init__`) are skipped.
 
-    python -m devtools.state_candidates core surfscan
+    python -m devtools.state_candidates src mypackage
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,9 +19,7 @@ import logging
 from collections import Counter
 from pathlib import Path
 
-from core.obs import Obs
-
-log = logging.getLogger("surfscan.devtools.state_candidates")
+log = logging.getLogger("devtools.state_candidates")
 
 _SELF = {"self", "cls"}
 _MIN_METHODS = 2
@@ -28,9 +27,12 @@ _MIN_METHODS = 2
 
 def _staticmethods(cls: ast.ClassDef) -> list[ast.FunctionDef]:
     """The @staticmethod-decorated defs of a class (the migrated free funcs)."""
-    return [n for n in cls.body
-            if isinstance(n, ast.FunctionDef)
-            and any(isinstance(d, ast.Name) and d.id == "staticmethod" for d in n.decorator_list)]
+    return [
+        n
+        for n in cls.body
+        if isinstance(n, ast.FunctionDef)
+        and any(isinstance(d, ast.Name) and d.id == "staticmethod" for d in n.decorator_list)
+    ]
 
 
 def _params(fn: ast.FunctionDef) -> set[str]:
@@ -100,12 +102,12 @@ def report(rows: list[tuple[int, str, str, int, dict[str, int]]]) -> str:
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="python -m devtools.state_candidates",
-                                 description="rank namespace-classes by latent shared instance state")
-    ap.add_argument("packages", nargs="*", default=["core", "surfscan"],
-                    help="package dirs to scan (default: core surfscan)")
+    ap = argparse.ArgumentParser(
+        prog="python -m devtools.state_candidates", description="rank namespace-classes by latent shared instance state"
+    )
+    ap.add_argument("packages", nargs="*", default=["src"], help="package dirs to scan (default: src)")
     args = ap.parse_args()
-    Obs.setup()
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     rows = scan(args.packages)
     log.info("%d promotion candidates\n%s", len(rows), report(rows))
 

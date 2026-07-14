@@ -36,18 +36,12 @@ features = [
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
 all = ["pytest", "pytest-cov", "grimp", "networkx", "onnxruntime", "timm>=1.0.27", "torchvision"]  # dev+devtools+export+features
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
 
-# Architecture fitness thresholds (devtools/graph.py --assert, bag/169) — the METRIC arch axis
-# import-linter's categorical contracts can't express. BLOCKING rules start clean and ratchet:
-# god-module (fan-in AND fan-out both > bottleneck_degree), file > file_max, any import cycle. ADVISORY
-# (never blocks): line floor (file_min, OFF), betweenness > betweenness_max (noisy chokepoints).
-[tool.structure]
-bottleneck_degree = 8       # a module with BOTH fan-in and fan-out over this is a god-module
-file_max = 750              # god-file ceiling
-file_min = 0                # OFF (owner: no honest floor — small files are SSOT/strategy/shared-vocab leaves)
-betweenness_max = 0.10      # advisory chokepoint threshold
+[tool.setuptools.packages.find]
+include = ["surfscan*", "core*"]
 
 # torch + torchvision CUDA builds live on the PyTorch index, not PyPI. Pin them there explicitly so uv
 # resolves the cu130 wheels (RTX 5090) instead of CPU. `explicit` = only [tool.uv.sources] packages use it.
@@ -60,60 +54,50 @@ explicit = true
 torch = { index = "pytorch-cu130" }
 torchvision = { index = "pytorch-cu130" }
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--import-mode=importlib"
+
 [tool.ruff]
 line-length = 120
-extend-exclude = ["sim"]              # sim/ has its own isaacsim env, not part of the core lint path
+# >>> LOCAL-SLOT: ruff-exclude — edit freely, the template will not overwrite intent here
+extend-exclude = ["sim", "docs", "learning", "research"]   # sim/ has its own isaacsim env; docs/learning/research aren't lint targets
+# <<< LOCAL-SLOT: ruff-exclude
 
 [tool.ruff.lint]
-select = [
-    "F",        # pyflakes — unused imports/vars, undefined names (real bugs)
-    "B",        # bugbear — likely bugs (mutable defaults, zip-without-strict, loop-var capture)
-    "E501",     # line-too-long only (NOT E701/E702 — the `a; b` compaction stays)
-    "I",        # isort — import ordering (autofix)
-    "T201",     # print — logging is the rule
-    "FBT",      # boolean-trap — bools keyword-only
-    "BLE001",   # blind except — broad `except Exception` swallows real bugs
-    "S110",     # try-except-pass — silent swallow
-    "C901",     # mccabe complexity — the low-ifs / strategy-pattern rule
-    "PLR0912",  # too-many-branches
-    "PLR0913",  # too-many-arguments — nudges toward config objects
-    "PLR0915",  # too-many-statements
-    "PLR2004",  # magic-value-comparison — name the constant
-    "PLC0415",  # import-outside-top-level — imports at top (circulars: extract, not lazy)
-    "RUF100",   # unused-noqa — a noqa that suppresses nothing gets removed
-]
-# OFF by decision: N* (ML tensor convention — B/H/W/C/N capitals), E701/E702 (compaction kept),
-# RUF001-003 (intentional → × ± math unicode; RUF100 ON), D*/ANN* (docstrings/annotations not mandated),
-# TRY/EM/SIM/UP (opinionated churn), NPY002 (legacy np.random kept — seed-comparability with existing runs).
+select = ["F", "B", "E501", "I", "T201", "FBT", "BLE001", "S110", "C901", "PLR0912", "PLR0913", "PLR0915", "PLR2004", "PLC0415", "RUF100"]
+ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]              # re-exports are the package's public surface
-"tests/**" = ["PLR2004", "FBT"]       # literal fixtures + bool test flags are fine in tests
+"__init__.py" = ["F401"]
+"tests/**" = ["PLR2004", "FBT"]
 
 [tool.vulture]
-# dead code — the axis ruff can't see. Scan core+surfscan (NOT tests: a prod symbol referenced only by
-# a test surfaces as dead here instead of being masked by its test fan-in — the trap that fools both
-# vulture and coverage). CI blocks at conf>=80 (near-certain), warns at conf>=60 (dead funcs, has FPs).
-paths = ["core", "surfscan"]
-exclude = ["sim"]
 min_confidence = 60
 ignore_names = ["model_config"]
 ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer", "@model_serializer", "@computed_field"]
+# >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
+paths = ["core", "surfscan"]
+exclude = ["sim"]
+# <<< LOCAL-SLOT: vulture-scan
 
 [tool.coverage.run]
-# measure LIBRARY logic. omit whole-file dependency boundaries — files with no unit-testable logic left
-# in-file because the pure core is extracted out and tested:
-#   experiments/ = GPU+data CLI runners ; visualization/ = render/IO
-#   patchcore, feat_recon = import torchvision (backbone download) — greedy_coreset->coreset.py, FeatAE->feat_ae.py
-#   evaluate = mlflow model load + GPU inference glue — aggregate (harness) + scoring are the tested cores
-#   run/viz = entry shells that import the torchvision method/render registries (absent in CI) — the pure
-#             dispatch wiring lives in dispatch.py (tested); report.py stays measured (no torchvision).
-# Honesty rule: never omit a module to DODGE pure logic — extract the core and test it (as above), then omit the shell.
+# >>> LOCAL-SLOT: coverage-scan — edit freely, the template will not overwrite intent here
+# omit whole-file dependency boundaries — files with no unit-testable logic left in-file because the pure
+# core is extracted out and tested (experiments/ = GPU+data CLI runners; visualization/ = render/IO;
+# patchcore/feat_recon import torchvision; evaluate = mlflow+GPU glue; run/viz = torchvision entry shells).
+# Honesty rule: never omit a module to DODGE pure logic — extract the core and test it, then omit the shell.
 source = ["core", "surfscan"]
 omit = ["surfscan/experiments/*", "surfscan/visualization/*",
         "surfscan/models/patchcore.py", "surfscan/models/feat_recon.py",
-        "surfscan/evaluation/evaluate.py",
-        "surfscan/run.py", "surfscan/viz.py"]
+        # pure nn.Module architecture defs (no unit-testable logic; forward exercised via scoring/integration)
+        "surfscan/models/feat_ae.py", "surfscan/models/inpaint.py",
+        "surfscan/models/pointmae.py", "surfscan/models/vae.py",
+        "core/method.py",                       # NamedTuple contracts only (ScoreArrays / Method), no logic
+        "surfscan/evaluation/evaluate.py", "surfscan/evaluation/recompute.py",  # mlflow load/CLI glue; cores tested
+        "surfscan/report.py", "surfscan/run.py", "surfscan/viz.py"]  # entry-point SPEC/registry shells
+# <<< LOCAL-SLOT: coverage-scan
 
 [tool.coverage.report]
 show_missing = true
@@ -123,24 +107,34 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
     "^\\s*\\.\\.\\.$",
+    "@(abc\\.)?abstractmethod",
 ]
 
-# import-linter (grimp engine): the dependency rule as a STATIC import-graph contract, not prose. `core`
-# is the shared kernel — the anomaly methods, data adapters, eval spine — and MUST NOT import the app
-# package `surfscan` (experiments/models/training/evaluation glue). CI fails the day a new upward edge
-# lands. Mirrors systole's core-kernel contract; core imports no surfscan today, so this locks it. bag/u3i.
+
+# Directional layer gate (import-linter): forbidden-import CONTRACTS graph.py can't express — a one-way
+# `core -> surfscan` import is no cycle, so it passes the graph gate but must fail here. The gate is
+# universal (all house repos run it); the contracts are project-local, hence the slot.
 [tool.importlinter]
 root_packages = ["core", "surfscan"]
 
+# >>> LOCAL-SLOT: import-contracts — your directional layer rules. Ships the kernel-independence starter
+# (the FIRST package imports none of the others), the pattern all 3 house repos share. Add viewer/trainer
+# or domain contracts here; edit freely — copier update won't overwrite this region.
 [[tool.importlinter.contracts]]
 name = "core is an independent kernel (imports no surfscan)"
 type = "forbidden"
 source_modules = ["core"]
 forbidden_modules = ["surfscan"]
+# <<< LOCAL-SLOT: import-contracts
 
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-include = ["surfscan*", "core*"]
+# Architecture fitness thresholds read by devtools/graph.py --assert.
+[tool.structure]
+# >>> LOCAL-SLOT: arch-thresholds — tune per repo; the template ships defaults and won't churn these,
+# so a per-project override survives `copier update` without a merge conflict.
+bottleneck_degree = 8    # fan-in AND fan-out both over this = god-module
+file_max = 750           # god-file line ceiling — raise as real files grow
+file_min = 0             # advisory line floor — 0 = OFF (small files are SSOT/strategy/shared-vocab leaves)
+betweenness_max = 0.10   # advisory chokepoint threshold
+test_layout = "mirror"   # strict: every logic module <pkg>/<path>/foo.py has tests/unit/<pkg>/<path>/test_foo.py
+# <<< LOCAL-SLOT: arch-thresholds

@@ -87,3 +87,5 @@ npx --yes jscpd@4 core surfscan --config devtools/jscpd.json                    
 ```
 
 **noqa policy: bare `# noqa: RULE`** (no prose). **Everything-in-a-class** (matching systole): every top-level `def` is a method on the class that owns it (`main` exempt) — enforced by the ast-grep `py-top-level-function` rule (blocking, catches decorated defs too). Full detail in `CLAUDE.md` → "Static analysis — the gates".
+
+**Scaffolding:** the gate config, `devtools/`, and the nox/CI/pre-commit runners are **template-owned** (sdlc-scaffold via copier, version pinned in `.copier-answers.yml`) — don't hand-edit them to pass a gate; fix upstream and `uvx copier update`, or edit only within `# >>> LOCAL-SLOT` regions. See `CLAUDE.md` → "Scaffolding".

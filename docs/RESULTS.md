@@ -18,10 +18,10 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | SOTA (DCRDF-Net)† | rgb + 3D | ~0.97 | ~0.99 |
 <!-- /results:methods -->
 
-<sub>¹ fused all-10 (0.904) is **net-neutral** vs rgb-only (0.908): it *helps* where geometry is decent (bagel 0.928→0.937, carrot) but *hurts* where our weak BTF geometry is bad (cookie, foam). Our BTF is preprocessing-limited (below), so fusion can't pay until native-res FPFH lands — a reported negative: rgb-only is the current deployable.</sub>
+<sub>¹ fused all-10 (<!--r:fused.au_pro-->0.904<!--/r-->) is **net-neutral** vs rgb-only (0.908): it *helps* where geometry is decent (bagel 0.928→0.937, carrot) but *hurts* where our weak BTF geometry is bad (cookie, foam). Our BTF is preprocessing-limited (below), so fusion can't pay until native-res FPFH lands — a reported negative: rgb-only is the current deployable.</sub>
 
 **The lesson:** two *independent* feature methods — a memory bank (PatchCore) and a
-reconstruction AE (feature-recon) — both land at **AU-PRO 0.908**, vs pixel-reconstruction 0.095.
+reconstruction AE (feature-recon) — both land at **AU-PRO ~0.90**, vs pixel-reconstruction <!--r:recon.au_pro-->0.095<!--/r-->.
 So what matters isn't memory-bank-vs-reconstruction; it's the **feature space**.
 Reconstruction was never the wrong idea — *raw-pixel space* was (normal geometric complexity
 dominates the residual). Move the same reconstruction into a frozen-backbone feature space (where
@@ -42,7 +42,7 @@ a cherry-picked number, then caught the over-correction. See
 Most defect types localize 0.87–0.96 AU-PRO; weak spots: **thread 0.59**, color hardest to *detect*
 (image-AUROC 0.59). The stratified failure (like systole's EF-by-pathology).
 
-**0.095 → 0.908.** Reconstruction-residual is ≈ random at localization. The reason — *measured*
+**<!--r:recon.au_pro-->0.095<!--/r--> → <!--r:patchcore.au_pro-->0.902<!--/r-->.** Reconstruction-residual is ≈ random at localization. The reason — *measured*
 across four reconstruction variants (vanilla VAE, +dropout, masked-inpainting, rgb-fused), all
 AU-PRO ≈ 0.014–0.095:
 
@@ -88,15 +88,15 @@ diagnosis → [`learning/2026-07-08_sim-to-real-triad.md`](../learning/2026-07-0
 | synth+DA → real (AdaBN) | 0.643 [0.618, 0.669] | 0.526 | 0.076 |
 <!-- /results:triad -->
 
-- **Sim-to-real gap = 0.166 AU-PRO [0.141, 0.190]** (real 0.794 → synth 0.628, paired macro bootstrap — CI
+- **Sim-to-real gap = <!--r:triad.gap-->0.166<!--/r--> AU-PRO [<!--r:triad.gap_lo-->0.141<!--/r-->, <!--r:triad.gap_hi-->0.190<!--/r-->]** (real <!--r:triad.real.au_pro-->0.794<!--/r--> → synth <!--r:triad.synth.au_pro-->0.628<!--/r-->, paired macro bootstrap — CI
   clears 0, a real gap). One deterministic early-stopped run; power is the test-set N, not seeds.
 - **The lever is "don't overtrain on synthetic," not domain adaptation.** Early-stopping the synth arm on a
-  held-out *synth* val lifts it 0.537 → **0.628** vs the earlier over-trained run — 100 epochs memorized
+  held-out *synth* val lifts it 0.537 → **<!--r:triad.synth.au_pro-->0.628<!--/r-->** vs the earlier over-trained run — 100 epochs memorized
   synthetic artifacts that don't transfer; stopping at the synth-val plateau generalizes to real. This
   narrows the gap at the source (hypothesis: the confound is train-length + val-split, measured once).
 - **AdaBN is measured-marginal here — a reported reversal.** On the already-strong early-stopped baseline it
-  adds **+0.015 AU-PRO [−0.000, 0.030]** (CI touches 0 → *not* significant) and does **not** restore
-  calibration (ECE 0.075 → 0.076). The earlier "closes ~46% + restores calibration" was an artifact of the
+  adds **+<!--r:triad.da_closure-->0.015<!--/r--> AU-PRO [−0.000, 0.030]** (CI touches 0 → *not* significant) and does **not** restore
+  calibration (ECE <!--r:triad.synth.ece-->0.075<!--/r--> → <!--r:triad.da.ece-->0.076<!--/r-->). The earlier "closes ~46% + restores calibration" was an artifact of the
   *over-trained* baseline (0.537, ECE 0.037) leaving lots of headroom; fix the baseline and the headroom —
   and AdaBN's apparent value — mostly vanishes. Honest negative, kept.
 - **Real ceiling 0.79 < PatchCore 0.90 (unsupervised):** supervised-from-scarce-labels loses to the memory
@@ -118,7 +118,7 @@ diagnosis → [`learning/2026-07-08_sim-to-real-triad.md`](../learning/2026-07-0
 ## What this shows (not a leaderboard number)
 The result is the **contrast + the measured mechanism**: the intuitive method (reconstruction) *measured*
 failing, *diagnosed* (residual ≠ defect signal), and the working paradigm (feature memory bank) reaching
-**0.91** with the remaining gap **named** (3D fusion · greedy coreset). What this shows is the eval rigor +
+**<!--r:patchcore.au_pro-->0.902<!--/r-->** with the remaining gap **named** (3D fusion · greedy coreset). What this shows is the eval rigor +
 the like-for-like comparison, not the single number.
 
 *Reproduce: `python -m surfscan.run vae` (reconstruction) · `... run patchcore` · `... run btf`.

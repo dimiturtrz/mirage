@@ -1,5 +1,5 @@
 {
-  "_comment": "The ONE canonical source of published Stage-0 numbers. docs/RESULTS.md tables are rendered from this by surfscan/evaluation/sync_numbers.py (between <!-- results:X --> markers) so a number lives in ONE place and the docs can't drift. Curated from the measured investigation; refresh the measured entries from mlflow when reruns land. The root README stays a curated portfolio face (not synced) per CLAUDE.md.",
+  "_comment": "The ONE canonical source of published Stage-0 numbers. docs/RESULTS.md is rendered from this by surfscan/evaluation/sync_numbers.py — both the tables (between <!-- results:X --> markers) AND headline numbers restated in prose (inline <!--r:key-->value<!--/r--> spans, keys in NumberSync._refs) — so a number lives in ONE place and the docs can't drift (a test asserts render(RESULTS.md)==RESULTS.md). Curated from the measured investigation; refresh the measured entries from mlflow when reruns land. The root README stays a curated portfolio face (not synced) per CLAUDE.md.",
   "harness": "image-AUROC (detection) + pixel-AU-PRO (localization), per-category models, our runs through one harness",
   "methods": [
     {

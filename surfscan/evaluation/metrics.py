@@ -85,9 +85,9 @@ class Metrics:
     # bootstrap resamples images WITHIN each category and averages per draw (stratified). ---
 
     @staticmethod
-    def _nanmean(vals):
+    def _nanmean(values):
         """Mean over finite values -> NaN if none are finite (no 'empty slice' warning for a dead draw)."""
-        finite = [v for v in vals if not np.isnan(v)]
+        finite = [value for value in values if not np.isnan(value)]
         return float(np.mean(finite)) if finite else float("nan")
 
     @staticmethod

@@ -27,15 +27,17 @@ class InpaintAE(nn.Module):
         in_ch, base, latent, size, depth, dropout = (
             cfg.in_ch, cfg.base, cfg.latent, cfg.size, cfg.depth, cfg.dropout)
         self.in_ch, self.size, self.depth = in_ch, size, depth
-        chs = [in_ch] + [base * 2 ** i for i in range(depth)]
-        self.enc = nn.ModuleList(ConvVAE.enc_block(chs[i], chs[i + 1], dropout) for i in range(depth))
+        channels = [in_ch] + [base * 2 ** level for level in range(depth)]
+        self.enc = nn.ModuleList(
+            ConvVAE.enc_block(channels[level], channels[level + 1], dropout) for level in range(depth))
         self.feat = size // (2 ** depth)
-        self.bottleneck_ch = chs[-1]
-        flat = chs[-1] * self.feat * self.feat
-        self.fc = nn.Sequential(nn.Linear(flat, latent), nn.SiLU(), nn.Linear(latent, flat))
-        dchs = list(reversed(chs))
+        self.bottleneck_ch = channels[-1]
+        flat_dim = channels[-1] * self.feat * self.feat
+        self.fc = nn.Sequential(nn.Linear(flat_dim, latent), nn.SiLU(), nn.Linear(latent, flat_dim))
+        decoder_channels = list(reversed(channels))
         self.dec = nn.ModuleList(
-            ConvVAE.dec_block(dchs[i], dchs[i + 1], last=(i == depth - 1), p=dropout) for i in range(depth))
+            ConvVAE.dec_block(decoder_channels[level], decoder_channels[level + 1],
+                              last=(level == depth - 1), p=dropout) for level in range(depth))
 
     def forward(self, x):
         for b in self.enc:

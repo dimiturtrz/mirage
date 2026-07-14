@@ -21,45 +21,46 @@ class Invariants:
     """Assert a run's reported numbers are internally consistent (the guardrail against silent-wrong)."""
 
     @staticmethod
-    def check(res, *, strict=False):
+    def check(result, *, strict=False):
         """-> list of violation messages (empty = clean). Logs each loudly; raises if `strict`."""
-        violations = Invariants._brackets(res) + Invariants._ci_matches_mean(res) + Invariants._ece_bounded(res)
-        for m in violations:
-            log.warning(f"INVARIANT VIOLATION: {m}")
+        violations = (Invariants._brackets(result) + Invariants._ci_matches_mean(result)
+                      + Invariants._ece_bounded(result))
+        for msg in violations:
+            log.warning(f"INVARIANT VIOLATION: {msg}")
         if strict and violations:
             raise AssertionError("; ".join(violations))
         return violations
 
     @staticmethod
-    def _finite(*xs):
-        return all(not np.isnan(x) for x in xs)            # skip undefined (NaN) metrics
+    def _finite(*values):
+        return all(not np.isnan(value) for value in values)   # skip undefined (NaN) metrics
 
     @staticmethod
-    def _brackets(res):
+    def _brackets(result):
         """Every bootstrap bracket must contain its own point estimate."""
         out = []
-        for m, (p, lo, hi) in res.get("ci", {}).items():
-            if Invariants._finite(p, lo, hi) and not lo <= p <= hi:
-                out.append(f"{m} bracket [{lo:.4f}, {hi:.4f}] excludes point {p:.4f}")
+        for metric, (point, low, high) in result.get("ci", {}).items():
+            if Invariants._finite(point, low, high) and not low <= point <= high:
+                out.append(f"{metric} bracket [{low:.4f}, {high:.4f}] excludes point {point:.4f}")
         return out
 
     @staticmethod
-    def _ci_matches_mean(res):
+    def _ci_matches_mean(result):
         """The CI point and the reported mean are the SAME statistic (macro) — they must agree. This is
         the check that catches a pooled-vs-macro mix-up (the historical bug)."""
         out = []
-        mean = res.get("mean", {})
-        for m, (p, _lo, _hi) in res.get("ci", {}).items():
-            if m in mean and Invariants._finite(p, mean[m]) and abs(p - mean[m]) > _TOL:
-                out.append(f"{m} ci-point {p:.4f} != reported mean {mean[m]:.4f} (aggregate mismatch)")
+        mean = result.get("mean", {})
+        for metric, (point, _low, _high) in result.get("ci", {}).items():
+            if metric in mean and Invariants._finite(point, mean[metric]) and abs(point - mean[metric]) > _TOL:
+                out.append(f"{metric} ci-point {point:.4f} != reported mean {mean[metric]:.4f} (aggregate mismatch)")
         return out
 
     @staticmethod
-    def _ece_bounded(res):
+    def _ece_bounded(result):
         """ECE is only meaningful for probability maps; if it was computed, the amaps must lie in [0,1]."""
-        if res.get("ece") is None or not res.get("by_cat"):
+        if result.get("ece") is None or not result.get("by_cat"):
             return []
-        amaps = np.concatenate([np.asarray(sa.amaps).ravel() for sa in res["by_cat"]])
+        amaps = np.concatenate([np.asarray(sa.amaps).ravel() for sa in result["by_cat"]])
         if amaps.size and (np.nanmin(amaps) < 0.0 or np.nanmax(amaps) > 1.0):
             return [f"ECE computed but amaps out of [0,1] ({np.nanmin(amaps):.3f}..{np.nanmax(amaps):.3f})"]
         return []

@@ -33,18 +33,20 @@ class ConvVAE(nn.Module):
         in_ch, base, latent, size, depth, dropout = (
             cfg.in_ch, cfg.base, cfg.latent, cfg.size, cfg.depth, cfg.dropout)
         self.in_ch, self.size, self.depth = in_ch, size, depth
-        chs = [in_ch] + [base * 2 ** i for i in range(depth)]   # e.g. 3,32,64,128,256,512
-        self.enc = nn.ModuleList(ConvVAE.enc_block(chs[i], chs[i + 1], dropout) for i in range(depth))
+        channels = [in_ch] + [base * 2 ** level for level in range(depth)]   # e.g. 3,32,64,128,256,512
+        self.enc = nn.ModuleList(
+            ConvVAE.enc_block(channels[level], channels[level + 1], dropout) for level in range(depth))
         self.feat = size // (2 ** depth)                        # 256 / 32 = 8
-        self.bottleneck_ch = chs[-1]
-        flat = chs[-1] * self.feat * self.feat
-        self.fc_mu = nn.Linear(flat, latent)
-        self.fc_logvar = nn.Linear(flat, latent)
-        self.fc_dec = nn.Linear(latent, flat)
+        self.bottleneck_ch = channels[-1]
+        flat_dim = channels[-1] * self.feat * self.feat
+        self.fc_mu = nn.Linear(flat_dim, latent)
+        self.fc_logvar = nn.Linear(flat_dim, latent)
+        self.fc_dec = nn.Linear(latent, flat_dim)
         self.z_drop = nn.Dropout(dropout)                       # drop the latent -> can't memorize/copy
-        dchs = list(reversed(chs))                              # 512,256,...,in_ch
+        decoder_channels = list(reversed(channels))            # 512,256,...,in_ch
         self.dec = nn.ModuleList(
-            ConvVAE.dec_block(dchs[i], dchs[i + 1], last=(i == depth - 1), p=dropout) for i in range(depth))
+            ConvVAE.dec_block(decoder_channels[level], decoder_channels[level + 1],
+                              last=(level == depth - 1), p=dropout) for level in range(depth))
 
     def encode(self, x):
         for b in self.enc:

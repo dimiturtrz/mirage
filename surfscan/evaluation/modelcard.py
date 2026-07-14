@@ -21,9 +21,9 @@ class ModelCard:
 
     @staticmethod
     def _render(run_name: str, row: dict) -> str:
-        params = {k[len("params."):]: v for k, v in row.items() if k.startswith("params.")}
-        au, img = row.get("metrics.au_pro_mean"), row.get("metrics.img_auroc_mean")
-        cats = sorted({k.split("/")[1] for k in row if k.startswith("metrics.au_pro/")})
+        params = {key[len("params."):]: value for key, value in row.items() if key.startswith("params.")}
+        au_pro, img_auroc = row.get("metrics.au_pro_mean"), row.get("metrics.img_auroc_mean")
+        categories = sorted({key.split("/")[1] for key in row if key.startswith("metrics.au_pro/")})
 
         out = [
             f"# Model card — {run_name}",
@@ -32,19 +32,19 @@ class ModelCard:
             "rerun so the card can't drift from the shipped model.",
             "",
             "## Headline (our harness, MVTec 3D-AD)",
-            (f"- pixel **AU-PRO** {au:.3f} · image **AUROC** {img:.3f} (per-category mean)"
-             if au is not None and not math.isnan(au) else "- (no aggregate metrics on this run)"),
+            (f"- pixel **AU-PRO** {au_pro:.3f} · image **AUROC** {img_auroc:.3f} (per-category mean)"
+             if au_pro is not None and not math.isnan(au_pro) else "- (no aggregate metrics on this run)"),
             "",
         ]
-        if cats:
+        if categories:
             out += ["## Per category", "| category | img-AUROC | AU-PRO |", "|---|---|---|"]
-            for c in cats:
-                a, i = row.get(f"metrics.au_pro/{c}"), row.get(f"metrics.img_auroc/{c}")
-                out.append(f"| {c} | {i:.3f} | {a:.3f} |")
+            for category in categories:
+                cat_au, cat_img = row.get(f"metrics.au_pro/{category}"), row.get(f"metrics.img_auroc/{category}")
+                out.append(f"| {category} | {cat_img:.3f} | {cat_au:.3f} |")
             out.append("")
         if params:
             out += ["## Config", "| param | value |", "|---|---|"]
-            out += [f"| {k} | {v} |" for k, v in sorted(params.items())]
+            out += [f"| {key} | {value} |" for key, value in sorted(params.items())]
             out.append("")
         out += [
             "## Known limits",

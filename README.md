@@ -1,7 +1,7 @@
-# mirage — physics-based synthetic-data engine for 3D anomaly detection + robust sim-to-real eval
+# mirage — 3D surface-defect anomaly detection with a measured sim-to-real gap
 
-**Personal learning project.** 3D surface-defect anomaly detection on MVTec 3D-AD, toward a physics-based
-synthetic-defect generator and the **sim-to-real gap** measurement the field lacks. Edge-deployable.
+**Personal learning project.** Anomaly detection on 3D surface scans (MVTec 3D-AD), training only on
+*good* examples — plus a synthetic-defect generator and a measured sim-to-real gap. Edge-deployable.
 
 > Working name `mirage` (synthetic that must survive contact with the real). Repo folder may differ.
 
@@ -12,9 +12,8 @@ lit at the defect. Rotatable in-browser → [`pointcloud-viewer/`](pointcloud-vi
 [MVTec 3D-AD](https://www.mvtec.com/company/research/datasets/mvtec-3d-ad), CC BY-NC-SA.)*
 
 mirage detects **defects on 3D surface scans**, training only on *good* examples. Stage 0 stands up the
-detector + a rigorous eval harness on **real** data and runs a like-for-like comparison of methods; the
-differentiator (Stage 1) is a **synthetic-defect generator** + the **sim-to-real gap** measurement the
-field lacks.
+detector + an eval harness on **real** data and runs a like-for-like comparison of methods; Stage 1 adds
+a **synthetic-defect generator** and measures the **sim-to-real gap**.
 
 It's also how **I'm** ramping into 3D perception: built on public data, the data-engine + evaluation
 discipline carried from prior acoustic-detection work, the 3D modality learned as I go. Sibling project,
@@ -37,15 +36,15 @@ then *diagnosed*: raw-residual tracks geometric **complexity** (a curved rim is 
 **defect-ness** (a smooth defect rebuilds fine → low residual). What works is **"compare to normal"** —
 and two *different* paradigms get there: a **memory bank** (PatchCore: store normal features, score by
 nearest-neighbour distance — no rebuilding at all) and **reconstruction moved into feature space**
-(feature-recon). Both land ~0.90–0.91. The deployable is the memory bank. The gap to SOTA is named and measured:
-multimodal RGB+3D fusion (M3DM through current DCRDF-Net ~0.99), not bank/resolution tuning. The contribution is the eval rigor + the
-measured mechanism, the way [systole](https://github.com/dimiturtrz/cardiac-seg) reported its triad.
+(feature-recon). Both land ~0.90–0.91. The deployable is the memory bank. The gap to SOTA is named and
+measured: multimodal RGB+3D fusion (M3DM through current DCRDF-Net ~0.99), not bank/resolution tuning —
+what's worth showing is the eval rigor + the measured mechanism, not a single number.
 
-## Stage 1 — the sim-to-real gap, measured (the differentiator)
-The easy demo trains on real defects and reports a flattering number. The real question: can a model
+## Stage 1 — measuring the sim-to-real gap
+The easy demo trains on real defects and reports a flattering number. The question that matters: can a model
 trained on **synthetic** defects detect **real** ones, *how much does it lose*, and is it **calibrated**
-under that shift? Stage 1 answers it with a **measured triad** — one segmenter, three label sources, one
-shared real eval half, bootstrap CIs from a single deterministic run:
+under that shift? Stage 1 measures it with a **triad** — one segmenter, three label sources, one shared
+real eval half, bootstrap CIs from a single deterministic run:
 
 | arm | AU-PRO [95% CI] | ECE |
 |---|---|---|
@@ -61,13 +60,13 @@ a reported negative, kept. The lever that *did* move the number was **not overtr
 
 Sim-to-real for 3D anomaly is only now being charted ([SiM3D](https://arxiv.org/abs/2506.21549), 2025 — the
 first synthetic→real benchmark, single-instance CAD→real). What's still open — a physics-based generator
-that shrinks the gap **at the source**, and a closed-loop curriculum — is the forward edge, not the whole task.
+that shrinks the gap **at the source**, and a closed-loop curriculum — is what comes next.
 
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
 - **Sim-to-real gap is real and open (0.166 AU-PRO).** Domain adaptation doesn't significantly close it
-  (see [Stage 1](#stage-1--the-sim-to-real-gap-measured-the-differentiator)); the physics generator that
-  shrinks it at the source is the forward work.
+  (see [Stage 1](#stage-1--measuring-the-sim-to-real-gap)); shrinking it at the source (a better generator)
+  is what comes next.
 - **PatchCore is rgb-only + random coreset.** The ~3-pt gap to SOTA (~0.96) is **3D-feature fusion** (M3DM) +
   greedy coreset — named and measured, not bank or resolution tuning (rgb tops out ~0.93).
 - **Our BTF underperforms paper-BTF** (0.65 vs ~0.96): FPFH runs on the 256-resized / grazing-noisy processed

@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+import math
+
 from core.obs import Obs
 from surfscan.dispatch import Spec
 from surfscan.evaluation.results import ROOT, Results  # DRY: reuse the mlflow lookup
@@ -19,7 +21,7 @@ class ModelCard:
 
     @staticmethod
     def _render(run_name: str, row: dict) -> str:
-        params = {k[len("params."):]: v for k, v in row.items() if k.startswith("params.") and v == v}
+        params = {k[len("params."):]: v for k, v in row.items() if k.startswith("params.")}
         au, img = row.get("metrics.au_pro_mean"), row.get("metrics.img_auroc_mean")
         cats = sorted({k.split("/")[1] for k in row if k.startswith("metrics.au_pro/")})
 
@@ -31,7 +33,7 @@ class ModelCard:
             "",
             "## Headline (our harness, MVTec 3D-AD)",
             (f"- pixel **AU-PRO** {au:.3f} · image **AUROC** {img:.3f} (per-category mean)"
-             if au is not None and au == au else "- (no aggregate metrics on this run)"),
+             if au is not None and not math.isnan(au) else "- (no aggregate metrics on this run)"),
             "",
         ]
         if cats:
@@ -54,19 +56,19 @@ class ModelCard:
 
     @staticmethod
     def build(run_name: str) -> None:  # pragma: no cover  mlflow query + card file write; _render is the pure core
-        row = Results._latest(run_name)
+        row = Results.latest(run_name)
         if row is None:
             raise SystemExit(f"no mlflow run '{run_name}' — train/score it first, then regenerate the card")
         CARD.write_text(ModelCard._render(run_name, row), encoding="utf-8")
         log.info(f"wrote {CARD.relative_to(ROOT)}")
 
     @staticmethod
-    def _args(ap):
+    def args(ap):
         ap.add_argument("--run-name", default="patchcore_rgb_greedy")
 
     @staticmethod
-    def _run(args):  # pragma: no cover  CLI glue; _render is the pure tested core
+    def run(args):  # pragma: no cover  CLI glue; _render is the pure tested core
         ModelCard.build(args.run_name)
 
 
-SPEC = Spec("modelcard", ModelCard._args, ModelCard._run)
+SPEC = Spec("modelcard", ModelCard.args, ModelCard.run)

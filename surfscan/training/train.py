@@ -37,19 +37,19 @@ class TrainRun:
     def __init__(self, hp: HParams):
         self.hp = hp
 
-    def _vae_model(self, in_ch):
+    def vae_model(self, in_ch):
         return ConvVAE(self.hp.model_cfg(in_ch))
 
-    def _inpaint_model(self, in_ch):
+    def inpaint_model(self, in_ch):
         return InpaintAE(self.hp.model_cfg(in_ch))
 
-    def _vae_step(self, run_model, x, m):
+    def vae_step(self, run_model, x, m):
         recon, mu, logvar = run_model(x)
         rl = Losses.masked_recon_loss(recon, x, m)
         kl = Losses.kl_loss(mu, logvar)
         return rl + self.hp.beta * kl, {"recon": rl, "kl": kl}
 
-    def _inpaint_step(self, run_model, x, m):
+    def inpaint_step(self, run_model, x, m):
         hp = self.hp
         patch = hp.size // hp.grid
         keep = InpaintAE.random_mask(x.shape[0], hp.size, patch, hp.mask_ratio, x.device)
@@ -106,8 +106,8 @@ class TrainRun:
 
 # model_type -> (build_model(hp, in_ch), step(run_model, x, valid, hp) -> (loss, extra_metrics))
 _REGISTRY = {
-    "vae": (TrainRun._vae_model, TrainRun._vae_step),
-    "inpaint": (TrainRun._inpaint_model, TrainRun._inpaint_step),
+    "vae": (TrainRun.vae_model, TrainRun.vae_step),
+    "inpaint": (TrainRun.inpaint_model, TrainRun.inpaint_step),
 }
 
 

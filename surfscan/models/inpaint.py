@@ -28,14 +28,14 @@ class InpaintAE(nn.Module):
             cfg.in_ch, cfg.base, cfg.latent, cfg.size, cfg.depth, cfg.dropout)
         self.in_ch, self.size, self.depth = in_ch, size, depth
         chs = [in_ch] + [base * 2 ** i for i in range(depth)]
-        self.enc = nn.ModuleList(ConvVAE._enc_block(chs[i], chs[i + 1], dropout) for i in range(depth))
+        self.enc = nn.ModuleList(ConvVAE.enc_block(chs[i], chs[i + 1], dropout) for i in range(depth))
         self.feat = size // (2 ** depth)
         self.bottleneck_ch = chs[-1]
         flat = chs[-1] * self.feat * self.feat
         self.fc = nn.Sequential(nn.Linear(flat, latent), nn.SiLU(), nn.Linear(latent, flat))
         dchs = list(reversed(chs))
         self.dec = nn.ModuleList(
-            ConvVAE._dec_block(dchs[i], dchs[i + 1], last=(i == depth - 1), p=dropout) for i in range(depth))
+            ConvVAE.dec_block(dchs[i], dchs[i + 1], last=(i == depth - 1), p=dropout) for i in range(depth))
 
     def forward(self, x):
         for b in self.enc:

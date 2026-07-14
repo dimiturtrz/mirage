@@ -87,7 +87,7 @@ class Metrics:
     @staticmethod
     def _nanmean(vals):
         """Mean over finite values -> NaN if none are finite (no 'empty slice' warning for a dead draw)."""
-        finite = [v for v in vals if v == v]
+        finite = [v for v in vals if not np.isnan(v)]
         return float(np.mean(finite)) if finite else float("nan")
 
     @staticmethod

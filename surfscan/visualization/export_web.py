@@ -48,11 +48,11 @@ class ExportWeb:
         return sid
 
     @staticmethod
-    def _args(ap):
+    def args(ap):
         ap.add_argument("--samples", nargs="+", required=True, help="cat:split:defect:idx ...")
 
     @staticmethod
-    def _run(args):
+    def run(args):
         ids = []
         for spec in args.samples:
             cat, split, defect, idx = spec.split(":")
@@ -61,4 +61,4 @@ class ExportWeb:
         log.info(f"manifest: {len(ids)} samples -> {OUT}")
 
 
-SPEC = Spec("export", ExportWeb._args, ExportWeb._run)
+SPEC = Spec("export", ExportWeb.args, ExportWeb.run)

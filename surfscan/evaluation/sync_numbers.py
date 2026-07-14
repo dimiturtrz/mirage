@@ -59,8 +59,8 @@ class NumberSync:
     @staticmethod
     def per_category() -> str:
         rows = ["| category | img-AUROC | AU-PRO |", "|---|---|---|"]
-        for c in R["patchcore_per_category"]:
-            rows.append(f"| {c['category']} | {c['img_auroc']:.3f} | {c['au_pro']:.3f} |")
+        rows.extend(f"| {c['category']} | {c['img_auroc']:.3f} | {c['au_pro']:.3f} |"
+                    for c in R["patchcore_per_category"])
         m = R["patchcore_mean"]
         rows.append(f"| **MEAN** | **{m['img_auroc']:.3f}** | **{m['au_pro']:.3f}** |")
         return "\n".join(rows)
@@ -69,9 +69,8 @@ class NumberSync:
     def triad() -> str:
         t = R["stage1_triad"]
         rows = ["| arm | au_pro [95% boot CI] | img-AUROC | ECE |", "|---|---|---|---|"]
-        for a in t["arms"]:
-            rows.append(f"| {a['arm']} | {NumberSync._ci(a, 'au_pro')} | "
-                        f"{a['img_auroc']:.3f} | {a['ece']:.3f} |")
+        rows.extend(f"| {a['arm']} | {NumberSync._ci(a, 'au_pro')} | "
+                    f"{a['img_auroc']:.3f} | {a['ece']:.3f} |" for a in t["arms"])
         return "\n".join(rows)
 
     @staticmethod

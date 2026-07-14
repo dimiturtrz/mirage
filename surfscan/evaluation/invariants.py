@@ -32,7 +32,7 @@ class Invariants:
 
     @staticmethod
     def _finite(*xs):
-        return all(x == x for x in xs)                     # NaN != NaN — skip undefined metrics
+        return all(not np.isnan(x) for x in xs)            # skip undefined (NaN) metrics
 
     @staticmethod
     def _brackets(res):

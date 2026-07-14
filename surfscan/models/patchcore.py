@@ -50,7 +50,7 @@ class PatchCore:
         self._feats = {}
         with Compute.autocast(x, amp=self.amp):
             self.net(x)
-        fmaps = [self._feats[l].float() for l in self.layers]      # bf16 backbone -> fp32 for the bank math
+        fmaps = [self._feats[layer].float() for layer in self.layers]  # bf16 backbone -> fp32 for the bank math
         h, w = fmaps[0].shape[-2:]                                  # align to the largest (shallowest) layer
         fmaps = [F.interpolate(f, size=(h, w), mode="bilinear", align_corners=False) for f in fmaps]
         f = torch.cat(fmaps, 1)                                     # N,C,h,w

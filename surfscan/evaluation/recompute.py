@@ -22,16 +22,16 @@ class Recompute:
         with tracking.Tracker.load_npz(run_id) as d:
             res = harness.Harness.from_artifact(d)
         with tracking.Tracker.resume(run_id):
-            harness.Harness._log(res)          # updated metrics/brackets land back in the same run
+            harness.Harness.log(res)           # updated metrics/brackets land back in the same run
         return res
 
     @staticmethod
-    def _args(ap):
+    def args(ap):
         ap.add_argument("--run-id", required=True)
 
     @staticmethod
-    def _run(args):  # pragma: no cover  CLI glue
+    def run(args):  # pragma: no cover  CLI glue
         Recompute.recompute(args.run_id)
 
 
-SPEC = Spec("recompute", Recompute._args, Recompute._run)
+SPEC = Spec("recompute", Recompute.args, Recompute.run)

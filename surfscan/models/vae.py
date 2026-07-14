@@ -13,14 +13,14 @@ from surfscan.training.hparams import ModelCfg
 
 class ConvVAE(nn.Module):
     @staticmethod
-    def _enc_block(ci, co, p=0.0):
+    def enc_block(ci, co, p=0.0):
         layers = [nn.Conv2d(ci, co, 4, 2, 1), nn.BatchNorm2d(co), nn.SiLU()]
         if p > 0:
             layers.append(nn.Dropout2d(p))
         return nn.Sequential(*layers)
 
     @staticmethod
-    def _dec_block(ci, co, *, last=False, p=0.0):
+    def dec_block(ci, co, *, last=False, p=0.0):
         layers = [nn.ConvTranspose2d(ci, co, 4, 2, 1)]
         if not last:
             layers += [nn.BatchNorm2d(co), nn.SiLU()]
@@ -34,7 +34,7 @@ class ConvVAE(nn.Module):
             cfg.in_ch, cfg.base, cfg.latent, cfg.size, cfg.depth, cfg.dropout)
         self.in_ch, self.size, self.depth = in_ch, size, depth
         chs = [in_ch] + [base * 2 ** i for i in range(depth)]   # e.g. 3,32,64,128,256,512
-        self.enc = nn.ModuleList(ConvVAE._enc_block(chs[i], chs[i + 1], dropout) for i in range(depth))
+        self.enc = nn.ModuleList(ConvVAE.enc_block(chs[i], chs[i + 1], dropout) for i in range(depth))
         self.feat = size // (2 ** depth)                        # 256 / 32 = 8
         self.bottleneck_ch = chs[-1]
         flat = chs[-1] * self.feat * self.feat
@@ -44,7 +44,7 @@ class ConvVAE(nn.Module):
         self.z_drop = nn.Dropout(dropout)                       # drop the latent -> can't memorize/copy
         dchs = list(reversed(chs))                              # 512,256,...,in_ch
         self.dec = nn.ModuleList(
-            ConvVAE._dec_block(dchs[i], dchs[i + 1], last=(i == depth - 1), p=dropout) for i in range(depth))
+            ConvVAE.dec_block(dchs[i], dchs[i + 1], last=(i == depth - 1), p=dropout) for i in range(depth))
 
     def encode(self, x):
         for b in self.enc:

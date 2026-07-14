@@ -49,7 +49,7 @@ class Harness:
         rows = []
         pool: dict[str, list] = {f: [] for f in ScoreArrays._fields}
         for c, sa in zip(cats, by_cat, strict=True):
-            rows.append({"category": c, "n": int(len(sa.scores)),
+            rows.append({"category": c, "n": len(sa.scores),
                          "img_auroc": metrics.Metrics.image_auroc(sa.scores, sa.labels),
                          "au_pro": metrics.Metrics.au_pro(sa.amaps, sa.masks, sa.valids)})
             log.info(f"  {c:12s}  img_auroc {rows[-1]['img_auroc']:.3f}   au_pro {rows[-1]['au_pro']:.3f}")
@@ -90,12 +90,12 @@ class Harness:
         return res
 
     @staticmethod
-    def _log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
+    def log(res):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
         rows = res["per_category"]
         tracking.Tracker.metrics({"img_auroc_mean": res["mean"]["img_auroc"], "au_pro_mean": res["mean"]["au_pro"]})
         ci = res.get("ci", {})
         for metric, (_p, lo, hi) in ci.items():                # bootstrap brackets next to the point metric
-            if lo == lo:                                        # skip NaN (metric undefined on the run)
+            if not np.isnan(lo):                                # skip NaN (metric undefined on the run)
                 tracking.Tracker.metrics({f"{metric}_lo": lo, f"{metric}_hi": hi})
         if res.get("ece") is not None:
             tracking.Tracker.metrics({"ece": res["ece"]})
@@ -112,8 +112,8 @@ class Harness:
         res = Harness.aggregate(method, m.fit, m.score, cats)
         if run_id:                                       # log into an existing run (e.g. the train run)
             with tracking.Tracker.resume(run_id):
-                Harness._log(res)
+                Harness.log(res)
         else:
             with tracking.Tracker.run("surfscan", method, params=params or {"method": method, "cats": ",".join(cats)}):
-                Harness._log(res)
+                Harness.log(res)
         return res

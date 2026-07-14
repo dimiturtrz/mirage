@@ -6,9 +6,13 @@ Each generated table sits between HTML markers:
     ...auto-generated, do not hand-edit...
     <!-- /results:methods -->
 
+Headline numbers restated in prose are wired the same way — an inline `<!--r:key-->value<!--/r-->` span
+is refilled from RESULTS.json on sync (`_refs` is the key map). A test asserts `render(RESULTS.md) ==
+RESULTS.md`, so a hand-edited number (table or inline) fails CI. Experiment-narrative intermediates
+(drill deltas, per-defect, superseded baselines) stay hand-written — they have no canonical field.
+
 Run after updating RESULTS.json:  python -m surfscan.report sync
-The surrounding prose/footnotes stay hand-written; only the tables are generated. The root README is a
-curated portfolio face (CLAUDE.md) — deliberately NOT templated here.
+The root README is a curated portfolio face (CLAUDE.md) — deliberately NOT templated here.
 """
 from __future__ import annotations
 
@@ -71,19 +75,57 @@ class NumberSync:
         return "\n".join(rows)
 
     @staticmethod
-    def sync() -> None:  # pragma: no cover  reads/writes RESULTS.md (disk); the renderers are the pure core
-        doc = ROOT / "docs" / "RESULTS.md"
-        text = doc.read_text(encoding="utf-8")
-        for key, render in _BLOCKS.items():
+    def _refs() -> dict[str, float]:
+        """Canonical scalars quotable inline in prose via `<!--r:key-->…<!--/r-->` — one source, no drift.
+        Only headline figures restated in prose; experiment-narrative intermediates stay hand-written."""
+        by_run = {m["mlflow_run"]: m for m in R["methods"] if "mlflow_run" in m}
+        t = R["stage1_triad"]
+        arms = {a["arm"]: a for a in t["arms"]}
+        return {
+            "recon.au_pro": R["methods"][0]["au_pro"],
+            "patchcore.au_pro": by_run["patchcore_rgb_greedy"]["au_pro"],
+            "featrecon.au_pro": by_run["feat_recon"]["au_pro"],
+            "fused.au_pro": by_run["fused_rgb_fpfh"]["au_pro"],
+            "triad.real.au_pro": arms["real → real (ceiling)"]["au_pro"],
+            "triad.synth.au_pro": arms["synth → real (the gap)"]["au_pro"],
+            "triad.synth.ece": arms["synth → real (the gap)"]["ece"],
+            "triad.da.ece": arms["synth+DA → real (AdaBN)"]["ece"],
+            "triad.gap": t["gap_pp"], "triad.gap_lo": t["gap_lo"], "triad.gap_hi": t["gap_hi"],
+            "triad.da_closure": t["da_closure_pp"],
+        }
+
+    @staticmethod
+    def inline(text: str) -> str:
+        """Replace each `<!--r:key-->…<!--/r-->` span with its canonical value (.3f). Unknown key raises
+        (the CI in-sync gate turns that into a build failure)."""
+        refs = NumberSync._refs()
+
+        def _sub(mt: re.Match) -> str:
+            key = mt.group(2)
+            if key not in refs:
+                raise KeyError(f"unknown results ref '{key}' in RESULTS.md")
+            return f"{mt.group(1)}{refs[key]:.3f}{mt.group(3)}"
+
+        return _R_INLINE.sub(_sub, text)
+
+    @staticmethod
+    def render(text: str) -> str:
+        """Pure core: substitute the table blocks, then the inline refs. `sync()` wraps disk IO around it,
+        and the in-sync test asserts `render(RESULTS.md) == RESULTS.md` (fails on drift or an unknown ref)."""
+        for key, block in _BLOCKS.items():
             pat = re.compile(rf"(<!-- results:{key} -->).*?(<!-- /results:{key} -->)", re.DOTALL)
-            if not pat.search(text):
-                log.info(f"  (no <!-- results:{key} --> marker in RESULTS.md — skipped)")
-                continue
-            text = pat.sub(lambda mt, render=render: f"{mt.group(1)}\n{render()}\n{mt.group(2)}", text)
-        doc.write_text(text, encoding="utf-8")
+            if pat.search(text):
+                text = pat.sub(lambda mt, block=block: f"{mt.group(1)}\n{block()}\n{mt.group(2)}", text)
+        return NumberSync.inline(text)
+
+    @staticmethod
+    def sync() -> None:  # pragma: no cover  reads/writes RESULTS.md (disk); render() is the pure core
+        doc = ROOT / "docs" / "RESULTS.md"
+        doc.write_text(NumberSync.render(doc.read_text(encoding="utf-8")), encoding="utf-8")
         log.info(f"synced -> {doc.relative_to(ROOT)}")
 
 
 _BLOCKS = {"methods": NumberSync.methods, "per_category": NumberSync.per_category, "triad": NumberSync.triad}
+_R_INLINE = re.compile(r"(<!--r:([\w.]+)-->).*?(<!--/r-->)", re.DOTALL)
 
 SPEC = Spec("sync", lambda _ap: None, lambda _args: NumberSync.sync())

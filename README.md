@@ -28,6 +28,7 @@ eval harness (image-AUROC + pixel-AU-PRO). Full table + diagnostics → [`docs/R
 | VAE / inpaint / DRAEM / fused (4+ variants) | reconstruct pixels → error | **0.095** (≈ random) |
 | **PatchCore** (the deployable) | **memory bank** — nearest-neighbour to normal features, *no reconstruction* | **0.90** |
 | feature-recon | reconstruct *features* → error | 0.91 |
+| **fused** (our best) | PatchCore-rgb **+ 3D geometry** (BTF/FPFH), z-score fusion | **0.92** |
 | SOTA (multimodal fusion, *papers*) | RGB + 3D geometry fusion (M3DM 0.96 → DCRDF-Net 0.99) | ~0.96–0.99 |
 
 **The finding:** pixel-reconstruction is ≈ random at localization — *measured* across four variants,
@@ -35,9 +36,11 @@ then *diagnosed*: raw-residual tracks geometric **complexity** (a curved rim is 
 **defect-ness** (a smooth defect rebuilds fine → low residual). What works is **"compare to normal"** —
 and two *different* paradigms get there: a **memory bank** (PatchCore: store normal features, score by
 nearest-neighbour distance — no rebuilding at all) and **reconstruction moved into feature space**
-(feature-recon). Both land ~0.90–0.91. The deployable is the memory bank. The gap to SOTA is named and
-measured: multimodal RGB+3D fusion (M3DM through current DCRDF-Net ~0.99), not bank/resolution tuning —
-what's worth showing is the eval rigor + the measured mechanism, not a single number.
+(feature-recon). Both land ~0.90–0.91. Adding **3D-geometry fusion** lifts our best to **0.92** (+1.5pt over
+rgb-only, matched, CIs near-disjoint) — the named SOTA lever, now *measured to pay* even with our
+preprocessing-limited geometry; the rest of the gap is better geometry, not bank/resolution tuning. The
+simplest *deployable* stays the rgb-only memory bank (no geometry pipeline) — what's worth showing is the
+eval rigor + the measured mechanism, not a single number.
 
 ## Stage 1 — measuring the sim-to-real gap
 The easy demo trains on real defects and reports a flattering number. The question that matters: can a model
@@ -66,8 +69,10 @@ Edge-deployable and honestly benchmarked — **not** a production system. The ga
 - **Sim-to-real gap is real and open (0.166 AU-PRO).** Domain adaptation doesn't significantly close it
   (see [Stage 1](#stage-1--measuring-the-sim-to-real-gap)); shrinking it at the source (a better generator)
   is what comes next.
-- **PatchCore is rgb-only + random coreset.** The ~3-pt gap to SOTA (~0.96) is **3D-feature fusion** (M3DM) +
-  greedy coreset — named and measured, not bank or resolution tuning (rgb tops out ~0.93).
+- **The deployable is rgb-only PatchCore (greedy coreset, 0.90).** Adding **3D-geometry fusion** is measured
+  at **+1.5pt → 0.92** (our best) even with preprocessing-limited BTF; the remaining gap to SOTA (~0.96) is
+  *better* geometry (native-res FPFH / learned point features), not bank or resolution tuning (rgb tops ~0.93).
+  Fused needs the geometry pipeline (xyz + FPFH banks), so rgb-only stays the simplest edge path.
 - **Our BTF underperforms paper-BTF** (0.65 vs ~0.96): FPFH runs on the 256-resized / grazing-noisy processed
   cloud, not native-resolution clean point clouds. A preprocessing limit, diagnosed, not a method failure.
 - **3D is a ramp.** The data-engine + eval discipline carry from prior work; the 3D-perception specifics are

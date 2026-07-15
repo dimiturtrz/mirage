@@ -105,6 +105,42 @@ diagnosis → [`interpretations/sim-to-real/2026-07-08_sim-to-real-triad.md`](..
   *negative* 0.487, −0.05 vs uniform, ECE 0.083 — kind-chasing starves batch diversity; fix = adapt
   *difficulty*, not *kind*). Dropped from the fresh bracketed table rather than mix protocols.
 
+## Stage 2 — digital twin vs classical synth (the shape-source number)
+Same U-Net, same shared real eval half — but the label **source** is now the **reconstructed** Isaac-rendered
+twin (per-category mean-surface mesh from the 244 good scans → path-traced headless → back-projected xyz,
+MVTec layout). Two twin arms isolate the two swaps: **twin_grid** = the *same* grid defect on the
+reconstructed surface (isolates the **shape** source, defect held constant); **twin_phys** = a *physical*
+mesh-deform defect path-traced (isolates the **defect model**). Run on **both channels** — the twin's
+contribution is geometry (xyz), not appearance (rgb). Full method + diagnosis →
+[`interpretations/twin/2026-07-15_twin-vs-classical.md`](../interpretations/twin/2026-07-15_twin-vs-classical.md).
+
+<!-- results:twin -->
+| arm (label source) | rgb AU-PRO | xyz AU-PRO |
+|---|---|---|
+| real → real (ceiling) | 0.794 | 0.726 |
+| synth (classical) → real | 0.628 | 0.565 |
+| twin_grid → real | 0.300 | 0.373 |
+| twin_phys → real | 0.081 | 0.321 |
+<!-- /results:twin -->
+
+- **xyz is the twin's axis — and the data proves it.** Every twin arm jumps rgb→xyz; twin_phys goes from
+  **0.081 (≈ random)** to **0.321 (real localization signal)**. A physical mesh-dent is near-invisible in the
+  twin's uniform appearance but shows up in geometry. A physically-valid method regressing on rgb meant the
+  *rgb test lacks the twin's axis*, not that the twin is bad — scored on xyz, the twin transfers.
+- **But the twin does not beat classical synth — even on xyz.** shape-source (twin_grid − synth, defect held
+  constant) is **negative on both channels: <!--r:twin.shape_source_rgb-->-0.327<!--/r--> rgb,
+  <!--r:twin.shape_source_xyz-->-0.192<!--/r--> xyz**. Holding the defect fixed, the *reconstructed* surface
+  is a **worse** substrate than the real good scan: single-view fusion → Poisson → decimate **smooths away the
+  micro-geometry AU-PRO rewards**. The render is faithful; the **mesh is the bottleneck**.
+- **The physical defect transfers slightly worse than the grid defect** (twin_phys 0.321 < twin_grid 0.373 on
+  the identical xyz substrate) — the Gaussian dent/bump distribution isn't matched to real MVTec defect
+  statistics as well as the tuned grid defect. Not loss-engineered toward the eval.
+- **Honest negative, competence real.** The Isaac/USD/Replicator pipeline works end-to-end (10 categories
+  reconstructed, path-traced, xyz-backprojected, feeding the same rigorous triad) and transfers genuine
+  geometric signal — it just doesn't beat on-the-fly synth here, because reconstruction fidelity (not
+  rendering) caps surface realism. The lever for a positive twin is higher-fidelity reconstruction
+  (multi-view / no Poisson smoothing / native-res), not the renderer.
+
 ## Known caveats (the measured gaps to SOTA)
 - **Deployable = rgb-only PatchCore, greedy coreset** (<!--r:patchcore.au_pro-->0.902<!--/r-->) — the
   simplest edge path. **3D-geometry fusion is now measured at +1.5pt** (<!--r:fused.au_pro-->0.917<!--/r-->,

@@ -179,5 +179,18 @@
     "da_closure_pp": 0.015,
     "da_closure_lo": -0.0,
     "da_closure_hi": 0.03
+  },
+  "stage2_twin": {
+    "_comment": "Stage-2 digital-twin triad: same U-Net / shared real eval half as stage1_triad, but the label SOURCE is the reconstructed Isaac-rendered twin (core/twin/reconstruct.py -> sim/generate_twin_synth.py). twin_grid = classical grid defect on the reconstructed surface (isolates shape source, defect held constant); twin_phys = physical mesh-deform defect path-traced (isolates defect model). Run on BOTH channels — the twin's contribution is geometry (xyz), not appearance (rgb). shape_source = twin_grid - synth (same defect, real vs reconstructed surface); NEGATIVE = reconstruction smoothing costs more than it adds. xyz twin_phys/shape-source CIs unrecorded (report crashed on the xyz twin_phys paired bootstrap); points are exact arm means. Diagnosis: interpretations/twin/2026-07-15_twin-vs-classical.md.",
+    "arms": [
+      {"arm": "real → real (ceiling)", "rgb_au_pro": 0.794, "xyz_au_pro": 0.726},
+      {"arm": "synth (classical) → real", "rgb_au_pro": 0.628, "xyz_au_pro": 0.565},
+      {"arm": "twin_grid → real", "rgb_au_pro": 0.300, "xyz_au_pro": 0.373},
+      {"arm": "twin_phys → real", "rgb_au_pro": 0.081, "xyz_au_pro": 0.321}
+    ],
+    "shape_source_rgb_pp": -0.327,
+    "shape_source_rgb_lo": -0.356,
+    "shape_source_rgb_hi": -0.299,
+    "shape_source_xyz_pp": -0.192
   }
 }

@@ -46,3 +46,13 @@ class Config:
     def mvtec_root() -> Path:
         """The MVTec 3D-AD download root: <data>/raw/mvtec_3d_anomaly_detection."""
         return Config.raw_dir() / "mvtec_3d_anomaly_detection"
+
+    @staticmethod
+    def twin_dir() -> Path:
+        """Reconstructed digital-twin assets (per-category meshes): <data>/twin."""
+        return Config.data_root() / "twin"
+
+    @staticmethod
+    def twin_synth_root() -> Path:
+        """Rendered twin synthetic scans, MVTec layout: <data>/synth/twin."""
+        return Config.data_root() / "synth" / "twin"

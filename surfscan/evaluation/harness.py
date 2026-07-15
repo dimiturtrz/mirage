@@ -18,6 +18,7 @@ from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
 from core.obs import Obs, Progress
 from surfscan import tracking
 from surfscan.evaluation import diagnostics, invariants, metrics, predictions
+from surfscan.evaluation.result_types import RunParams, Scores
 
 log = Obs.get()
 
@@ -86,7 +87,7 @@ class Harness:
             calib = metrics.Metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
-        result = {"method": method, "per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro},
+        result = {"method": method, "per_category": rows, "mean": Scores(auroc, aupro).as_dict(),
                "ci": brackets, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
         invariants.Invariants.check(result)                       # loud at run end if a number is inconsistent
         return result
@@ -94,8 +95,7 @@ class Harness:
     @staticmethod
     def log(result):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
         rows = result["per_category"]
-        mean = result["mean"]
-        tracking.Tracker.metrics({"img_auroc_mean": mean["img_auroc"], "au_pro_mean": mean["au_pro"]})
+        tracking.Tracker.metrics(Scores(**result["mean"]).tracker_means())
         brackets = result.get("ci", {})
         for metric, (_point, low, high) in brackets.items():   # bootstrap brackets next to the point metric
             if not np.isnan(low):                               # skip NaN (metric undefined on the run)
@@ -119,6 +119,6 @@ class Harness:
             with tracking.Tracker.resume(run_id):
                 Harness.log(result)
         else:
-            with tracking.Tracker.run("surfscan", method, params=params or {"method": method, "cats": ",".join(cats)}):
+            with tracking.Tracker.run("surfscan", method, params=params or RunParams(method, cats).as_dict()):
                 Harness.log(result)
         return result

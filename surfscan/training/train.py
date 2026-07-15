@@ -18,6 +18,7 @@ from torch import optim
 
 from core.compute import Compute
 from core.data.dataset import GpuSplit
+from core.data.mvtec import Split
 from core.obs import Obs
 from surfscan import tracking
 from surfscan.models.inpaint import InpaintAE
@@ -64,7 +65,7 @@ class TrainRun:
         Compute.enable_tf32()
         dev = device
 
-        data = GpuSplit.load_split(split="train", label=0, cats=hp.cats, channels=hp.channels, device=dev, size=hp.size)
+        data = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=hp.cats, channels=hp.channels, device=dev, size=hp.size)
         n = len(data)
         model = build(self, data.in_ch).to(dev, memory_format=torch.channels_last)
         run_model = torch.compile(model) if (hp.compile and dev == "cuda") else model

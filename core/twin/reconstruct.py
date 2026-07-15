@@ -20,6 +20,7 @@ import tifffile
 from jaxtyping import Float
 
 from core.config import Config
+from core.data.mvtec import Split
 from core.obs import Obs
 
 
@@ -38,7 +39,7 @@ class CategoryReconstructor:
     @staticmethod
     def categories() -> list[str]:
         root = Config.mvtec_root()
-        return sorted(p.name for p in root.iterdir() if (p / "train" / "good" / "xyz").is_dir())
+        return sorted(p.name for p in root.iterdir() if (p / Split.TRAIN / "good" / "xyz").is_dir())
 
     @staticmethod
     def _valid_points(xyz: Float[np.ndarray, "h w 3"]) -> Float[np.ndarray, "n 3"]:
@@ -47,7 +48,7 @@ class CategoryReconstructor:
         return xyz[v]
 
     def _fuse(self, cat: str) -> o3d.geometry.PointCloud:
-        xyz_dir = Config.mvtec_root() / cat / "train" / "good" / "xyz"
+        xyz_dir = Config.mvtec_root() / cat / Split.TRAIN / "good" / "xyz"
         chunks = [self._valid_points(tifffile.imread(p).astype(np.float32))
                   for p in sorted(xyz_dir.glob("*.tiff"))]
         pts = np.concatenate(chunks, 0).astype(np.float64)

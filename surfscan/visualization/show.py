@@ -32,6 +32,7 @@ from core.compute import Compute
 from core.data import preprocess as pp
 from core.data import store
 from core.data.dataset import GpuSplit
+from core.data.mvtec import Split
 from core.obs import Obs
 from surfscan.dispatch import Spec
 from surfscan.models.patchcore import FitCfg, PatchCore
@@ -107,7 +108,7 @@ class Show:
         """The WORKING detector's anomaly map: fit a PatchCore bank on this category's train-good (rgb),
         score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
         dev = device or Compute.pick_device()
-        train = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=dev)
+        train = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=["rgb"], device=dev)
         pc = PatchCore(device=dev).fit(train.x, FitCfg(coreset=coreset))
         x = torch.from_numpy(self.rgb.transpose(2, 0, 1)[None]).to(dev)
         return pc.score_maps(x)[0] * self.valid                       # H,W
@@ -176,7 +177,7 @@ class Show:
         ap.add_argument("--data-root", default=None,
                         help="MVTec 3D-AD root (default: <paths.yaml data>/raw/mvtec_3d_anomaly_detection)")
         ap.add_argument("--cat", default="bagel")
-        ap.add_argument("--split", default="test", help="train | validation | test")
+        ap.add_argument("--split", default=Split.TEST, help="train | validation | test")
         ap.add_argument("--defect", default="hole", help="good | crack | hole | contamination | combined | ...")
         ap.add_argument("--idx", type=int, default=0)
         ap.add_argument("--mask", action="store_true", help="paint the GT defect region red in 3D")

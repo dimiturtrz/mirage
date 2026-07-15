@@ -19,7 +19,7 @@ from pathlib import Path
 
 from core import config
 from core.data import mvtec
-from core.data.mvtec import Mvtec, Sample  # identical on-disk format -> reuse the loader + Sample type
+from core.data.mvtec import Mvtec, Sample, Split  # identical on-disk format -> reuse the loader + Sample type
 
 SPLITS = mvtec.SPLITS
 
@@ -50,4 +50,4 @@ class Synth:
 
 load_raw = Mvtec.load_raw  # identical on-disk format -> reuse the loader
 
-__all__ = ["Sample", "Synth", "load_raw"]
+__all__ = ["Sample", "Split", "Synth", "load_raw"]

@@ -10,6 +10,7 @@ This stays a raw->arrays reader; core/data/store.py turns it into the unified st
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 import numpy as np
@@ -18,13 +19,20 @@ from PIL import Image
 
 from core import config
 
-SPLITS = ("train", "validation", "test")
+
+class Split(StrEnum):
+    TRAIN = "train"
+    VALIDATION = "validation"
+    TEST = "test"
+
+
+SPLITS = tuple(Split)
 
 
 @dataclass(frozen=True)
 class Sample:
     category: str
-    split: str            # train | validation | test
+    split: Split
     defect: str           # good | hole | crack | contamination | combined | ...
     idx: int
     rgb_path: Path
@@ -84,4 +92,4 @@ class Mvtec:
         return rgb, xyz, gt
 
 
-__all__ = ["SPLITS", "Mvtec", "Sample"]
+__all__ = ["SPLITS", "Mvtec", "Sample", "Split"]

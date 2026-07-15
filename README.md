@@ -156,9 +156,9 @@ duplication — run in one command locally and identically in CI:
 ```bash
 uvx nox -s lint        # ruff · vulture · import-linter · graph --assert · ast-grep · jscpd
 ```
-(tests are the section above; CI runs both.) Their config, `devtools/`, and the nox/CI/pre-commit runners
-are provisioned by an in-house copier template
-([sdlc-scaffold](https://github.com/dimiturtrz/sdlc-scaffold)) — refresh with `uvx copier update` (version
+(tests are the section above; CI runs both.) The gate **analyzers** install as a version-pinned package
+(`sdlc-devtools`), and their config + the nox/CI/pre-commit runners come from an in-house copier template
+([sdlc-scaffold](https://github.com/dimiturtrz/sdlc-scaffold)) — refresh with `uvx copier update` (both
 pinned in `.copier-answers.yml`). Template-owned: fix a gate upstream, don't hand-edit it to pass.
 
 ## How it's built

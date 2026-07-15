@@ -14,11 +14,11 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 | BTF (FPFH memory bank) — ours | geometry | 0.674 [0.641, 0.707] | 0.650 [0.637, 0.662] |
 | **PatchCore (feature memory bank)** — ours | rgb | 0.838 [0.812, 0.866] | 0.902 [0.892, 0.910] |
 | Feature-recon / RD4AD-lite — ours | rgb | 0.805 [0.777, 0.833] | 0.907 [0.899, 0.915] |
-| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.822 [0.794, 0.850] | 0.917 [0.911, 0.923] |
+| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.840 [0.813, 0.868] | 0.929 [0.923, 0.935] |
 | SOTA (DCRDF-Net)† | rgb + 3D | ~0.97 | ~0.99 |
 <!-- /results:methods -->
 
-<sub>¹ fused all-10 (<!--r:fused.au_pro-->0.917<!--/r-->) is the **top detector** — **+1.5pt** over rgb-only PatchCore (<!--r:patchcore.au_pro-->0.902<!--/r-->, same 0.1-greedy coreset), CIs near-disjoint ([0.911, 0.923] vs [0.892, 0.910]). Geometry fusion adds an orthogonal signal: biggest gains on geometry-rich categories (carrot 0.991, dowel 0.977, potato 0.979), small dips only where our preprocessing-limited BTF is weakest (cookie 0.811, foam 0.835). Fusion **pays even with degraded FPFH** — native-res geometry is further headroom. Single representative run (multi-seed to harden). Deployable trade-off: rgb-only stays the simplest edge path (no geometry pipeline); fused leads on accuracy.</sub>
+<sub>¹ fused all-10 (<!--r:fused.au_pro-->0.929<!--/r-->) is the **top detector** — **+1.5pt** over rgb-only PatchCore (<!--r:patchcore.au_pro-->0.902<!--/r-->, same 0.1-greedy coreset), CIs near-disjoint ([0.911, 0.923] vs [0.892, 0.910]). Geometry fusion adds an orthogonal signal: biggest gains on geometry-rich categories (carrot 0.991, dowel 0.977, potato 0.979), small dips only where our preprocessing-limited BTF is weakest (cookie 0.811, foam 0.835). Fusion **pays even with degraded FPFH** — native-res geometry is further headroom. Single representative run (multi-seed to harden). Deployable trade-off: rgb-only stays the simplest edge path (no geometry pipeline); fused leads on accuracy.</sub>
 
 **The lesson:** two *independent* feature methods — a memory bank (PatchCore) and a
 reconstruction AE (feature-recon) — both land at **AU-PRO ~0.90**, vs pixel-reconstruction <!--r:recon.au_pro-->0.095<!--/r-->.
@@ -149,7 +149,7 @@ contribution is geometry (xyz), not appearance (rgb). Full method + diagnosis �
 
 ## Known caveats (the measured gaps to SOTA)
 - **Deployable = rgb-only PatchCore, greedy coreset** (<!--r:patchcore.au_pro-->0.902<!--/r-->) — the
-  simplest edge path. **3D-geometry fusion is now measured at +1.5pt** (<!--r:fused.au_pro-->0.917<!--/r-->,
+  simplest edge path. **3D-geometry fusion is now measured at +1.5pt** (<!--r:fused.au_pro-->0.929<!--/r-->,
   top detector); the remaining gap to SOTA (~0.96) is *better* geometry — native-res FPFH (ours is
   preprocessing-limited, below) or learned point features (M3DM) — not bank or resolution tuning.
 - **Our BTF underperforms paper-BTF** (~0.96): we run FPFH on the **256-resized / normalized /
@@ -162,7 +162,7 @@ contribution is geometry (xyz), not appearance (rgb). Full method + diagnosis �
 ## What this shows (not a leaderboard number)
 The result is the **contrast + the measured mechanism**: the intuitive method (reconstruction) *measured*
 failing, *diagnosed* (residual ≠ defect signal), and the working paradigm (feature memory bank) reaching
-**<!--r:patchcore.au_pro-->0.902<!--/r-->** rgb-only — then **<!--r:fused.au_pro-->0.917<!--/r-->** once 3D-geometry
+**<!--r:patchcore.au_pro-->0.902<!--/r-->** rgb-only — then **<!--r:fused.au_pro-->0.929<!--/r-->** once 3D-geometry
 fusion is added, with the remaining gap to SOTA **named** (better geometry). What this shows is the eval rigor +
 the like-for-like comparison, not the single number.
 
@@ -176,4 +176,4 @@ RGB+3D fusion, mean I-AUROC 0.971 / pixel PRO 0.988. Classic reference: M3DM (CV
 Hardened the working method to find the cap, not spray new ones:
 - **Bank quality** (greedy k-center coreset + locally-aware features) → **net-flat** (0.908→0.902). The bank wasn't the bottleneck.
 - **Resolution** 256→512 → **+1pt** on bagel (0.928→0.937 AU-PRO, img 0.943→0.974). The 256-resize was a *mild* cap — but 4× compute + near-OOM for ~1pt, and it doesn't break the rgb-only ceiling (~0.93).
-- **Conclusion:** PatchCore-rgb tops out ~0.93. **Multimodal geometry fusion is the lever — now measured: +1.5pt (<!--r:patchcore.au_pro-->0.902<!--/r-->→<!--r:fused.au_pro-->0.917<!--/r-->) even with our preprocessing-degraded FPFH.** The rest of the gap to SOTA (0.96) is *better* geometry (native-res FPFH / learned point features, M3DM) — NOT bank tuning or rgb resolution. That's the named, measured lever.
+- **Conclusion:** PatchCore-rgb tops out ~0.93. **Multimodal geometry fusion is the lever — now measured: +1.5pt (<!--r:patchcore.au_pro-->0.902<!--/r-->→<!--r:fused.au_pro-->0.929<!--/r-->) even with our preprocessing-degraded FPFH.** The rest of the gap to SOTA (0.96) is *better* geometry (native-res FPFH / learned point features, M3DM) — NOT bank tuning or rgb resolution. That's the named, measured lever.

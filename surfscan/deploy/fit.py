@@ -123,7 +123,7 @@ class Fit:
         """Working set vs the instance envelope under its memory model — fits, streams, or over on-die."""
         cap = acc.capacity_mib
         if cap is None or work_mib <= cap:
-            return Verdict.FULL_ONDEVICE, "conv graph quantizes and runs fully on-device"
+            return Verdict.FULL_ONDEVICE, "graph runs fully on-device — working set within the envelope"
         if acc.memory_model == MemoryModel.ON_DIE_ONLY:
             return Verdict.BLOCKED, (f"working set {work_mib:.1f} MiB exceeds the {cap:.0f} MiB on-die "
                                      f"envelope and there is no off-chip fallback — does not fit")

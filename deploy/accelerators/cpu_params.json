@@ -16,9 +16,9 @@
       "int8_mandatory": false,
       "memory_model": "system",
       "capacity_mib": 8192,
-      "ext_memory": "system LPDDR4X (shared, up to 8 GiB)",
-      "sources": "public (rpi5 datasheet)",
-      "note": "no NPU; a roofline TOPS number would be misleading for a scalar/NEON CPU, so latency is left unprojected. The reference no-accelerator target."
+      "ext_memory": "system LPDDR4X-4267 (shared; 1/2/4/8/16 GiB options, 8 GiB shown)",
+      "sources": "S15 (Cortex-A76, no int8 TOPS spec), S16 (LPDDR4X options)",
+      "note": "no NPU; a Cortex-A76 has no published int8 TOPS spec, and a roofline number would be misleading for a scalar/NEON CPU, so latency is left unprojected. The reference no-accelerator target."
     }
   ]
 }

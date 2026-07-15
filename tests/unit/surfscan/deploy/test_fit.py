@@ -40,7 +40,7 @@ class TestOpFit:
         assert cell.op_support == OpSupport.HOST_TAIL
 
     def test_bank_on_gpu_is_full_ondevice(self):
-        cell = Fit._cell(_BANK, _real("jetson_orin"), _COMP, _BANKSEC, Options("int8", onnx=True))
+        cell = Fit._cell(_BANK, _real("jetson_orin_nx"), _COMP, _BANKSEC, Options("int8", onnx=True))
         assert cell.verdict == Verdict.FULL_ONDEVICE
 
 

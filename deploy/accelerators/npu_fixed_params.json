@@ -7,19 +7,19 @@
     "transformer_attention": "unsupported"
   },
   "note": "quantized-conv dataflow graph: convolutions run at line rate, but the PatchCore distance/argmin/top-k tail is not expressible and spills to the host CPU; general attention is not in the op-set at all. This is the substrate the deploy thesis is about — it forces a bank-free conv detector.",
-  "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md",
+  "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md (op-support) + 2026-07-15_edge_accelerator_datasheets.md (specs)",
   "instances": [
     {
       "name": "coral_edgetpu",
       "label": "Coral Edge TPU",
-      "int8_tops": null,
+      "int8_tops": 4.0,
       "fp_supported": false,
       "int8_mandatory": true,
       "memory_model": "scratchpad_host",
       "capacity_mib": 8.0,
       "ext_memory": "host off-chip (streamed, latency penalty)",
-      "sources": "S1,S2,S5",
-      "note": "full-int8 mandatory; ~8 MiB on-chip scratchpad, model streamed from host. Single-partition CPU fallback amputates the graph at the first unsupported op."
+      "sources": "S1 (4 TOPS int8), S2 (8 MiB SRAM scratchpad)",
+      "note": "full-int8 mandatory; 4 TOPS int8, ~8 MiB on-chip scratchpad, model streamed from host. Single-partition CPU fallback amputates the graph at the first unsupported op."
     },
     {
       "name": "hailo_8",
@@ -30,8 +30,8 @@
       "memory_model": "on_die_only",
       "capacity_mib": null,
       "ext_memory": "DRAM-free (all memory on-die)",
-      "sources": "S6,S3,S7",
-      "note": "build-time truncation at last CONV2D, pre/post on host; no off-chip fallback, so a working set over the on-die envelope simply does not fit."
+      "sources": "S3 (26 TOPS int8, DRAM-free); on-die SRAM capacity not published [S4]",
+      "note": "26 TOPS int8; build-time truncation at last CONV2D, pre/post on host. On-die SRAM size is not disclosed in public vendor docs (portal-gated), so the envelope is unknown, not guessed — no off-chip fallback means an over-envelope working set does not fit."
     },
     {
       "name": "hailo_8l",
@@ -42,8 +42,8 @@
       "memory_model": "on_die_only",
       "capacity_mib": null,
       "ext_memory": "DRAM-free (all memory on-die)",
-      "sources": "S6,S3,S7",
-      "note": "entry Hailo; same dataflow constraint as Hailo-8, half the TOPS."
+      "sources": "S7 (13 TOPS int8, DRAM-free); on-die SRAM capacity not published [S5][S6]",
+      "note": "entry Hailo; 13 TOPS int8, same dataflow + on-die-only constraint as Hailo-8 (SRAM size likewise unpublished)."
     }
   ]
 }

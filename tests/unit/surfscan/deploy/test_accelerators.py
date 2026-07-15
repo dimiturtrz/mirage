@@ -44,6 +44,7 @@ class TestMemoryModel:
         assert by_name["coral_edgetpu"].memory_model == MemoryModel.SCRATCHPAD_HOST
 
     def test_unsourced_numbers_are_none_not_zero(self):
-        coral = next(a for a in Accelerators.specs() if a.name == "coral_edgetpu")
-        assert coral.int8_tops is None          # not in the deep-dive -> None, never a guessed 0
-        assert coral.capacity_mib == 8.0        # the one sourced envelope
+        by_name = {a.name: a for a in Accelerators.specs()}
+        assert by_name["hailo_8"].capacity_mib is None    # on-die SRAM portal-gated -> None, never a guessed 0
+        assert by_name["coral_edgetpu"].capacity_mib == 8.0   # the one sourced NPU envelope
+        assert by_name["coral_edgetpu"].int8_tops == 4.0      # now sourced [S1]

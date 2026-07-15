@@ -52,6 +52,16 @@
       "disk_fp32_mb": 8.2,
       "disk_int8_mb": 2.05,
       "note": "feat-recon head on layer2 feature map"
+    },
+    {
+      "name": "pointmae",
+      "params_m": 21.83,
+      "gflops": 191.88,
+      "macs_g": 95.94,
+      "act_mb": 810.1,
+      "disk_fp32_mb": 87.3,
+      "disk_int8_mb": 21.83,
+      "note": "M3DM Point-MAE point-transformer (attention ops; xyz points, not pixels)"
     }
   ],
   "detectors": [
@@ -87,6 +97,14 @@
         "backbone_layer3"
       ],
       "has_bank": true
+    },
+    {
+      "name": "pointmae",
+      "op_class": "transformer_attention",
+      "pieces": [
+        "pointmae"
+      ],
+      "has_bank": false
     }
   ],
   "bank": {

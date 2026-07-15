@@ -1,0 +1,25 @@
+{
+  "type": "gpu",
+  "label": "general GPU SoC",
+  "op_support": {
+    "conv_native": "native",
+    "bank_lookup": "native",
+    "transformer_attention": "native"
+  },
+  "note": "full ONNX op-set, mixed precision, native TopK/ArgMin/Gather — the kNN-vs-bank tail runs end-to-end on-device. The only substrate that ships PatchCore whole.",
+  "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md",
+  "instances": [
+    {
+      "name": "jetson_orin",
+      "label": "Jetson Orin (TensorRT)",
+      "int8_tops": null,
+      "fp_supported": true,
+      "int8_mandatory": false,
+      "memory_model": "unified",
+      "capacity_mib": null,
+      "ext_memory": "GB-scale LPDDR shared CPU/GPU",
+      "sources": "S8",
+      "note": "peak int8 TOPS not fetched (SKU-dependent); memory/op-fit hold regardless. Runs PatchCore lookup natively — no host tail."
+    }
+  ]
+}

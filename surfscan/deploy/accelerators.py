@@ -1,107 +1,102 @@
-"""Candidate edge-accelerator spec table — the datasheet half of the deploy projection.
+"""Typed accelerator spec loader — reads the hand-authored, cited source in deployment/accelerators/.
 
-Structured, cited source for the accelerators a mirage detector could ship on. Every field traces to
-research/deep_dives/2026-07-08_edge_accelerator_landscape.md (source tags [S#] there → primary vendor
-docs). The load-bearing facts for the projection are (1) the on-chip memory envelope a bank/model must
-fit, (2) the compute rate for a roofline latency band, and (3) whether the PatchCore kNN-vs-bank tail
-(gather/argmin/top-k) runs on-device or is forced to host CPU — the constraint that splits "conv AE
-fits everywhere" from "PatchCore's lookup is host-side on every commodity NPU".
+The source of truth is now the browsable JSON, not this module: deployment/accelerators/<type>_params.json,
+one file per accelerator TYPE (cpu / gpu / npu_fixed / npu_soc), real instances inside. The type carries
+the op-support contract (how it runs each op-class); the instance carries its datasheet numbers and its
+memory model (which varies within a type — Coral streams from host, Hailo is on-die-only, both npu_fixed).
 
-Honesty boundary: numbers absent from the deep-dive are `None` (not guessed) — Coral/RKNN TOPS and the
-Hailo on-die SRAM capacity sit behind vendor portals and were not fetched. The projection reports a
-latency band only where a compute rate is known; the memory/op-fit verdict holds for every row.
+Every field traces to research/deep_dives/2026-07-08_edge_accelerator_landscape.md (source tags [S#]);
+numbers behind a vendor portal are `null` in the JSON (not guessed), surfacing here as `None`.
 
-    python -m surfscan.deploy accelerators     # emit docs/deployment/ACCELERATOR_SPECS.json
+    python -m surfscan.deploy accelerators     # log the loaded typed spec table
 """
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict, dataclass
-from enum import StrEnum
+import json
+from dataclasses import dataclass, field
+from functools import cache
 
 from core.obs import Obs
+from surfscan.deploy import ACCEL_DIR
+from surfscan.deploy.schema import AccelType, MemoryModel, OpClass, OpSupport
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
-SRAM_CLASS_MIB = 8.0   # Coral EdgeTPU on-chip scratchpad; the "~8 MiB class" envelope the bank is sized against [S2][S5]
-_SRC = "research/deep_dives/2026-07-08_edge_accelerator_landscape.md"
-
-
-class Family(StrEnum):
-    """Accelerator architecture class — the fixed-function NPUs vs the general GPU SoC."""
-    DATAFLOW_NPU = "dataflow-npu"   # fixed-graph quantized-conv (Coral/Hailo/RKNN): no on-device kNN tail
-    GPU_SOC = "gpu-soc"             # general GPU (Jetson): full ONNX, native top-k/argmin
+SRAM_CLASS_MIB = 8.0   # the "~8 MiB class" on-chip envelope the bank narrative is sized against (= Coral scratchpad [S2][S5])
 
 
 @dataclass(frozen=True)
 class Accelerator:
-    """One candidate accelerator. `None` = spec not in the deep-dive (behind a portal / not fetched)."""
+    """One accelerator instance: datasheet numbers + its memory model, plus the type's op-support contract.
+    `None` = spec not in the deep-dive (behind a portal / not fetched)."""
     name: str
-    family: Family
-    int8_tops: float | None     # peak int8 throughput (roofline numerator); None where unsourced
-    fp_supported: bool          # non-int8 (fp16/bf16) compute available on-device
-    int8_mandatory: bool        # full-int8 quantization required to run at all
-    sram_mib: float | None      # on-chip memory envelope; None where capacity unquoted (Hailo DRAM-free)
-    ext_memory: str             # off-chip memory story (host-streamed / DRAM-free on-die / GB LPDDR)
-    gather: bool                # data-dependent gather on-device
-    argmin: bool                # argmin/argmax over a dimension on-device
-    topk: bool                  # top-k selection on-device
-    patchcore_lookup_ondevice: bool  # can the kNN-vs-bank tail run on-accelerator (not host CPU)
-    sources: str                # [S#] tags in the deep-dive
+    label: str
+    type: AccelType
+    op_support: dict[OpClass, OpSupport]  # inherited from the type — how each op-class runs here
+    int8_tops: float | None
+    fp_supported: bool
+    int8_mandatory: bool
+    memory_model: MemoryModel
+    capacity_mib: float | None            # working-set envelope; None where unquoted
+    ext_memory: str
+    sources: str
     note: str
 
 
-class Accelerators:
-    """The candidate edge-accelerator spec table — cited structured source for the deploy projection."""
+@dataclass(frozen=True)
+class AcceleratorType:
+    """A typed group of accelerators sharing an op-support contract (one deployment/accelerators file)."""
+    type: AccelType
+    label: str
+    op_support: dict[OpClass, OpSupport]
+    note: str
+    instances: tuple[Accelerator, ...] = field(default_factory=tuple)
 
-    _SPECS = (
-        Accelerator(
-            name="coral_edgetpu", family=Family.DATAFLOW_NPU, int8_tops=None, fp_supported=False,
-            int8_mandatory=True, sram_mib=SRAM_CLASS_MIB, ext_memory="host off-chip (streamed, latency penalty)",
-            gather=False, argmin=False, topk=False, patchcore_lookup_ondevice=False, sources="S1,S2,S5",
-            note="full-int8 mandatory; single-partition CPU fallback amputates the tail at first unsupported op"),
-        Accelerator(
-            name="hailo_8", family=Family.DATAFLOW_NPU, int8_tops=26.0, fp_supported=False,
-            int8_mandatory=True, sram_mib=None, ext_memory="DRAM-free (all memory on-die)",
-            gather=False, argmin=False, topk=False, patchcore_lookup_ondevice=False, sources="S6,S3,S7",
-            note="build-time truncation at last CONV2D, pre/post on host; distance/top-k tail not expressible in dataflow"),
-        Accelerator(
-            name="hailo_8l", family=Family.DATAFLOW_NPU, int8_tops=13.0, fp_supported=False,
-            int8_mandatory=True, sram_mib=None, ext_memory="DRAM-free (all memory on-die)",
-            gather=False, argmin=False, topk=False, patchcore_lookup_ondevice=False, sources="S6,S3,S7",
-            note="entry Hailo; same dataflow constraint as Hailo-8, half the TOPS"),
-        Accelerator(
-            name="rknn_npu", family=Family.DATAFLOW_NPU, int8_tops=None, fp_supported=True,
-            int8_mandatory=False, sram_mib=None, ext_memory="external LPDDR (SoC-shared)",
-            gather=True, argmin=True, topk=False, patchcore_lookup_ondevice=False, sources="S4",
-            note="Gather/ArgMin on-device but TopK unsupported; k=1 argmin closer to feasible, fp32 bank still not native"),
-        Accelerator(
-            name="jetson_tensorrt", family=Family.GPU_SOC, int8_tops=None, fp_supported=True,
-            int8_mandatory=False, sram_mib=None, ext_memory="GB-scale LPDDR shared CPU/GPU",
-            gather=True, argmin=True, topk=True, patchcore_lookup_ondevice=True, sources="S8",
-            note="general GPU: full ONNX, mixed precision, native TopK/ArgMin; runs PatchCore lookup end-to-end on-device"),
-    )
+
+class Accelerators:
+    """Load the typed, cited accelerator specs from deployment/accelerators/ — the source-of-truth JSON."""
+
+    @staticmethod
+    def _support_map(raw: dict) -> dict[OpClass, OpSupport]:
+        return {OpClass(k): OpSupport(v) for k, v in raw.items()}
+
+    @staticmethod
+    def _instance(raw: dict, atype: AccelType, support: dict[OpClass, OpSupport]) -> Accelerator:
+        return Accelerator(
+            name=raw["name"], label=raw["label"], type=atype, op_support=support,
+            int8_tops=raw["int8_tops"], fp_supported=raw["fp_supported"],
+            int8_mandatory=raw["int8_mandatory"], memory_model=MemoryModel(raw["memory_model"]),
+            capacity_mib=raw["capacity_mib"], ext_memory=raw["ext_memory"],
+            sources=raw.get("sources", ""), note=raw["note"])
+
+    @staticmethod
+    def _load_type(atype: AccelType) -> AcceleratorType:
+        raw = json.loads((ACCEL_DIR / f"{atype}_params.json").read_text(encoding="utf-8"))
+        support = Accelerators._support_map(raw["op_support"])
+        instances = tuple(Accelerators._instance(i, atype, support) for i in raw["instances"])
+        return AcceleratorType(type=atype, label=raw["label"], op_support=support,
+                               note=raw["note"], instances=instances)
+
+    @staticmethod
+    @cache
+    def types() -> tuple[AcceleratorType, ...]:
+        return tuple(Accelerators._load_type(t) for t in AccelType)
 
     @staticmethod
     def specs() -> tuple[Accelerator, ...]:
-        return Accelerators._SPECS
+        return tuple(inst for t in Accelerators.types() for inst in t.instances)
 
     @staticmethod
     def _log_table(specs: tuple[Accelerator, ...]) -> None:
-        log.info(f"{'accelerator':16s} {'family':13s} {'int8_TOPS':>9s} {'SRAM(MiB)':>9s} "
-                 f"{'gather':>6s} {'argmin':>6s} {'topk':>4s} {'lookup@dev':>10s}  ext_memory")
+        log.info(f"{'accelerator':16s} {'type':10s} {'int8_TOPS':>9s} {'cap(MiB)':>9s} {'memory':>16s}  "
+                 f"conv / bank / attn")
         for a in specs:
             tops = f"{a.int8_tops:.0f}" if a.int8_tops is not None else "?"
-            sram = f"{a.sram_mib:.0f}" if a.sram_mib is not None else "?"
-            log.info(f"{a.name:16s} {a.family:13s} {tops:>9s} {sram:>9s} {a.gather!s:>6s} "
-                     f"{a.argmin!s:>6s} {a.topk!s:>4s} {a.patchcore_lookup_ondevice!s:>10s}  {a.ext_memory}")
-
-    @staticmethod
-    def section() -> dict:
-        """The accelerator sub-document the projection embeds: cited specs + the sizing envelope."""
-        return {"source": _SRC, "sram_class_mib": SRAM_CLASS_MIB,
-                "accelerators": [asdict(a) for a in Accelerators.specs()]}
+            cap = f"{a.capacity_mib:.0f}" if a.capacity_mib is not None else "?"
+            ops = " / ".join(a.op_support[c] for c in OpClass)
+            log.info(f"{a.name:16s} {a.type:10s} {tops:>9s} {cap:>9s} {a.memory_model:>16s}  {ops}")
 
     @staticmethod
     def add_args(_ap: argparse.ArgumentParser) -> None:

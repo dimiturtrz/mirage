@@ -107,7 +107,7 @@ class BankMemory:
 
     @staticmethod
     def section(n: int = _DEFAULT_N, c: int = _DEFAULT_C) -> dict:
-        """The bank sub-document the projection embeds: representations + the host-search line."""
+        """The bank sub-document the models_params doc embeds: representations + the host-search line."""
         rows = [
             BankMemory.cost("ours", n, c),
             BankMemory.cost("patchcore_lite[S3]", _ANCHOR_K, _ANCHOR_D),   # reproduces ~334 KB PQ / ~9.8 MB fp32

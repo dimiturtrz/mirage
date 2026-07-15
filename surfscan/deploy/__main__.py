@@ -1,23 +1,24 @@
-"""Deploy cost-model entry point — profile model footprints, project onto accelerators.
+"""Deploy fit model entry point — profile detector footprints, cross them against typed accelerators.
 
-`project` is the deliverable: it measures the models, computes the bank, loads the substrate specs, and
-writes the SINGLE deploy document (docs/deployment.json) — model costs + bank + substrates + the verdict
-matrix, all in one file. The other three are log-only inspection views of the same underlying data.
+Two artifacts land in the browsable top-level `deployment/` piece:
 
-    python -m surfscan.deploy project       # THE artifact: everything -> docs/deployment.json
-    python -m surfscan.deploy profile       # inspect: measured per-model footprints (logged)
-    python -m surfscan.deploy accelerators  # inspect: cited substrate specs (logged)
-    python -m surfscan.deploy bank          # inspect: PatchCore bank-memory model (logged)
+    python -m surfscan.deploy profile       # measure -> deployment/models_params.json (components + op-classes + bank)
+    python -m surfscan.deploy fit           # cross    -> deployment/fit_matrix.json (detector x accelerator x options)
 
-Each step is a `Spec` in its module; this front-end builds subparsers and routes. See also
-`surfscan.run` (experiments) and `surfscan.report` (docs/metrics).
+The other two steps are log-only inspection views of the same data:
+
+    python -m surfscan.deploy accelerators  # the loaded, cited typed accelerator specs
+    python -m surfscan.deploy bank          # the PatchCore bank-memory model
+
+The accelerator specs themselves are hand-authored source in deployment/accelerators/<type>_params.json.
+See also `surfscan.run` (experiments) and `surfscan.report` (docs/metrics).
 """
 from __future__ import annotations
 
-from surfscan.deploy import accelerators, bank, profile, projection
+from surfscan.deploy import accelerators, bank, fit, profile
 from surfscan.dispatch import Dispatch
 
-STEPS = [profile.SPEC, accelerators.SPEC, bank.SPEC, projection.SPEC]
+STEPS = [profile.SPEC, fit.SPEC, accelerators.SPEC, bank.SPEC]
 
 if __name__ == "__main__":
     Dispatch.dispatch("surfscan.deploy", STEPS)

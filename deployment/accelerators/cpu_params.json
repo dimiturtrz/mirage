@@ -1,0 +1,24 @@
+{
+  "type": "cpu",
+  "label": "general-purpose CPU",
+  "op_support": {
+    "conv_native": "native",
+    "bank_lookup": "native",
+    "transformer_attention": "native"
+  },
+  "note": "runs any op-class in software — no accelerator op-graph to fall outside of; the honest floor: everything fits, everything is slow. The baseline a fixed-function NPU must beat to be worth the integration cost.",
+  "instances": [
+    {
+      "name": "rpi5_cortex_a76",
+      "label": "Raspberry Pi 5 (Cortex-A76 x4 @ 2.4 GHz)",
+      "int8_tops": null,
+      "fp_supported": true,
+      "int8_mandatory": false,
+      "memory_model": "system",
+      "capacity_mib": 8192,
+      "ext_memory": "system LPDDR4X (shared, up to 8 GiB)",
+      "sources": "public (rpi5 datasheet)",
+      "note": "no NPU; a roofline TOPS number would be misleading for a scalar/NEON CPU, so latency is left unprojected. The reference no-accelerator target."
+    }
+  ]
+}

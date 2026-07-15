@@ -44,7 +44,7 @@ distance field reduces to a frozen Conv1×1 (W=−2B, bias=‖b‖²) that runs 
 argmin/top-k over the bank dimension is a **host-side residue on every commodity NPU** (Coral/Hailo: not
 in the op graph; RKNN: ArgMin yes, TopK no [S1][S4-land]).
 
-## The projection: two orthogonal verdicts (`surfscan.deploy project`)
+## The projection: two orthogonal verdicts (`surfscan.deploy fit`)
 
 The join of measured cost × [cited accelerator specs](../../research/deep_dives/2026-07-08_edge_accelerator_landscape.md)
 splits into two axes that must not be conflated:
@@ -102,7 +102,9 @@ datasheets rather than assertion — which was the point of the exercise.
 - **Roofline class is omitted**: it needs memory bandwidth, which the sources don't quote for most of
   these parts.
 
-Structured sources: The single structured source `docs/deployment/projection.json` carries the per-model `models`, the `bank`,
-the cited `substrates`, and the 20-pair `matrix`. Research: [edge-accelerator
+Structured sources: the browsable [`deployment/`](../../deployment/) piece — `models_params.json` (measured
+components + detector op-classes + `bank`), the typed `accelerators/<type>_params.json` specs, and the
+`fit_matrix.json` (detector × accelerator × options verdicts), rendered by `deployment/index.html`.
+Research: [edge-accelerator
 landscape](../../research/deep_dives/2026-07-08_edge_accelerator_landscape.md) [S1–S8],
 [PatchCore-bank-on-NPU](../../research/deep_dives/2026-07-08_patchcore_bank_on_npu.md) [S3][S4].

@@ -75,13 +75,24 @@ class NumberSync:
         return "\n".join(rows)
 
     @staticmethod
+    def twin() -> str:
+        twin_data = RESULTS["stage2_twin"]
+        rows = ["| arm (label source) | rgb AU-PRO | xyz AU-PRO |", "|---|---|---|"]
+        rows.extend(f"| {arm['arm']} | {arm['rgb_au_pro']:.3f} | {arm['xyz_au_pro']:.3f} |"
+                    for arm in twin_data["arms"])
+        return "\n".join(rows)
+
+    @staticmethod
     def _refs() -> dict[str, float]:
         """Canonical scalars quotable inline in prose via `<!--r:key-->…<!--/r-->` — one source, no drift.
         Only headline figures restated in prose; experiment-narrative intermediates stay hand-written."""
         by_run = {method["mlflow_run"]: method for method in RESULTS["methods"] if "mlflow_run" in method}
         triad_data = RESULTS["stage1_triad"]
         arms = {arm["arm"]: arm for arm in triad_data["arms"]}
+        twin_data = RESULTS["stage2_twin"]
         return {
+            "twin.shape_source_rgb": twin_data["shape_source_rgb_pp"],
+            "twin.shape_source_xyz": twin_data["shape_source_xyz_pp"],
             "recon.au_pro": RESULTS["methods"][0]["au_pro"],
             "patchcore.au_pro": by_run["patchcore_rgb_greedy"]["au_pro"],
             "featrecon.au_pro": by_run["feat_recon"]["au_pro"],
@@ -125,7 +136,8 @@ class NumberSync:
         log.info(f"synced -> {doc.relative_to(ROOT)}")
 
 
-_BLOCKS = {"methods": NumberSync.methods, "per_category": NumberSync.per_category, "triad": NumberSync.triad}
+_BLOCKS = {"methods": NumberSync.methods, "per_category": NumberSync.per_category,
+           "triad": NumberSync.triad, "twin": NumberSync.twin}
 _R_INLINE = re.compile(r"(<!--r:([\w.]+)-->).*?(<!--/r-->)", re.DOTALL)
 
 SPEC = Spec("sync", lambda _ap: None, lambda _args: NumberSync.sync())

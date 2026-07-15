@@ -64,11 +64,32 @@ Sim-to-real for 3D anomaly is only now being charted ([SiM3D](https://arxiv.org/
 first synthetic→real benchmark, single-instance CAD→real). What's still open — a physics-based generator
 that shrinks the gap **at the source**, and a closed-loop curriculum — is what comes next.
 
+## Stage 2 — a physics-based digital twin (the honest negative)
+Shrinking the gap *at the source* means a better generator. Stage 2 builds one: reconstruct a per-category
+mean-surface mesh from the 244 real good scans, render it headless through **Isaac Sim / USD / Replicator**
+(path-traced, back-projected to an organized xyz map, MVTec layout), and feed the *same* triad. Swapping the
+label **source** to the twin, scored on **geometry** (xyz, the twin's actual axis):
+
+| arm (label source) | rgb AU-PRO | xyz AU-PRO |
+|---|---|---|
+| synth (classical, on-the-fly) → real | 0.628 | 0.565 |
+| twin_grid (same defect, reconstructed surface) → real | 0.300 | 0.373 |
+| twin_phys (physical mesh-deform defect) → real | 0.081 | 0.321 |
+
+**The twin transfers geometric signal but does not beat classical synth.** Holding the defect constant, the
+**shape-source** delta (twin_grid − synth) is **negative** (−0.192 AU-PRO on xyz): the *reconstructed* surface
+is a worse training substrate than the real good scan — single-view fusion → Poisson → decimation **smooths
+away the micro-geometry** localization rewards. The render is faithful; reconstruction fidelity is the
+bottleneck. Kept as a measured negative — the sim-to-real spine located *where* the twin loses (surface
+micro-geometry), rather than asserting a twin must help. Full diagnosis →
+[`interpretations/twin/2026-07-15_twin-vs-classical.md`](interpretations/twin/2026-07-15_twin-vs-classical.md).
+
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
 - **Sim-to-real gap is real and open (0.166 AU-PRO).** Domain adaptation doesn't significantly close it
-  (see [Stage 1](#stage-1--measuring-the-sim-to-real-gap)); shrinking it at the source (a better generator)
-  is what comes next.
+  (see [Stage 1](#stage-1--measuring-the-sim-to-real-gap)), and the [Stage 2](#stage-2--a-physics-based-digital-twin-the-honest-negative)
+  digital twin doesn't beat classical synth at the source (reconstruction smoothing, not rendering, is the
+  cap). Higher-fidelity reconstruction (multi-view / native-res) is the open lever.
 - **The deployable is rgb-only PatchCore (greedy coreset, 0.90).** Adding **3D-geometry fusion** is measured
   at **+1.5pt → 0.92** (our best) even with preprocessing-limited BTF; the remaining gap to SOTA (~0.96) is
   *better* geometry (native-res FPFH / learned point features), not bank or resolution tuning (rgb tops ~0.93).

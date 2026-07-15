@@ -29,7 +29,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 
 from core.obs import Obs
-from surfscan.deploy import FIT_DOC, MODELS_DOC, accelerators, profile
+from surfscan.deploy import FIT_DOC, MODELS_DOC, accelerators
 from surfscan.deploy.accelerators import Accelerator
 from surfscan.deploy.schema import AccelType, MemoryModel, OpClass, OpSupport
 from surfscan.dispatch import Spec
@@ -84,20 +84,16 @@ class Fit:
     """Cross detectors x typed accelerators x options into a prescriptive per-cell deployability matrix."""
 
     @staticmethod
-    def _work_mib(det: dict, comp: dict[str, dict], bank: dict, quant: str) -> tuple[float, float]:
-        """(summed GFLOPs, working-set MiB) for a detector: neural forward(s) + its named banks. `pieces`
-        is empty for a pure geometry-bank detector (BTF); `banks` roles index the bank-by-role model."""
+    def _work_mib(det: dict, comp: dict[str, dict], quant: str) -> tuple[float, float]:
+        """(summed GFLOPs, working-set MiB) over a detector's pieces — conv stages AND banks alike, since a
+        bank is a normal component (its disk is the store, its gflops the distance matmul). `pieces` is empty
+        only for a detector with no on-device compute; a pure geometry-bank detector (BTF) lists its bank."""
         disk = "disk_int8_mb" if quant == _INT8 else "disk_fp32_mb"
         pieces = det["pieces"]
         gflops = sum(comp[p]["gflops"] for p in pieces)
         weights_mib = sum(comp[p][disk] * _MB_PER_MIB for p in pieces)
         act_mib = max((comp[p]["act_mb"] * _MB_PER_MIB for p in pieces), default=0.0)
-        bank_mib = 0.0
-        for role in det["banks"]:
-            b = bank["banks"][role]
-            bank_mib += b["pq_kib"] / 1024 if quant == _INT8 else b["fp32_mib"]  # PQ = the edge-deploy form
-            gflops += b["distance_macs_g"] * 2                                   # Conv1x1 MACs -> FLOPs
-        return round(gflops, 2), round(weights_mib + act_mib + bank_mib, 2)
+        return round(gflops, 2), round(weights_mib + act_mib, 2)
 
     @staticmethod
     def _latency(gflops: float, acc: Accelerator):
@@ -147,9 +143,9 @@ class Fit:
         return Fit._memory_verdict(work_mib, acc)
 
     @staticmethod
-    def _cell(det: dict, acc: Accelerator, comp: dict, bank: dict, opt: Options) -> FitCell:
+    def _cell(det: dict, acc: Accelerator, comp: dict, opt: Options) -> FitCell:
         op_class = OpClass(det["op_class"])
-        gflops, work_mib = Fit._work_mib(det, comp, bank, opt.quant)
+        gflops, work_mib = Fit._work_mib(det, comp, opt.quant)
         verdict, reason = Fit._resolve(det, acc, work_mib, opt)
         ms_lo, ms_hi, fps_lo, fps_hi = Fit._latency(gflops, acc)
         util = round(work_mib / acc.capacity_mib * 100, 1) if acc.capacity_mib is not None else None
@@ -163,10 +159,9 @@ class Fit:
     @staticmethod
     def matrix(models: dict) -> list[FitCell]:
         comp = {c["name"]: c for c in models["components"]}
-        bank = models["bank"]
         specs = accelerators.Accelerators.specs()
         opts = tuple(Options(quant, onnx) for quant, onnx in itertools.product((_INT8, _FP32), (True, False)))
-        return [Fit._cell(det, acc, comp, bank, opt)
+        return [Fit._cell(det, acc, comp, opt)
                 for det in models["detectors"] for acc in specs for opt in opts]
 
     @staticmethod
@@ -180,13 +175,13 @@ class Fit:
                      f"{c.verdict:>18s}  {c.reason}")
 
     @staticmethod
-    def add_args(ap: argparse.ArgumentParser) -> None:
-        ap.add_argument("--size", type=int, default=256, help="square input side (H=W) to profile at")
+    def add_args(_ap: argparse.ArgumentParser) -> None:
+        pass   # fit is a pure join over the committed models doc — nothing to measure
 
     @staticmethod
-    def run(args: argparse.Namespace) -> None:
-        """Load (or measure) the models, cross with the typed accelerators, write the fit matrix."""
-        models = Fit._models(args.size)
+    def run(_args: argparse.Namespace) -> None:
+        """Cross the committed model footprints with the typed accelerators, write the fit matrix."""
+        models = Fit._models()
         cells = Fit.matrix(models)
         Fit._log(cells)
         doc = {
@@ -200,12 +195,12 @@ class Fit:
         log.info(f"wrote {FIT_DOC.name}  ({len(cells)} cells)")
 
     @staticmethod
-    def _models(size: int) -> dict:
-        """The measured model footprint — from deploy/models_params.json if present, else profile now."""
-        if MODELS_DOC.exists():
-            return json.loads(MODELS_DOC.read_text(encoding="utf-8"))
-        dev = profile.Profiler.device()
-        return profile.Profiler.document(size, dev)
+    def _models() -> dict:
+        """The committed model footprint (deploy/models_params.json). `fit` is a pure CPU join — it does not
+        import the profiler (torch), so it stays runnable in CI without the heavy features extra."""
+        if not MODELS_DOC.exists():
+            raise FileNotFoundError(f"{MODELS_DOC.name} missing — run `python -m surfscan.deploy profile` first")
+        return json.loads(MODELS_DOC.read_text(encoding="utf-8"))
 
 
 SPEC = Spec("fit", Fit.add_args, Fit.run)

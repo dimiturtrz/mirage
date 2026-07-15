@@ -24,8 +24,6 @@ from surfscan.dispatch import Spec
 
 log = Obs.get()
 
-SRAM_CLASS_MIB = 8.0   # the "~8 MiB class" on-chip envelope the bank narrative is sized against (= Coral scratchpad [S2][S5])
-
 
 @dataclass(frozen=True)
 class Accelerator:

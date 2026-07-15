@@ -4,6 +4,10 @@ The footprint arithmetic (params->disk, FLOPs->MACs, cpu act=nan) and the backbo
 selection (layer4/fc excluded) are the load-bearing bits; the torchvision download + cuda act peak are
 the exec boundary, not unit-tested here.
 """
+import pytest
+
+pytest.importorskip("torchvision")   # the profiler builds a torchvision backbone; skip where the features extra is absent
+
 import torch
 import torch.nn as nn
 

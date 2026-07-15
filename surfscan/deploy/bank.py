@@ -1,49 +1,40 @@
-"""PatchCore memory-bank cost model — the load-bearing deploy constraint is bank MEMORY, not FLOPs.
+"""Memory-bank cost model — a stored kNN bank sized as a NORMAL model, not a special case.
 
-A conv detector's cost is its forward pass (profiled in `profile`). PatchCore adds a stored bank of
-`N` feature vectors of width `C` that must live somewhere and be searched per patch — and THAT, not the
-backbone FLOPs, is what breaks the ~8 MiB on-chip envelope. This models the bank three ways against the
-envelope:
+PatchCore (rgb) and BTF (geometry) don't run a forward pass; they store `N` feature vectors of width `C`
+and search them per patch. That is still just params + FLOPs + disk, so a bank is emitted as an ordinary
+`CostRow` in the model list (`profile`), referenced by a detector in `pieces` like any conv stage:
 
-  fp32   N x C x 4B                         — as fit; the honest baseline, and what blows the budget
-  int8   N x C x 1B                         — 4x smaller, still not on a fixed-function NPU's int8 graph
-  int8+PQ  codes N x m  +  codebook m x 2^b x (C/m) x 4B   — product-quantized; fits comfortably
+  params_m     N x C                                        (the stored vectors — a bank's "weights")
+  gflops       2 x patches x N x C                          (per-frame distance matmul; a Conv1x1)
+  disk_fp32_mb N x C x 4B                                    (the raw store — the honest baseline)
+  disk_int8_mb codes N x m + codebook m x 2^b x (C/m) x 4B  (product-quantized edge form — a bank's int8)
 
-Anchored to the PatchCore-Lite result (arxiv 2603.20288 [S3]): K=10000, d=256, m=8/b=8 -> ~334 KB PQ
-vs ~9.77 MB fp32, at a measured ~9 pp image-AUROC cost (I-ROC 0.95 -> 0.86; localization survives,
-P-ROC 0.96 -> 0.94). Our bank is wider (C=1536 = layer2 512 + layer3 1024), so its fp32 footprint is
-proportionally larger.
-
-The search itself splits: the distance field reduces to a frozen Conv1x1 (W=-2B, bias=||b||^2) that
-runs on-accelerator, but the argmin/top-k over the N bank dimension is a HOST-side residue on every
-commodity NPU (Coral/Hailo: not in op graph; RKNN: ArgMin yes, TopK no). Reported as a separate
-host-side cost line — it is not on-accelerator work.
+PQ is anchored to PatchCore-Lite (arxiv 2603.20288 [S3]): K=10000, d=256, m=8/b=8 -> ~334 KB vs ~9.77 MB
+fp32, ~9 pp image-AUROC cost. The argmin/top-k over N is NOT a footprint field — it rides the detector's
+op-class (BANK_LOOKUP), which the fit engine maps to a host residue on every commodity NPU.
 
     python -m surfscan.deploy bank [--n-vectors 20000] [--channels 1536]
 """
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict, dataclass
 
 from core.obs import Obs
-from surfscan.deploy.accelerators import SRAM_CLASS_MIB
+from surfscan.deploy.schema import CostRow
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
-_MIB = 1024 ** 2
+_MB = 1e6
 
-# PatchCore config: greedy coreset at 0.1 of a pool capped at 200k patches -> 20k vectors at the cap;
-# width C = layer2 (512) + layer3 (1024) = 1536. Measured: bagel/foam/tire all fit to exactly (20000,
-# 1536) — every category's ~210-244 train views x 1024 layer2 patches overruns the 200k pool cap.
+# PatchCore rgb bank: greedy coreset at 0.1 of a pool capped at 200k patches -> 20k vectors; width C =
+# layer2 (512) + layer3 (1024) = 1536. Measured: bagel/foam/tire all fit to exactly (20000, 1536).
 _DEFAULT_N = 20_000
 _DEFAULT_C = 1536
 _PATCHES_PER_FRAME = 32 * 32   # layer2 stride-8 grid at 256^2 (the shallowest hooked layer sets the count)
 
 # FPFH geometry bank (BTF / the 3D half of fused). C=33 is fixed by Open3D's FPFH descriptor. N derives from
-# the FpfhBank defaults (per_sample=2000, coreset=0.25) over ~244 train views: 244 x 2000 x 0.25 ≈ 122k
-# vectors. Per-frame search compares ~per_sample=2000 test descriptors against the bank (its own host tail).
+# the FpfhBank defaults (per_sample=2000, coreset=0.25) over ~244 train views: 244 x 2000 x 0.25 ≈ 122k.
 _GEOM_C = 33
 _FPFH_PER_SAMPLE = 2_000
 _FPFH_CORESET = 0.25
@@ -53,32 +44,17 @@ _GEOM_N = int(_TRAIN_VIEWS * _FPFH_PER_SAMPLE * _FPFH_CORESET)
 # Product quantization (arxiv 2603.20288 [S3]): m subspaces, b bits/code -> 2^b centroids per subspace.
 _PQ_M = 8
 _PQ_BITS = 8
-_PQ_IMG_AUROC_COST_PP = 9.0   # measured I-ROC 0.95 -> 0.86 under PQ [S3]
 
-# PatchCore-Lite literature anchor [S3] — the cross-check that the byte formulas reproduce ~334 KB.
+# PatchCore-Lite literature anchor [S3] — the cross-check that the PQ formula reproduces ~334 KB.
 _ANCHOR_K = 10_000
 _ANCHOR_D = 256
 
-
-@dataclass(frozen=True)
-class BankCost:
-    """One bank's storage across representations + its per-frame search cost, vs the on-chip envelope."""
-    label: str
-    n_vectors: int
-    channels: int
-    patches_per_frame: int
-    fp32_mib: float
-    int8_mib: float
-    pq_kib: float
-    distance_macs_g: float    # per-frame distance matmul (on-accelerator as Conv1x1)
-    argmin_compares_m: float  # per-frame argmin over N — the HOST-side residue
-    fp32_fits_sram: bool
-    int8_fits_sram: bool
-    pq_fits_sram: bool
+RGB_BANK = "patchcore_rgb_bank"
+GEOMETRY_BANK = "fpfh_geometry_bank"
 
 
 class BankMemory:
-    """Model each memory bank's storage + host-side search cost against the edge memory envelope."""
+    """Size a stored kNN bank as an ordinary model CostRow (params = N x C, flops = the distance matmul)."""
 
     @staticmethod
     def _pq_bytes(n: int, c: int) -> int:
@@ -87,42 +63,37 @@ class BankMemory:
         return codes + codebook
 
     @staticmethod
-    def cost(label: str, n: int, c: int, patches: int = _PATCHES_PER_FRAME) -> BankCost:
-        envelope = SRAM_CLASS_MIB * _MIB
-        fp32, int8, pq = n * c * 4, n * c, BankMemory._pq_bytes(n, c)
-        return BankCost(
-            label=label, n_vectors=n, channels=c, patches_per_frame=patches,
-            fp32_mib=round(fp32 / _MIB, 2), int8_mib=round(int8 / _MIB, 2), pq_kib=round(pq / 1024, 1),
-            distance_macs_g=round(patches * n * c / 1e9, 2),   # Conv1x1 on-accelerator
-            argmin_compares_m=round(patches * n / 1e6, 2),     # over N, HOST-side residue
-            fp32_fits_sram=fp32 <= envelope, int8_fits_sram=int8 <= envelope, pq_fits_sram=pq <= envelope)
+    def cost(name: str, n: int, c: int, patches: int, note: str) -> CostRow:
+        flops = 2 * patches * n * c
+        return CostRow(
+            name=name, params_m=round(n * c / _MB, 2),
+            gflops=round(flops / 1e9, 2), macs_g=round(flops / 2e9, 2),
+            act_mb=0.0,                                              # the search is a streamed/chunked reduction
+            disk_fp32_mb=round(n * c * 4 / _MB, 2),
+            disk_int8_mb=round(BankMemory._pq_bytes(n, c) / _MB, 2),  # product-quantized edge form
+            note=note)
 
     @staticmethod
-    def _log(banks: dict[str, BankCost]) -> None:
-        log.info(f"{'role':10s} {'bank':18s} {'N':>7s} {'C':>5s} {'fp32(MiB)':>9s} {'int8(MiB)':>9s} "
-                 f"{'PQ(KiB)':>8s} {'dist(GMAC)':>10s} {'argmin(M)':>9s} {'PQ<8Mi':>6s}")
-        for role, r in banks.items():
-            log.info(f"{role:10s} {r.label:18s} {r.n_vectors:7d} {r.channels:5d} {r.fp32_mib:9.2f} "
-                     f"{r.int8_mib:9.2f} {r.pq_kib:8.1f} {r.distance_macs_g:10.2f} {r.argmin_compares_m:9.2f} "
-                     f"{r.pq_fits_sram!s:>6s}")
-        log.info(f"the distance matmul is a Conv1x1 (on-accelerator); the argmin/top-k over N is a HOST residue "
-                 f"on every commodity NPU. PQ costs ~{_PQ_IMG_AUROC_COST_PP}pp img-AUROC [S3].")
+    def components(n: int = _DEFAULT_N, c: int = _DEFAULT_C) -> list[CostRow]:
+        """The bank models a detector can carry as pieces: rgb (PatchCore) + geometry (FPFH/BTF)."""
+        return [
+            BankMemory.cost(RGB_BANK, n, c, _PATCHES_PER_FRAME,
+                            "stored PatchCore rgb feature bank (N x C); int8 col = product-quantized edge form; "
+                            "argmin/top-k tail is host-side (op_class bank_lookup)"),
+            BankMemory.cost(GEOMETRY_BANK, _GEOM_N, _GEOM_C, _FPFH_PER_SAMPLE,
+                            "stored FPFH geometry bank (BTF); handcrafted descriptors, no neural forward; "
+                            "int8 col = product-quantized edge form; argmin tail host-side"),
+        ]
 
     @staticmethod
-    def roles(n: int = _DEFAULT_N, c: int = _DEFAULT_C) -> dict[str, BankCost]:
-        """The deployable banks a detector can carry, keyed by role: rgb (PatchCore) + geometry (FPFH/BTF)."""
-        return {"rgb": BankMemory.cost("rgb_patchcore", n, c),
-                "geometry": BankMemory.cost("geometry_fpfh", _GEOM_N, _GEOM_C, _FPFH_PER_SAMPLE)}
-
-    @staticmethod
-    def section(n: int = _DEFAULT_N, c: int = _DEFAULT_C) -> dict:
-        """The bank sub-document the models_params doc embeds: banks-by-role + the PatchCore-Lite anchor."""
-        banks = BankMemory.roles(n, c)
-        anchor = BankMemory.cost("patchcore_lite[S3]", _ANCHOR_K, _ANCHOR_D)  # reproduces ~334 KB PQ / ~9.8 MB fp32
-        return {"sram_class_mib": SRAM_CLASS_MIB, "pq": {"m": _PQ_M, "bits": _PQ_BITS},
-                "pq_img_auroc_cost_pp": _PQ_IMG_AUROC_COST_PP,
-                "banks": {role: asdict(b) for role, b in banks.items()},
-                "anchor": asdict(anchor)}
+    def _log(rows: list[CostRow]) -> None:
+        log.info(f"{'bank':20s} {'N':>7s} {'C':>5s} {'params(M)':>9s} {'GFLOPs':>8s} {'fp32(MB)':>9s} "
+                 f"{'PQ int8(MB)':>11s}")
+        for r in rows:
+            log.info(f"{r.name:20s} {'':>7s} {'':>5s} {r.params_m:9.2f} {r.gflops:8.2f} {r.disk_fp32_mb:9.2f} "
+                     f"{r.disk_int8_mb:11.2f}")
+        log.info("PQ reproduces the PatchCore-Lite ~334 KB anchor [S3]; the argmin/top-k over N is a HOST "
+                 "residue on every commodity NPU (rides op_class bank_lookup).")
 
     @staticmethod
     def add_args(ap: argparse.ArgumentParser) -> None:
@@ -131,7 +102,7 @@ class BankMemory:
 
     @staticmethod
     def run(args: argparse.Namespace) -> None:
-        BankMemory._log(BankMemory.roles(args.n_vectors, args.channels))
+        BankMemory._log(BankMemory.components(args.n_vectors, args.channels))
 
 
 SPEC = Spec("bank", BankMemory.add_args, BankMemory.run)

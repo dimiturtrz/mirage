@@ -15,6 +15,7 @@ from core.obs import Obs
 from surfscan import tracking
 from surfscan.dispatch import Dispatch, Spec
 from surfscan.evaluation.evaluate import Evaluate
+from surfscan.evaluation.result_types import RunParams, Scores
 from surfscan.training.hparams import HParams
 from surfscan.training.train import TrainRun
 
@@ -40,18 +41,18 @@ class VaeRun:
             run_id = TrainRun(hp).train(run_name=f"vae_{c}", device=dev)
             rows.append(Evaluate.evaluate(run_id, cats=[c], device=dev)["per_category"][0])
 
-        auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
-        aupro = float(np.nanmean([r["au_pro"] for r in rows]))
+        mean = Scores(float(np.nanmean([r["img_auroc"] for r in rows])),
+                      float(np.nanmean([r["au_pro"] for r in rows])))
         log.info("\n===== AGGREGATE (per-category models) =====")
         for r in rows:
             log.info(f"  {r['category']:12s}  img_auroc {r['img_auroc']:.3f}   au_pro {r['au_pro']:.3f}")
-        log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
+        log.info(f"  {'MEAN':12s}  img_auroc {mean.img_auroc:.3f}   au_pro {mean.au_pro:.3f}")
 
-        with tracking.Tracker.run("surfscan", "vae_all", params={"method": "vae_per_category", "cats": ",".join(cats)}):
-            tracking.Tracker.metrics({"img_auroc_mean": auroc, "au_pro_mean": aupro})
+        with tracking.Tracker.run("surfscan", "vae_all", params=RunParams("vae_per_category", cats).as_dict()):
+            tracking.Tracker.metrics(mean.tracker_means())
             tracking.Tracker.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
             tracking.Tracker.artifact_json("aggregate.json",
-                                   {"per_category": rows, "mean": {"img_auroc": auroc, "au_pro": aupro}})
+                                   {"per_category": rows, "mean": mean.as_dict()})
 
 
 SPEC = Spec("vae", VaeRun.args, VaeRun.run)

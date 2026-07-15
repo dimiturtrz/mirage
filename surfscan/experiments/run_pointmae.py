@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from core.data import store
+from core.data.mvtec import Split
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.coreset import Coreset
@@ -56,7 +57,7 @@ class PointMAEMethod:
         return f[0], c[0], mean, scale
 
     def fit(self, cat):
-        _, train = store.Store.arrays(cat, "train", 0, self.size)
+        _, train = store.Store.arrays(cat, Split.TRAIN, 0, self.size)
         feats = torch.cat([self._features(a["xyz"], a["valid"])[0] for a in train])   # (sum G, C)
         return Coreset.greedy_coreset(feats, max(1, int(len(feats) * self.cfg.coreset)), 0)
 
@@ -70,7 +71,7 @@ class PointMAEMethod:
         return amap
 
     def score(self, bank, cat):
-        dft, test = store.Store.arrays(cat, "test", size=self.size)
+        dft, test = store.Store.arrays(cat, Split.TEST, size=self.size)
         amaps = np.stack([self._amap(bank, a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])

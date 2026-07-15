@@ -18,6 +18,7 @@ from torch import optim
 from core.compute import Compute
 from core.data.dataset import GpuSplit
 from core.data.defects import Defects  # channel-aware coherent defects
+from core.data.mvtec import Split
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.draem import Draem, DraemSynth
@@ -44,7 +45,7 @@ class DraemMethod:
     def fit(self, cat):
         torch.manual_seed(self.cfg.seed)
         rng = np.random.RandomState(self.cfg.seed)
-        train = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
+        train = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
         model = Draem(ch=train.in_ch).to(self.dev, memory_format=torch.channels_last)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
 
@@ -61,7 +62,7 @@ class DraemMethod:
         return Trainer(model, opt, self.dev, batch=16).fit(len(train), self.cfg.epochs, step)
 
     def score(self, model, cat):
-        test = GpuSplit.load_split(split="test", cats=[cat], channels=self.cfg.channels, device=self.dev)
+        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=self.cfg.channels, device=self.dev)
         model.eval()
         amaps = []
         with torch.no_grad():

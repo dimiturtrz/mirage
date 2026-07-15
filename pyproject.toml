@@ -189,14 +189,15 @@ test_layout = "mirror"   # every logic module needs a unit test: "mirror" = test
 # floor differs — column names, framework vocab, path segments). A fresh repo ships 0/0 and ratchets up.
 [tool.magic_literals]
 # >>> LOCAL-SLOT: magic-ceilings — this repo's frozen literal floor (raise only with a documented reason)
-# Floor set by the v0.16 detector (v0.13's was blind to these). The 15 strings are the domain's
-# non-enum-able vocab: split names (train/test), channel/modality names (rgb/xyz), device (cuda),
-# metric-column keys (au_pro/img_auroc/label/split/category), encoding (utf-8), path/project segments
-# (surfscan/data/docs), and the "nan" sentinel — column-names + framework vocab, not magic numbers.
-max_strings = 15
-# 3 metric-dict key-sets ({au_pro,img_auroc} ×3, {au_pro_mean,img_auroc_mean} ×2, {cats,method} ×2) are
-# genuine TypedDict/dataclass candidates — tracked in synthscape-e7k (metric result dataclass).
-max_key_sets = 3
+# Floor set by the v0.16 detector (v0.13's was blind to these). The split names (train/test) migrated to
+# the core.data.mvtec.Split StrEnum in synthscape-zka, so the floor ratchets 15 -> 13. The remaining 13 are
+# the domain's non-enum-able vocab: channel/modality names (rgb/xyz), device (cuda), metric-column keys
+# (au_pro/img_auroc/label/split/category), encoding (utf-8), path/project segments (surfscan/data/docs),
+# and the "nan" sentinel — column-names + framework vocab, not magic numbers.
+max_strings = 13
+# The metric-dict key-sets were migrated to Scores/RunParams dataclasses (surfscan/evaluation/result_types.py)
+# in synthscape-e7k, so the floor ratchets to 0 — a NEW repeated key-set now fails the merge.
+max_key_sets = 0
 # <<< LOCAL-SLOT: magic-ceilings
 
 # Shape-contract gate (devtools/shape_contracts.py) — a public array/tensor boundary must carry a

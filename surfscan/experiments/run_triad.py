@@ -31,6 +31,7 @@ from core.cli_config import CliConfig
 from core.compute import Compute
 from core.data.dataset import GpuSplit
 from core.data.defects import KINDS, Defects
+from core.data.mvtec import Split
 from core.data.store import Source
 from core.method import Method
 from core.obs import Obs
@@ -107,7 +108,7 @@ class TriadRun:
         ch = tuple(cfg.channels)
         rng = np.random.RandomState(cfg.seed)
         torch.manual_seed(cfg.seed)
-        good = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=ch, device=dev,
+        good = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=ch, device=dev,
                                    source=source)
         perm = np.random.RandomState(cfg.seed).permutation(good.x.shape[0])
         nval = max(BATCH, good.x.shape[0] // VAL_FRAC)
@@ -141,7 +142,7 @@ class TriadRun:
         cfg, dev = self.cfg, self.dev
         ch = tuple(cfg.channels)
         torch.manual_seed(cfg.seed)
-        test = GpuSplit.load_split(split="test", cats=[cat], channels=ch, device=dev)
+        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=ch, device=dev)
         ci, _ = TriadRun._split_idx(test.df["label"].to_numpy())
         t = torch.as_tensor(ci, device=dev)
         x, v, g = test.x[t], test.valid[t], test.gt[t]
@@ -163,7 +164,7 @@ class TriadRun:
         cfg, dev = self.cfg, self.dev
         ch = tuple(cfg.channels)
         torch.manual_seed(cfg.seed)
-        twin = GpuSplit.load_split(split="test", label=1, cats=[cat], channels=ch, device=dev,
+        twin = GpuSplit.load_split(split=Split.TEST, label=1, cats=[cat], channels=ch, device=dev,
                                    source=Source.twin())
         x, v, g = twin.x, twin.valid, twin.gt
         model = self._new(twin.in_ch)
@@ -205,7 +206,7 @@ class TriadRun:
         """synth-trained, then AdaBN-adapted to the real eval images (unlabeled). The closure arm."""
         dev = self.dev
         model = self.fit_synth(cat)
-        test = GpuSplit.load_split(split="test", cats=[cat], channels=tuple(self.cfg.channels), device=dev)
+        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev)
         _, ei = TriadRun._split_idx(test.df["label"].to_numpy())
         return TriadRun._adabn(model, test.x[torch.as_tensor(ei, device=dev)])
 
@@ -213,7 +214,7 @@ class TriadRun:
     def score(self, model, cat, batch=BATCH):
         """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
         dev = self.dev
-        test = GpuSplit.load_split(split="test", cats=[cat], channels=tuple(self.cfg.channels), device=dev)
+        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev)
         labels = test.df["label"].to_numpy()
         defects = np.array(test.df["defect"].to_list())
         _, ei = TriadRun._split_idx(labels)

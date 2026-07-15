@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from torch import optim
 
 from core.data.dataset import GpuSplit
+from core.data.mvtec import Split
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.feat_recon import FeatAE, FeatExtractor
@@ -53,7 +54,7 @@ class FeatReconMethod:
         return torch.cat(out).numpy()
 
     def fit(self, cat):
-        train = GpuSplit.load_split(split="train", label=0, cats=[cat], channels=["rgb"], device=self.dev)
+        train = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=["rgb"], device=self.dev)
         tf = FeatReconMethod._feats(self.ext, train.x)
         ae = FeatAE(ch=tf.shape[1]).to(self.dev)
         opt = optim.AdamW(ae.parameters(), lr=2e-3)
@@ -65,7 +66,7 @@ class FeatReconMethod:
         return Trainer(ae, opt, self.dev, batch=32).fit(len(tf), self.cfg.epochs, step)
 
     def score(self, ae, cat):
-        test = GpuSplit.load_split(split="test", cats=[cat], channels=["rgb"], device=self.dev)
+        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=["rgb"], device=self.dev)
         H, W = test.x.shape[-2:]
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
         amaps = FeatReconMethod._score_maps(self.ext, ae, test.x, (H, W)) * valids

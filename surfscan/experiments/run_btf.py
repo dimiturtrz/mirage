@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from core.data import store
+from core.data.mvtec import Split
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.fpfh_bank import FpfhBank
@@ -30,11 +31,11 @@ class BtfMethod:
         self.size = cfg.size or 256
 
     def fit(self, cat):
-        _, train = store.Store.arrays(cat, "train", 0, self.size)
+        _, train = store.Store.arrays(cat, Split.TRAIN, 0, self.size)
         return FpfhBank(device=self.dev).fit([(a["xyz"], a["valid"]) for a in train])
 
     def score(self, state, cat):
-        dft, test = store.Store.arrays(cat, "test", size=self.size)
+        dft, test = store.Store.arrays(cat, Split.TEST, size=self.size)
         amaps = state.score_maps([(a["xyz"], a["valid"]) for a in test])
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([(a["gt"] > 0) for a in test])

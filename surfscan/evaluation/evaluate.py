@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from core.compute import Compute
 from core.data.dataset import GpuSplit
+from core.data.mvtec import Split
 from core.method import Method
 from surfscan import tracking
 from surfscan.dispatch import Spec
@@ -32,12 +33,12 @@ class Evaluate:
             return model
 
         def score(m, c):
-            data = GpuSplit.load_split(split="test", cats=[c], channels=hp.channels, device=dev, size=hp.size)
+            data = GpuSplit.load_split(split=Split.TEST, cats=[c], channels=hp.channels, device=dev, size=hp.size)
             sc = scoring.Scoring(m)
             amaps = sc.inpaint_maps(data, grid=hp.grid) if hp.model_type == "inpaint" else sc.anomaly_maps(data)
             scores = None
             if image_score == "mahalanobis":                  # latent-distance score (VAE encoder mu)
-                good = GpuSplit.load_split(split="train", label=0, cats=[c], channels=hp.channels,
+                good = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[c], channels=hp.channels,
                                            device=dev, size=hp.size)
                 scores = scoring.Scoring.mahalanobis(sc.latents(good), sc.latents(data))
             return scoring.Scoring.score_arrays(amaps, data, scores=scores)

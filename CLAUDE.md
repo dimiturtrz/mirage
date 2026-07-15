@@ -73,16 +73,16 @@ Principles are enforced **mechanically**, not by review — a **ratcheting** gat
 | Style/bugs | `ruff@0.15.13` (enforced on `core surfscan`) | logging-not-print (T201), named constants (PLR2004), keyword-only bools (FBT), specific-exception (BLE001/S110), low-complexity/strategy (C901/PLR09xx), config-objects (PLR0913), imports-at-top (PLC0415), dead noqa (RUF100) | `[tool.ruff]` |
 | Dead code | `vulture@2.16` | unused funcs/attrs — blocks conf≥80, warns conf≥60 | `[tool.vulture]` |
 | Import layers | `import-linter` (grimp) | `core` = independent kernel, imports no `surfscan` | `[tool.importlinter]` |
-| Arch fitness | `devtools/graph.py --assert` (grimp+networkx) | god-module (fan-in AND fan-out both >8), god-file (>750 lines), import cycle; line-floor/chokepoint advisory | `[tool.structure]` |
-| Module shape | `ast-grep` (`devtools/sgconfig.yml`) | no import-time side-effect call (`matplotlib.use` exempt); **everything-in-a-class** — every top-level `def` is a method on the class that owns it (`main` exempt) | `devtools/sg-rules/` |
-| Duplication | `jscpd` (advisory) | copy-paste over the DRY threshold | `devtools/jscpd.json` |
-| Shape contracts | `devtools/shape_contracts.py --assert` (enforced) | public array/tensor boundary carries a `jaxtyping` shape (`Float[Tensor, "b c h w"]`), not bare `np.ndarray`/`Tensor`; `@shapecheck` (jaxtyping+beartype) makes it live at runtime | `[tool.shape_contracts]` |
+| Arch fitness | `python -m devtools.graph --assert` (grimp+networkx) | god-module (fan-in AND fan-out both >8), god-file (>750 lines), import cycle; line-floor/chokepoint advisory | `[tool.structure]` |
+| Module shape | `ast-grep` (config from the installed `devtools` pkg, `python -m devtools.config sgconfig`) | no import-time side-effect call (`matplotlib.use` exempt); **everything-in-a-class** — every top-level `def` is a method on the class that owns it (`main` exempt) | package `sg-rules/` |
+| Duplication | `jscpd` (advisory, config `python -m devtools.config jscpd`) | copy-paste over the DRY threshold | package `jscpd.json` |
+| Shape contracts | `python -m devtools.shape_contracts --assert` (enforced) | public array/tensor boundary carries a `jaxtyping` shape (`Float[Tensor, "b c h w"]`), not bare `np.ndarray`/`Tensor`; `@shapecheck` (jaxtyping+beartype) makes it live at runtime | `[tool.shape_contracts]` |
 
 **noqa policy: bare `# noqa: RULE`** — no prose reasons; minimal comments, prefer self-documenting names. **Everything-in-a-class** (qc5, matching systole): a top-level function belongs as a method on the class that owns its state/responsibility; a pure stateless helper is a `@staticmethod` on that class. `main`/`_main` exempt. The rule catches decorated top-level defs too (a `@contextmanager`/`@torch.no_grad()` free func can't slip past).
 
 ## Scaffolding
 
-Guardrails provisioned by **sdlc-scaffold** via copier — `.copier-answers.yml` pins the version. The gate config, `devtools/`, and the nox/CI/pre-commit runners are **template-owned**: don't hand-edit them to pass a gate — fix upstream in the scaffold and `uvx copier update`, or edit only within `# >>> LOCAL-SLOT` regions. `copier update` pulls scaffold improvements as reviewable steps.
+Guardrails provisioned by **sdlc-scaffold** via copier — `.copier-answers.yml` pins the version. The gate config and the nox/CI/pre-commit runners are **template-owned**: don't hand-edit them to pass a gate — fix upstream in the scaffold and `uvx copier update`, or edit only within `# >>> LOCAL-SLOT` regions. `copier update` pulls scaffold improvements as reviewable steps. The gate **analyzers** are no longer vendored source — they install as the `sdlc-devtools` package pinned by scaffold tag (`devtools` extra, run as `python -m devtools.<engine>`); an engine update is a one-line `devtools_ref` bump on `copier update`, no source diff in a PR.
 
 ## Architecture Overview
 

@@ -27,7 +27,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov"]
-devtools = ["grimp", "networkx"]   # import-graph architecture-fitness gate (devtools/graph.py, bag/169)
+# The guardrail ANALYZERS are an installed package pinned by scaffold tag (not vendored source) — an engine
+# update is a one-line `devtools_ref` bump on `copier update`, no source diff in your PRs. Imports as
+# `devtools` (`python -m devtools.graph …`); grimp/networkx arrive transitively. ast-grep/jscpd configs are
+# located from the install via `python -m devtools.config`. Pin lives in .copier-answers.yml (devtools_ref).
+devtools = ["sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.2.0#subdirectory=sdlc-devtools"]
 export = ["onnxruntime"]   # ONNX export + parity check (train-vs-deploy skew, carried from acoustic)
 features = [
     "timm>=1.0.27",
@@ -36,7 +40,9 @@ features = [
 # models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
-all = ["pytest", "pytest-cov", "grimp", "networkx", "onnxruntime", "timm>=1.0.27", "torchvision"]  # dev+devtools+export+features
+all = ["pytest", "pytest-cov", "onnxruntime", "timm>=1.0.27", "torchvision",
+       "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.2.0#subdirectory=sdlc-devtools"]  # dev+devtools+export+features
+
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -70,9 +76,13 @@ extend-exclude = ["sim", "docs", "learning", "research", "interpretations"]   # 
 [tool.ruff.lint]
 select = ["F", "B", "I", "T201", "FBT", "BLE001", "S101", "S110", "C901", "PLR0912", "PLR0913", "PLR0915", "PLR2004", "PLC0415", "RUF100", "N", "E741", "E742", "E743", "PLR0124", "PLR1714", "PLW3301", "RUF012", "RUF005", "RUF007", "RUF010", "RUF022", "RUF046", "C408", "C420", "SIM", "PERF401", "PLW0108", "E731", "E402", "ICN001", "S603", "S607", "PTH123"]
 ignore = [
-    # jaxtyping shape strings — `Float[Tensor, "b c h w"]` is a deliberate runtime-checked annotation;
-    # F722 misreads the dim string as a malformed forward ref. jaxtyping's own FAQ prescribes disabling it.
+    # jaxtyping shape strings are deliberate runtime-checked annotations that ruff's forward-ref parser
+    # misreads (jaxtyping's own FAQ prescribes disabling both): F722 = a multi-token dim string
+    # `Float[Tensor, "b c h w"]` (invalid forward-ref syntax); F821 = a single-axis `Float[Tensor, "n"]`
+    # (a valid forward-ref to the undefined name `n`). Needed so a 1-D shape passes the now-blocking
+    # shape-contracts gate (bd kqk) — the shape gate REQUIRES an annotation the lint would otherwise reject.
     "F722",
+    "F821",
 ]
 
 # pep8-naming (N): case convention is a UNIVERSAL rule; the allowlisted idioms are per-repo FACTS. Every

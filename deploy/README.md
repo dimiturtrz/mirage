@@ -1,4 +1,9 @@
-# deployment — fit explorer
+# deploy — fit explorer
+
+**Live:** https://dimiturtrz.github.io/mirage/ (published from `main` by `.github/workflows/pages.yml`;
+enable Pages → "GitHub Actions" once in repo settings). The data is license-clean — our own measured
+footprints + cited **public** vendor datasheets, zero MVTec-derived content — so unlike `pointcloud-viewer/`
+it is safe to host publicly.
 
 Which anomaly detector ships on which edge accelerator, and **why**. This is the deploy analysis made
 browsable: measured model footprints crossed against typed, cited accelerator specs into a prescriptive
@@ -32,11 +37,15 @@ portal are `null`, never guessed; every instance cites its source `[S#]` in the
 python -m surfscan.deploy profile     # measure footprints -> models_params.json
 python -m surfscan.deploy fit         # cross with typed accelerators -> fit_matrix.json
 ```
-The accelerator `*_params.json` are source (hand-authored); `profile`/`fit` never touch them.
+The accelerator `*_params.json` are source (hand-authored); `profile`/`fit` never touch them. `profile`
+needs a GPU for the activation peak and `external/M3DM` for the pointmae transformer detector — both
+degrade gracefully (act = NaN off-CUDA; pointmae skipped if M3DM absent). `fit` is a pure CPU join and a
+test asserts the committed `fit_matrix.json` matches a fresh recompute, so it can't drift.
 
 ## View
+Live at the URL above, or locally:
 ```bash
-cd deployment && python -m http.server 8000   # fetch needs http, not file://
+cd deploy && python -m http.server 8000   # fetch needs http, not file://
 # open http://localhost:8000
 ```
 Pick an accelerator, toggle **quantization** (int8/fp32) and the **export toolchain** (ONNX/eager); the

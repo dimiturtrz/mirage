@@ -1,0 +1,161 @@
+{
+  "note": "measured torch->ONNX (dynamo=False) op inventory \u2014 the op-class gate, verified not assumed",
+  "opset": 17,
+  "input_size": 256,
+  "device": "cuda",
+  "components": [
+    {
+      "name": "convvae_xyz",
+      "exported": true,
+      "n_ops": 10,
+      "op_types": [
+        "BatchNormalization",
+        "Constant",
+        "Conv",
+        "ConvTranspose",
+        "Flatten",
+        "Gemm",
+        "Identity",
+        "Mul",
+        "Reshape",
+        "Sigmoid"
+      ],
+      "has_attention_op": false,
+      "has_bank_tail_op": false
+    },
+    {
+      "name": "draem_rgb",
+      "exported": true,
+      "n_ops": 6,
+      "op_types": [
+        "Concat",
+        "Conv",
+        "ConvTranspose",
+        "MaxPool",
+        "Mul",
+        "Sigmoid"
+      ],
+      "has_attention_op": false,
+      "has_bank_tail_op": false
+    },
+    {
+      "name": "backbone_layer2",
+      "exported": true,
+      "n_ops": 4,
+      "op_types": [
+        "Add",
+        "Conv",
+        "MaxPool",
+        "Relu"
+      ],
+      "has_attention_op": false,
+      "has_bank_tail_op": false
+    },
+    {
+      "name": "backbone_layer3",
+      "exported": true,
+      "n_ops": 4,
+      "op_types": [
+        "Add",
+        "Conv",
+        "MaxPool",
+        "Relu"
+      ],
+      "has_attention_op": false,
+      "has_bank_tail_op": false
+    },
+    {
+      "name": "feat_ae",
+      "exported": true,
+      "n_ops": 6,
+      "op_types": [
+        "BatchNormalization",
+        "Conv",
+        "ConvTranspose",
+        "Identity",
+        "Mul",
+        "Sigmoid"
+      ],
+      "has_attention_op": false,
+      "has_bank_tail_op": false
+    },
+    {
+      "name": "pointmae",
+      "exported": true,
+      "n_ops": 32,
+      "op_types": [
+        "Add",
+        "ArgMax",
+        "Cast",
+        "Concat",
+        "Constant",
+        "ConstantOfShape",
+        "Conv",
+        "Div",
+        "Equal",
+        "Erf",
+        "Expand",
+        "Flatten",
+        "Gather",
+        "Identity",
+        "LayerNormalization",
+        "MatMul",
+        "Min",
+        "Mul",
+        "Pow",
+        "ReduceMax",
+        "ReduceSum",
+        "Relu",
+        "Reshape",
+        "ScatterND",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sub",
+        "TopK",
+        "Transpose",
+        "Unsqueeze",
+        "Where"
+      ],
+      "has_attention_op": true,
+      "has_bank_tail_op": true
+    }
+  ],
+  "detectors": [
+    {
+      "detector": "convvae",
+      "op_class": "conv_native",
+      "pieces_exported": true,
+      "has_attention_op": false,
+      "corroborates_op_class": true
+    },
+    {
+      "detector": "draem",
+      "op_class": "conv_native",
+      "pieces_exported": true,
+      "has_attention_op": false,
+      "corroborates_op_class": true
+    },
+    {
+      "detector": "feat_recon",
+      "op_class": "conv_native",
+      "pieces_exported": true,
+      "has_attention_op": false,
+      "corroborates_op_class": true
+    },
+    {
+      "detector": "patchcore",
+      "op_class": "bank_lookup",
+      "pieces_exported": true,
+      "has_attention_op": false,
+      "corroborates_op_class": true
+    },
+    {
+      "detector": "pointmae",
+      "op_class": "transformer_attention",
+      "pieces_exported": true,
+      "has_attention_op": true,
+      "corroborates_op_class": true
+    }
+  ]
+}

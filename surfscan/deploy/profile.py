@@ -98,6 +98,10 @@ class TruncatedResnet:
             x = m(x)
         return x
 
+    def export_spec(self, x):
+        """The exportable nn.Module + its input — the truncated stages as a Sequential (ONNX gate)."""
+        return torch.nn.Sequential(*self.mods), x
+
     @property
     def params(self) -> int:
         return sum(p.numel() for m in self.mods for p in m.parameters())
@@ -118,6 +122,10 @@ class PointmaeBackbone:
     @torch.no_grad()
     def __call__(self, x):
         return Pointmae.pointmae_features(self.net, x)
+
+    def export_spec(self, x):
+        """The transformer module + its (B,3,N) input — the Point-MAE forward wants channels-first."""
+        return self.net, x.transpose(1, 2).contiguous()
 
     @property
     def params(self) -> int:

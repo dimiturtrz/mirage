@@ -52,6 +52,7 @@
   .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .card h4 { margin: 0; font-size: 15px; }
   .card .opc { font-size: 11px; color: var(--dim); }
+  .vfy { color: var(--full); font-size: 10px; border: 1px solid #23502e; border-radius: 20px; padding: 1px 6px; white-space: nowrap; }
   .verdict { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; margin: 10px 0; }
   .verdict.full { background: #12261a; color: var(--full); }
   .verdict.stream { background: #2a2211; color: var(--stream); }
@@ -139,7 +140,7 @@ const VLABEL = { "full-ondevice": "full on-device", "streams-offchip": "streams 
 const ATYPES = ["cpu", "gpu", "npu_fixed", "npu_soc"];
 
 const state = { quant: "int8", onnx: true };
-let cells = [], meta = {}, accels = [], detectors = [];
+let cells = [], meta = {}, accels = [], detectors = [], verified = {};
 
 const uniq = (xs) => [...new Set(xs)];
 const cell = (det, acc) => cells.find(c =>
@@ -177,8 +178,9 @@ function detectorCard(c) {
          <div class="bar"><i class="${over ? "over" : ""}" style="width:${util}%"></i></div></dd>`;
   const lat = c.latency_ms_lo == null ? "" :
     `<dt>latency</dt><dd>${c.latency_ms_lo}–${c.latency_ms_hi} ms · ${c.fps_lo}–${c.fps_hi} fps</dd>`;
+  const vfy = verified[c.detector] ? ` <span class="vfy" title="op-class confirmed against the exported ONNX graph">✓ ONNX-verified</span>` : "";
   return `<div class="card ${k}">
-    <div class="top"><h4>${c.detector}</h4><span class="opc">${c.op_class.replace(/_/g, " ")}</span></div>
+    <div class="top"><h4>${c.detector}</h4><span class="opc">${c.op_class.replace(/_/g, " ")}${vfy}</span></div>
     <span class="verdict ${k}">${VLABEL[c.verdict]}</span>
     <div class="reason">${c.reason}</div>
     <dl class="stats">
@@ -228,6 +230,10 @@ async function loadMeta() {
     cells = fit.cells;
     if (!cells.length) throw 0;
     await loadMeta();
+    try {  // optional — the measured ONNX export gate (deploy/export_ops.json)
+      const ex = await (await fetch("export_ops.json")).json();
+      for (const d of ex.detectors) if (d.corroborates_op_class) verified[d.detector] = true;
+    } catch { /* export gate not generated — cards just omit the badge */ }
     document.getElementById("note").textContent = fit.note +
       ` — profiled at ${fit.input_size}²px on ${fit.device}.`;
     accels = uniq(cells.map(c => c.accelerator));

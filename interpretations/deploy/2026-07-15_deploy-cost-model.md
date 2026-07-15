@@ -102,9 +102,9 @@ datasheets rather than assertion — which was the point of the exercise.
 - **Roofline class is omitted**: it needs memory bandwidth, which the sources don't quote for most of
   these parts.
 
-Structured sources: the browsable [`deployment/`](../../deployment/) piece — `models_params.json` (measured
+Structured sources: the browsable [`deploy/`](../../deploy/) piece — `models_params.json` (measured
 components + detector op-classes + `bank`), the typed `accelerators/<type>_params.json` specs, and the
-`fit_matrix.json` (detector × accelerator × options verdicts), rendered by `deployment/index.html`.
+`fit_matrix.json` (detector × accelerator × options verdicts), rendered by `deploy/index.html`.
 Research: [edge-accelerator
 landscape](../../research/deep_dives/2026-07-08_edge_accelerator_landscape.md) [S1–S8],
 [PatchCore-bank-on-NPU](../../research/deep_dives/2026-07-08_patchcore_bank_on_npu.md) [S3][S4].

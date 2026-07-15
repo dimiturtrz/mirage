@@ -16,7 +16,7 @@ This is the deliverable the deploy work builds toward: not a FLOP table but a VE
   5. latency     FLOPs / (peak-TOPS x a 30-70% efficiency band) where a TOPS number is cited — a PROJECTION,
                  never a measured FPS, and omitted where the datasheet number is behind a portal.
 
-Emits deployment/fit_matrix.json — the (detector x accelerator x options) grid the viewer renders.
+Emits deploy/fit_matrix.json — the (detector x accelerator x options) grid the viewer renders.
 
     python -m surfscan.deploy fit [--size 256]
 """
@@ -197,7 +197,7 @@ class Fit:
 
     @staticmethod
     def _models(size: int) -> dict:
-        """The measured model footprint — from deployment/models_params.json if present, else profile now."""
+        """The measured model footprint — from deploy/models_params.json if present, else profile now."""
         if MODELS_DOC.exists():
             return json.loads(MODELS_DOC.read_text(encoding="utf-8"))
         dev = profile.Profiler.device()

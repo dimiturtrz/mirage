@@ -123,7 +123,7 @@ surfscan/              the science layer
   deploy/              profile (footprints) · accelerators (typed loader) · bank · fit (verdict matrix)
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
 sim/                   synthetic-defect engine — Isaac/Replicator (its own env)
-deployment/            browsable fit explorer — models_params · accelerators/<type> · fit_matrix + viewer
+deploy/            browsable fit explorer — models_params · accelerators/<type> · fit_matrix + viewer
 docs/                  PLAN.md · RESULTS.md (+ RESULTS.json canonical) · STRUCTURE.md
 learning/ research/ tests/ (unit + integration) · pointcloud-viewer/
 ```

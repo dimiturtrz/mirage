@@ -1,6 +1,6 @@
-"""Typed accelerator spec loader — reads the hand-authored, cited source in deployment/accelerators/.
+"""Typed accelerator spec loader — reads the hand-authored, cited source in deploy/accelerators/.
 
-The source of truth is now the browsable JSON, not this module: deployment/accelerators/<type>_params.json,
+The source of truth is now the browsable JSON, not this module: deploy/accelerators/<type>_params.json,
 one file per accelerator TYPE (cpu / gpu / npu_fixed / npu_soc), real instances inside. The type carries
 the op-support contract (how it runs each op-class); the instance carries its datasheet numbers and its
 memory model (which varies within a type — Coral streams from host, Hailo is on-die-only, both npu_fixed).
@@ -47,7 +47,7 @@ class Accelerator:
 
 @dataclass(frozen=True)
 class AcceleratorType:
-    """A typed group of accelerators sharing an op-support contract (one deployment/accelerators file)."""
+    """A typed group of accelerators sharing an op-support contract (one deploy/accelerators file)."""
     type: AccelType
     label: str
     op_support: dict[OpClass, OpSupport]
@@ -56,7 +56,7 @@ class AcceleratorType:
 
 
 class Accelerators:
-    """Load the typed, cited accelerator specs from deployment/accelerators/ — the source-of-truth JSON."""
+    """Load the typed, cited accelerator specs from deploy/accelerators/ — the source-of-truth JSON."""
 
     @staticmethod
     def _support_map(raw: dict) -> dict[OpClass, OpSupport]:

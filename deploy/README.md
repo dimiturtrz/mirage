@@ -10,7 +10,7 @@ NPU and runs whole only on a GPU SoC; **attention** is not in a fixed-function o
 
 ## Layout
 ```
-deployment/
+deploy/
   models_params.json              generated — measured components + detector op-classes + bank model
   accelerators/
     cpu_params.json               hand-authored, cited — one file per accelerator TYPE, instances inside

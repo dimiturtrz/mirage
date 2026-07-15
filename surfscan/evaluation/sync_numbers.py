@@ -28,7 +28,7 @@ log = Obs.get()
 
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = json.loads((ROOT / "docs" / "RESULTS.json").read_text(encoding="utf-8"))
-# Deploy-cost atoms keyed by component name (the `components` section of deployment/models_params.json); a
+# Deploy-cost atoms keyed by component name (the `components` section of deploy/models_params.json); a
 # method's "cost_ref" sums over them for the RESULTS cost columns.
 _COST = {r["name"]: r for r in json.loads(MODELS_DOC.read_text(encoding="utf-8"))["components"]}
 

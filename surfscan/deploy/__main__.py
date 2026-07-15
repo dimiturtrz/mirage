@@ -1,16 +1,16 @@
 """Deploy fit model entry point — profile detector footprints, cross them against typed accelerators.
 
-Two artifacts land in the browsable top-level `deployment/` piece:
+Two artifacts land in the browsable top-level `deploy/` piece:
 
-    python -m surfscan.deploy profile       # measure -> deployment/models_params.json (components + op-classes + bank)
-    python -m surfscan.deploy fit           # cross    -> deployment/fit_matrix.json (detector x accelerator x options)
+    python -m surfscan.deploy profile       # measure -> deploy/models_params.json (components + op-classes + bank)
+    python -m surfscan.deploy fit           # cross    -> deploy/fit_matrix.json (detector x accelerator x options)
 
 The other two steps are log-only inspection views of the same data:
 
     python -m surfscan.deploy accelerators  # the loaded, cited typed accelerator specs
     python -m surfscan.deploy bank          # the PatchCore bank-memory model
 
-The accelerator specs themselves are hand-authored source in deployment/accelerators/<type>_params.json.
+The accelerator specs themselves are hand-authored source in deploy/accelerators/<type>_params.json.
 See also `surfscan.run` (experiments) and `surfscan.report` (docs/metrics).
 """
 from __future__ import annotations

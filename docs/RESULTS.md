@@ -25,7 +25,7 @@ PatchCore's AU-PRO (0.907 vs 0.902) at a quarter the params (6.2M vs 24.9M) and 
 PatchCore/fused additionally carry a **20k×1536 feature bank** (117 MiB fp32 / 1.65 MiB int8+PQ) whose
 kNN tail is host-side on every commodity NPU — the measured footprints, the typed accelerator specs, and
 the prescriptive (detector × accelerator × options) fit matrix live in the browsable
-[`deployment/`](../deployment/) piece (`surfscan.deploy profile` / `fit`, viewer at `deployment/index.html`). The
+[`deploy/`](../deploy/) piece (`surfscan.deploy profile` / `fit`, viewer at `deploy/index.html`). The
 deploy-driven detector choice is read off these numbers in
 [`interpretations/deploy/2026-07-15_deploy-cost-model.md`](../interpretations/deploy/2026-07-15_deploy-cost-model.md).</sub>
 

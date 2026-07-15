@@ -9,7 +9,10 @@
       "img_auroc": 0.486,
       "au_pro": 0.095,
       "note": "≈ random localization",
-      "mlflow_run": "vae_all"
+      "mlflow_run": "vae_all",
+      "cost_ref": [
+        "convvae_xyz"
+      ]
     },
     {
       "name": "DRAEM (synthesis-discriminative, crude Perlin) · bagel",
@@ -17,7 +20,10 @@
       "paradigm": "synthesis-discriminative",
       "img_auroc": 0.61,
       "au_pro": 0.36,
-      "note": "BAGEL-ONLY (not a 10-cat mean), 3-seed: 0.36±0.09 au_pro / 0.61 img (the earlier single-seed 0.48 was a lucky draw). My realistic synth v2 scored LOWER (0.18) because of BROKEN GEOMETRY (world-z not surface-normal displacement), NOT because realism hurts DRAEM. Fixed v3 (normal-displaced, core/geometry.py): 0.32±0.07 au_pro (tied) + 0.79 img (higher on all 3, decisively on 2). RESOLVED 2026-07-07."
+      "note": "BAGEL-ONLY (not a 10-cat mean), 3-seed: 0.36±0.09 au_pro / 0.61 img (the earlier single-seed 0.48 was a lucky draw). My realistic synth v2 scored LOWER (0.18) because of BROKEN GEOMETRY (world-z not surface-normal displacement), NOT because realism hurts DRAEM. Fixed v3 (normal-displaced, core/geometry.py): 0.32±0.07 au_pro (tied) + 0.79 img (higher on all 3, decisively on 2). RESOLVED 2026-07-07.",
+      "cost_ref": [
+        "draem_rgb"
+      ]
     },
     {
       "name": "  ↳ realistic-synth v3 (normal-displaced, on DRAEM) · bagel",
@@ -25,7 +31,10 @@
       "paradigm": "synthesis-discriminative",
       "img_auroc": 0.79,
       "au_pro": 0.32,
-      "note": "BAGEL-ONLY 3-seed. Surface-normal displacement (core/geometry.grid_normals) fixed the v2 z-axis bug: au_pro tied with Perlin (0.32±0.07 vs 0.36±0.09, bands overlap), img_auroc higher on all 3 seeds — decisively on 2, seed-1 a near dead-heat (mean 0.79 vs 0.61). See interpretations/synthesis/2026-07-06_draem-synthesis-comparison.md."
+      "note": "BAGEL-ONLY 3-seed. Surface-normal displacement (core/geometry.grid_normals) fixed the v2 z-axis bug: au_pro tied with Perlin (0.32±0.07 vs 0.36±0.09, bands overlap), img_auroc higher on all 3 seeds — decisively on 2, seed-1 a near dead-heat (mean 0.79 vs 0.61). See interpretations/synthesis/2026-07-06_draem-synthesis-comparison.md.",
+      "cost_ref": [
+        "draem_rgb"
+      ]
     },
     {
       "name": "BTF (FPFH memory bank)",
@@ -50,7 +59,10 @@
       "au_pro_lo": 0.892,
       "au_pro_hi": 0.91,
       "img_auroc_lo": 0.812,
-      "img_auroc_hi": 0.866
+      "img_auroc_hi": 0.866,
+      "cost_ref": [
+        "backbone_layer3"
+      ]
     },
     {
       "name": "Feature-recon / RD4AD-lite",
@@ -62,7 +74,11 @@
       "au_pro_lo": 0.899,
       "au_pro_hi": 0.915,
       "img_auroc_lo": 0.777,
-      "img_auroc_hi": 0.833
+      "img_auroc_hi": 0.833,
+      "cost_ref": [
+        "backbone_layer2",
+        "feat_ae"
+      ]
     },
     {
       "name": "Fused (PatchCore-rgb + BTF)",
@@ -75,7 +91,10 @@
       "au_pro_lo": 0.923,
       "au_pro_hi": 0.935,
       "img_auroc_lo": 0.813,
-      "img_auroc_hi": 0.868
+      "img_auroc_hi": 0.868,
+      "cost_ref": [
+        "backbone_layer3"
+      ]
     }
   ],
   "sota": {

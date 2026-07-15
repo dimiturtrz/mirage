@@ -6,17 +6,25 @@ eval harness — image-level **AUROC** (detection) + pixel-level **AU-PRO** (loc
 
 ## Headline: reconstruction fails, feature-memory-bank works
 <!-- results:methods -->
-| method | modality | mean img-AUROC | mean pixel AU-PRO |
-|---|---|---|---|
-| Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.486 | 0.095 |
-| DRAEM (synthesis-discriminative, crude Perlin) · bagel — ours | xyz | 0.610 | 0.360 |
-|   ↳ realistic-synth v3 (normal-displaced, on DRAEM) · bagel — ours | xyz | 0.790 | 0.320 |
-| BTF (FPFH memory bank) — ours | geometry | 0.674 [0.641, 0.707] | 0.650 [0.637, 0.662] |
-| **PatchCore (feature memory bank)** — ours | rgb | 0.838 [0.812, 0.866] | 0.902 [0.892, 0.910] |
-| Feature-recon / RD4AD-lite — ours | rgb | 0.805 [0.777, 0.833] | 0.907 [0.899, 0.915] |
-| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.840 [0.813, 0.868] | 0.929 [0.923, 0.935] |
-| SOTA (DCRDF-Net)† | rgb + 3D | ~0.97 | ~0.99 |
+| method | modality | mean img-AUROC | mean pixel AU-PRO | params (M) | GFLOPs | int8 (MB) |
+|---|---|---|---|---|---|---|
+| Reconstruction (VAE / +dropout / inpaint / fused) — ours | xyz (+rgb) | 0.486 | 0.095 | 30.8 | 2.3 | 30.8 |
+| DRAEM (synthesis-discriminative, crude Perlin) · bagel — ours | xyz | 0.610 | 0.360 | 15.5 | 48.4 | 15.5 |
+|   ↳ realistic-synth v3 (normal-displaced, on DRAEM) · bagel — ours | xyz | 0.790 | 0.320 | 15.5 | 48.4 | 15.5 |
+| BTF (FPFH memory bank) — ours | geometry | 0.674 [0.641, 0.707] | 0.650 [0.637, 0.662] | — | — | — |
+| **PatchCore (feature memory bank)** — ours | rgb | 0.838 [0.812, 0.866] | 0.902 [0.892, 0.910] | 24.9 | 24.0 | 24.9 |
+| Feature-recon / RD4AD-lite — ours | rgb | 0.805 [0.777, 0.833] | 0.907 [0.899, 0.915] | 6.2 | 13.9 | 6.2 |
+| Fused (PatchCore-rgb + BTF) — ours | rgb + 3D | 0.840 [0.813, 0.868] | 0.929 [0.923, 0.935] | 24.9 | 24.0 | 24.9 |
+| SOTA (DCRDF-Net)† | rgb + 3D | ~0.97 | ~0.99 | — | — | — |
 <!-- /results:methods -->
+
+<sub>**Cost columns** (`params / GFLOPs / int8`) are the **neural forward at 256²** measured with torch's
+FlopCounterMode (`python -m surfscan.deploy profile`) — backbones counted truncated to the read layer
+(layer4+fc pruned). They surface the deploy tradeoff the accuracy columns hide: **feature-recon matches
+PatchCore's AU-PRO (0.907 vs 0.902) at a quarter the params (6.2M vs 24.9M) and no memory bank.**
+PatchCore/fused additionally carry a **20k×1536 feature bank** (117 MiB fp32 / 1.65 MiB int8+PQ) whose
+kNN tail is host-side on every commodity NPU — the bank-memory model and the per-accelerator projection
+live in `docs/BANK_COST.json` / `docs/DEPLOY_PROJECTION.json` (`surfscan.deploy bank` / `project`).</sub>
 
 <sub>¹ fused all-10 (<!--r:fused.au_pro-->0.929<!--/r-->) is the **top detector** — **+1.5pt** over rgb-only PatchCore (<!--r:patchcore.au_pro-->0.902<!--/r-->, same 0.1-greedy coreset), CIs near-disjoint ([0.911, 0.923] vs [0.892, 0.910]). Geometry fusion adds an orthogonal signal: biggest gains on geometry-rich categories (carrot 0.991, dowel 0.977, potato 0.979), small dips only where our preprocessing-limited BTF is weakest (cookie 0.811, foam 0.835). Fusion **pays even with degraded FPFH** — native-res geometry is further headroom. Single representative run (multi-seed to harden). Deployable trade-off: rgb-only stays the simplest edge path (no geometry pipeline); fused leads on accuracy.</sub>
 

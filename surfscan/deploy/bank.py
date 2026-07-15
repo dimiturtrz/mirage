@@ -38,8 +38,9 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_JSON = ROOT / "docs" / "BANK_COST.json"
 _MIB = 1024 ** 2
 
-# PatchCore config: greedy coreset at 0.1 of a pool capped at 200k patches -> ~20k vectors at the cap;
-# width C = layer2 (512) + layer3 (1024) = 1536. N is measured from a real fit (surfscan run patchcore).
+# PatchCore config: greedy coreset at 0.1 of a pool capped at 200k patches -> 20k vectors at the cap;
+# width C = layer2 (512) + layer3 (1024) = 1536. Measured: bagel/foam/tire all fit to exactly (20000,
+# 1536) — every category's ~210-244 train views x 1024 layer2 patches overruns the 200k pool cap.
 _DEFAULT_N = 20_000
 _DEFAULT_C = 1536
 _PATCHES_PER_FRAME = 32 * 32   # layer2 stride-8 grid at 256^2 (the shallowest hooked layer sets the count)

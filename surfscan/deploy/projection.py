@@ -1,7 +1,7 @@
 """Deploy projection — join measured model cost x accelerator specs into a per-pair deployability verdict.
 
-The synthesis step: reads the measured footprints (DEPLOY_COST.json), the bank model (BANK_COST.json),
-and the cited accelerator specs (ACCELERATORS.json), and for each (detector x accelerator) pair reports
+The synthesis step: reads the measured footprints (MODEL_FOOTPRINT.json), the bank model (BANK_MEMORY.json),
+and the cited accelerator specs (ACCELERATOR_SPECS.json), and for each (detector x accelerator) pair reports
 whether it fits the on-chip envelope, a projected-latency BAND, and a memory-utilization %.
 
 INTEGRITY BOUNDARY: this is a projection, not a measurement. Latency is FLOPs / peak-TOPS scaled by a
@@ -22,14 +22,14 @@ from enum import StrEnum
 from pathlib import Path
 
 from core.obs import Obs
-from surfscan.deploy import accelerators, bank, profile
+from surfscan.deploy import DOCS, accelerators, bank, profile
 from surfscan.deploy.accelerators import Accelerator
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_JSON = ROOT / "docs" / "DEPLOY_PROJECTION.json"
+DEFAULT_JSON = DOCS / "DEPLOY_PROJECTION.json"
 _MIB = 1024 ** 2
 _EFF_LO, _EFF_HI = 0.30, 0.70   # sustained fraction of peak TOPS (dataflow NPUs rarely exceed ~70% [roofline])
 _TARGET_FPS = 30.0              # industrial inline budget the compute-utilization % is stated against

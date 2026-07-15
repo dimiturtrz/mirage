@@ -11,7 +11,7 @@ Honesty boundary: numbers absent from the deep-dive are `None` (not guessed) —
 Hailo on-die SRAM capacity sit behind vendor portals and were not fetched. The projection reports a
 latency band only where a compute rate is known; the memory/op-fit verdict holds for every row.
 
-    python -m surfscan.deploy accelerators     # emit docs/ACCELERATORS.json
+    python -m surfscan.deploy accelerators     # emit docs/deployment/ACCELERATOR_SPECS.json
 """
 from __future__ import annotations
 
@@ -22,12 +22,13 @@ from enum import StrEnum
 from pathlib import Path
 
 from core.obs import Obs
+from surfscan.deploy import DOCS
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_JSON = ROOT / "docs" / "ACCELERATORS.json"
+DEFAULT_JSON = DOCS / "ACCELERATOR_SPECS.json"
 SRAM_CLASS_MIB = 8.0   # Coral EdgeTPU on-chip scratchpad; the "~8 MiB class" envelope the bank is sized against [S2][S5]
 _SRC = "research/deep_dives/2026-07-08_edge_accelerator_landscape.md"
 

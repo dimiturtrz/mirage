@@ -29,13 +29,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from core.obs import Obs
+from surfscan.deploy import DOCS
 from surfscan.deploy.accelerators import SRAM_CLASS_MIB
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_JSON = ROOT / "docs" / "BANK_COST.json"
+DEFAULT_JSON = DOCS / "BANK_MEMORY.json"
 _MIB = 1024 ** 2
 
 # PatchCore config: greedy coreset at 0.1 of a pool capped at 200k patches -> 20k vectors at the cap;

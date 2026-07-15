@@ -9,10 +9,10 @@ in the bank-memory model (82w.2); here we profile only its backbone forward.
 
 Backbones are profiled TRUNCATED to the layer the detector actually reads (wide_resnet50_2 -> layer2
 for feat-recon, -> layer3 for PatchCore); layer4 + fc are never run at inference and are prunable, so
-counting them would inflate the deploy footprint. Emits docs/DEPLOY_COST.json (structured source for
+counting them would inflate the deploy footprint. Emits docs/deployment/MODEL_FOOTPRINT.json (structured source for
 the result-table cost columns + the accelerator projection).
 
-    python -m surfscan.deploy profile [--size 256] [--json docs/DEPLOY_COST.json]
+    python -m surfscan.deploy profile [--size 256] [--json docs/deployment/MODEL_FOOTPRINT.json]
 """
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ import torchvision
 from torch.utils.flop_counter import FlopCounterMode
 
 from core.obs import Obs
+from surfscan.deploy import DOCS
 from surfscan.dispatch import Spec
 from surfscan.models.draem import Draem
 from surfscan.models.feat_ae import FeatAE
@@ -35,7 +36,7 @@ from surfscan.training.hparams import ModelCfg
 log = Obs.get()
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_JSON = ROOT / "docs" / "DEPLOY_COST.json"
+DEFAULT_JSON = DOCS / "MODEL_FOOTPRINT.json"
 _BYTES_FP32 = 4
 _MB = 1e6
 _BACKBONE = "wide_resnet50_2"

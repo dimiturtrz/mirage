@@ -21,6 +21,7 @@ import re
 from pathlib import Path
 
 from core.obs import Obs
+from surfscan.deploy import DOCS
 from surfscan.dispatch import Spec
 
 log = Obs.get()
@@ -29,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RESULTS = json.loads((ROOT / "docs" / "RESULTS.json").read_text(encoding="utf-8"))
 # Deploy-cost atoms (surfscan.deploy profile) keyed by model name; a method's "cost_ref" sums over them
 # (the detector = its profiled pieces; the composition also lives in surfscan.deploy.projection).
-_COST = {r["name"]: r for r in json.loads((ROOT / "docs" / "DEPLOY_COST.json").read_text(encoding="utf-8"))["rows"]}
+_COST = {r["name"]: r for r in json.loads((DOCS / "MODEL_FOOTPRINT.json").read_text(encoding="utf-8"))["rows"]}
 
 
 class NumberSync:

@@ -4,3 +4,7 @@ Per-model compute footprint (params, inference FLOPs, peak activation memory, di
 measured here; the projection onto candidate edge accelerators (fits-memory / roofline-latency band /
 utilization %) is the honest boundary — a projection with an efficiency band, NOT a measured FPS.
 """
+from pathlib import Path
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "deployment"   # one home for the emitted structured sources
+

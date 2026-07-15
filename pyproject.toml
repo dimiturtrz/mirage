@@ -27,7 +27,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov"]
-devtools = ["grimp", "networkx"]   # import-graph architecture-fitness gate (devtools/graph.py, bag/169)
+# The guardrail ANALYZERS are an installed package pinned by scaffold tag (not vendored source) — an engine
+# update is a one-line `devtools_ref` bump on `copier update`, no source diff in your PRs. Imports as
+# `devtools` (`python -m devtools.graph …`); grimp/networkx arrive transitively. ast-grep/jscpd configs are
+# located from the install via `python -m devtools.config`. Pin lives in .copier-answers.yml (devtools_ref).
+devtools = ["sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.2.0#subdirectory=sdlc-devtools"]
 export = ["onnxruntime"]   # ONNX export + parity check (train-vs-deploy skew, carried from acoustic)
 features = [
     "timm>=1.0.27",
@@ -36,7 +40,9 @@ features = [
 # models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
-all = ["pytest", "pytest-cov", "grimp", "networkx", "onnxruntime", "timm>=1.0.27", "torchvision"]  # dev+devtools+export+features
+all = ["pytest", "pytest-cov", "onnxruntime", "timm>=1.0.27", "torchvision",
+       "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.2.0#subdirectory=sdlc-devtools"]  # dev+devtools+export+features
+
 
 [build-system]
 requires = ["setuptools>=68"]

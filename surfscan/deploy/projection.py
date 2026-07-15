@@ -19,17 +19,14 @@ import argparse
 import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from pathlib import Path
 
 from core.obs import Obs
-from surfscan.deploy import DOCS, accelerators, bank, profile
+from surfscan.deploy import DEPLOY_DOC, accelerators, bank, profile
 from surfscan.deploy.accelerators import Accelerator
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_JSON = DOCS / "DEPLOY_PROJECTION.json"
 _MIB = 1024 ** 2
 _EFF_LO, _EFF_HI = 0.30, 0.70   # sustained fraction of peak TOPS (dataflow NPUs rarely exceed ~70% [roofline])
 _TARGET_FPS = 30.0              # industrial inline budget the compute-utilization % is stated against
@@ -88,11 +85,6 @@ class Projection:
         Detector("feat_recon", ("backbone_layer2", "feat_ae"), has_bank=False),
         Detector("patchcore", ("backbone_layer3",), has_bank=True),
     )
-
-    @staticmethod
-    def _load_cost(path: Path) -> dict:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return {r["name"]: r for r in data["rows"]}
 
     @staticmethod
     def _verdict(det: Detector, acc: Accelerator) -> Verdict:
@@ -164,20 +156,30 @@ class Projection:
 
     @staticmethod
     def add_args(ap: argparse.ArgumentParser) -> None:
-        ap.add_argument("--json", type=Path, default=DEFAULT_JSON, help="structured projection output path")
+        ap.add_argument("--size", type=int, default=256, help="square input side (H=W) to profile at")
 
     @staticmethod
     def run(args: argparse.Namespace) -> None:
-        cost = Projection._load_cost(profile.DEFAULT_JSON)
-        bank_cost = json.loads(bank.DEFAULT_JSON.read_text(encoding="utf-8"))
-        rows = Projection._rows(cost, bank_cost)
+        """Measure the models, compute the bank, load the substrate specs, join into the matrix, and write
+        the SINGLE deploy document — model costs + bank + substrates + verdicts all in one file."""
+        dev = profile.Profiler.device()
+        cost = {r.name: asdict(r) for r in profile.Profiler.measure(args.size, dev)}
+        bank_section = bank.BankMemory.section()
+        rows = Projection._rows(cost, bank_section)
         Projection._log(rows)
-        payload = {"efficiency_band": [_EFF_LO, _EFF_HI], "target_fps": _TARGET_FPS,
-                   "note": "projection (FLOPs/peak-TOPS x efficiency), not measured FPS",
-                   "pairs": [asdict(r) for r in rows]}
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        log.info(f"wrote {args.json.relative_to(ROOT)}  ({len(rows)} pairs)")
+        doc = {
+            "note": "projection (FLOPs/peak-TOPS x efficiency), not measured FPS",
+            "efficiency_band": [_EFF_LO, _EFF_HI], "target_fps": _TARGET_FPS,
+            "input_size": args.size, "device": dev,
+            "models": list(cost.values()),
+            "bank": bank_section,
+            "substrates": accelerators.Accelerators.section(),
+            "matrix": [asdict(r) for r in rows],
+        }
+        DEPLOY_DOC.parent.mkdir(parents=True, exist_ok=True)
+        DEPLOY_DOC.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+        log.info(f"wrote {DEPLOY_DOC.name}  ({len(cost)} models x {len(doc['substrates']['accelerators'])} "
+                 f"substrates = {len(rows)} pairs)")
 
 
 SPEC = Spec("project", Projection.add_args, Projection.run)

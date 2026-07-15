@@ -17,16 +17,13 @@ the result-table cost columns + the accelerator projection).
 from __future__ import annotations
 
 import argparse
-import json
-from dataclasses import asdict, dataclass
-from pathlib import Path
+from dataclasses import dataclass
 
 import torch
 import torchvision
 from torch.utils.flop_counter import FlopCounterMode
 
 from core.obs import Obs
-from surfscan.deploy import DOCS
 from surfscan.dispatch import Spec
 from surfscan.models.draem import Draem
 from surfscan.models.feat_ae import FeatAE
@@ -35,8 +32,6 @@ from surfscan.training.hparams import ModelCfg
 
 log = Obs.get()
 
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_JSON = DOCS / "MODEL_FOOTPRINT.json"
 _BYTES_FP32 = 4
 _MB = 1e6
 _BACKBONE = "wide_resnet50_2"
@@ -159,20 +154,22 @@ class Profiler:
                      f"{r.disk_fp32_mb:9.2f} {r.disk_int8_mb:9.2f}  {r.note}")
 
     @staticmethod
+    def device() -> str:
+        return _CUDA if torch.cuda.is_available() else "cpu"
+
+    @staticmethod
+    def measure(size: int, dev: str) -> list[CostRow]:
+        """Measure every neural component's footprint in-memory — the projection embeds these directly."""
+        return [Profiler.profile_one(name, fn, x, note, dev)
+                for name, fn, x, note in Profiler.targets(size, dev)]
+
+    @staticmethod
     def add_args(ap: argparse.ArgumentParser) -> None:
         ap.add_argument("--size", type=int, default=256, help="square input side (H=W) to profile at")
-        ap.add_argument("--json", type=Path, default=DEFAULT_JSON, help="structured cost-source output path")
 
     @staticmethod
     def run(args: argparse.Namespace) -> None:
-        dev = _CUDA if torch.cuda.is_available() else "cpu"
-        rows = [Profiler.profile_one(name, fn, x, note, dev)
-                for name, fn, x, note in Profiler.targets(args.size, dev)]
-        Profiler._log_table(rows)
-        payload = {"input_size": args.size, "device": dev, "rows": [asdict(r) for r in rows]}
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        log.info(f"wrote {args.json.relative_to(ROOT)}  ({len(rows)} models @ {args.size}^2, {dev})")
+        Profiler._log_table(Profiler.measure(args.size, Profiler.device()))
 
 
 SPEC = Spec("profile", Profiler.add_args, Profiler.run)

@@ -1,9 +1,13 @@
 """Deploy cost-model entry point — profile model footprints, project onto accelerators.
 
-    python -m surfscan.deploy profile       # measure params/FLOPs/act-mem/disk -> docs/deployment/MODEL_FOOTPRINT.json
-    python -m surfscan.deploy accelerators  # cited edge-accelerator spec table -> docs/deployment/ACCELERATOR_SPECS.json
-    python -m surfscan.deploy bank          # PatchCore bank-memory model -> docs/deployment/BANK_MEMORY.json
-    python -m surfscan.deploy project       # join model x accelerator -> docs/deployment/DEPLOY_PROJECTION.json
+`project` is the deliverable: it measures the models, computes the bank, loads the substrate specs, and
+writes the SINGLE deploy document (docs/deployment.json) — model costs + bank + substrates + the verdict
+matrix, all in one file. The other three are log-only inspection views of the same underlying data.
+
+    python -m surfscan.deploy project       # THE artifact: everything -> docs/deployment.json
+    python -m surfscan.deploy profile       # inspect: measured per-model footprints (logged)
+    python -m surfscan.deploy accelerators  # inspect: cited substrate specs (logged)
+    python -m surfscan.deploy bank          # inspect: PatchCore bank-memory model (logged)
 
 Each step is a `Spec` in its module; this front-end builds subparsers and routes. See also
 `surfscan.run` (experiments) and `surfscan.report` (docs/metrics).

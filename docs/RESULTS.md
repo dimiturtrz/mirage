@@ -24,7 +24,7 @@ FlopCounterMode (`python -m surfscan.deploy profile`) — backbones counted trun
 PatchCore's AU-PRO (0.907 vs 0.902) at a quarter the params (6.2M vs 24.9M) and no memory bank.**
 PatchCore/fused additionally carry a **20k×1536 feature bank** (117 MiB fp32 / 1.65 MiB int8+PQ) whose
 kNN tail is host-side on every commodity NPU — the bank-memory model and the per-accelerator projection
-live in `docs/deployment/BANK_MEMORY.json` / `docs/deployment/DEPLOY_PROJECTION.json` (`surfscan.deploy bank` / `project`). The
+live in the single `docs/deployment.json` (`surfscan.deploy bank` / `project`). The
 deploy-driven detector choice is read off these numbers in
 [`interpretations/deploy/2026-07-15_deploy-cost-model.md`](../interpretations/deploy/2026-07-15_deploy-cost-model.md).</sub>
 

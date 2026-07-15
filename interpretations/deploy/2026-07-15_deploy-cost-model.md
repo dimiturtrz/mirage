@@ -102,7 +102,7 @@ datasheets rather than assertion — which was the point of the exercise.
 - **Roofline class is omitted**: it needs memory bandwidth, which the sources don't quote for most of
   these parts.
 
-Structured sources: `docs/deployment/MODEL_FOOTPRINT.json` (per-model), `docs/deployment/BANK_MEMORY.json` (bank), `docs/deployment/ACCELERATOR_SPECS.json`
-(cited specs), `docs/deployment/DEPLOY_PROJECTION.json` (the 20 pairs). Research: [edge-accelerator
+Structured sources: The single structured source `docs/deployment.json` carries the per-model `models`, the `bank`,
+the cited `substrates`, and the 20-pair `matrix`. Research: [edge-accelerator
 landscape](../../research/deep_dives/2026-07-08_edge_accelerator_landscape.md) [S1–S8],
 [PatchCore-bank-on-NPU](../../research/deep_dives/2026-07-08_patchcore_bank_on_npu.md) [S3][S4].

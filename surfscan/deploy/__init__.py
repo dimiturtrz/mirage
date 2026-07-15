@@ -6,5 +6,5 @@ utilization %) is the honest boundary — a projection with an efficiency band, 
 """
 from pathlib import Path
 
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "deployment"   # one home for the emitted structured sources
+DEPLOY_DOC = Path(__file__).resolve().parents[2] / "docs" / "deployment.json"   # the ONE deploy artifact
 

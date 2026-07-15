@@ -16,19 +16,14 @@ latency band only where a compute rate is known; the memory/op-fit verdict holds
 from __future__ import annotations
 
 import argparse
-import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from pathlib import Path
 
 from core.obs import Obs
-from surfscan.deploy import DOCS
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_JSON = DOCS / "ACCELERATOR_SPECS.json"
 SRAM_CLASS_MIB = 8.0   # Coral EdgeTPU on-chip scratchpad; the "~8 MiB class" envelope the bank is sized against [S2][S5]
 _SRC = "research/deep_dives/2026-07-08_edge_accelerator_landscape.md"
 
@@ -103,17 +98,18 @@ class Accelerators:
                      f"{a.argmin!s:>6s} {a.topk!s:>4s} {a.patchcore_lookup_ondevice!s:>10s}  {a.ext_memory}")
 
     @staticmethod
-    def add_args(ap: argparse.ArgumentParser) -> None:
-        ap.add_argument("--json", type=Path, default=DEFAULT_JSON, help="structured accelerator-spec output path")
+    def section() -> dict:
+        """The accelerator sub-document the projection embeds: cited specs + the sizing envelope."""
+        return {"source": _SRC, "sram_class_mib": SRAM_CLASS_MIB,
+                "accelerators": [asdict(a) for a in Accelerators.specs()]}
 
     @staticmethod
-    def run(args: argparse.Namespace) -> None:
-        specs = Accelerators.specs()
-        Accelerators._log_table(specs)
-        payload = {"source": _SRC, "sram_class_mib": SRAM_CLASS_MIB, "accelerators": [asdict(a) for a in specs]}
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        log.info(f"wrote {args.json.relative_to(ROOT)}  ({len(specs)} accelerators)")
+    def add_args(_ap: argparse.ArgumentParser) -> None:
+        pass
+
+    @staticmethod
+    def run(_args: argparse.Namespace) -> None:
+        Accelerators._log_table(Accelerators.specs())
 
 
 SPEC = Spec("accelerators", Accelerators.add_args, Accelerators.run)

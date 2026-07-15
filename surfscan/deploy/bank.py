@@ -24,19 +24,14 @@ host-side cost line — it is not on-accelerator work.
 from __future__ import annotations
 
 import argparse
-import json
 from dataclasses import asdict, dataclass
-from pathlib import Path
 
 from core.obs import Obs
-from surfscan.deploy import DOCS
 from surfscan.deploy.accelerators import SRAM_CLASS_MIB
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_JSON = DOCS / "BANK_MEMORY.json"
 _MIB = 1024 ** 2
 
 # PatchCore config: greedy coreset at 0.1 of a pool capped at 200k patches -> 20k vectors at the cap;
@@ -111,24 +106,26 @@ class BankMemory:
                  f"{search['argmin_compares_m']}M argmin compares (HOST); PQ costs ~{search['pq_img_auroc_cost_pp']}pp img-AUROC")
 
     @staticmethod
+    def section(n: int = _DEFAULT_N, c: int = _DEFAULT_C) -> dict:
+        """The bank sub-document the projection embeds: representations + the host-search line."""
+        rows = [
+            BankMemory.cost("ours", n, c),
+            BankMemory.cost("patchcore_lite[S3]", _ANCHOR_K, _ANCHOR_D),   # reproduces ~334 KB PQ / ~9.8 MB fp32
+        ]
+        return {"sram_class_mib": SRAM_CLASS_MIB, "pq": {"m": _PQ_M, "bits": _PQ_BITS},
+                "banks": [asdict(r) for r in rows], "host_search_per_frame": BankMemory.host_search_line(n, c)}
+
+    @staticmethod
     def add_args(ap: argparse.ArgumentParser) -> None:
         ap.add_argument("--n-vectors", type=int, default=_DEFAULT_N, help="bank size (measured from a real fit)")
         ap.add_argument("--channels", type=int, default=_DEFAULT_C, help="feature width C (layer2+layer3)")
-        ap.add_argument("--json", type=Path, default=DEFAULT_JSON, help="structured bank-cost output path")
 
     @staticmethod
     def run(args: argparse.Namespace) -> None:
-        rows = [
-            BankMemory.cost("ours", args.n_vectors, args.channels),
-            BankMemory.cost("patchcore_lite[S3]", _ANCHOR_K, _ANCHOR_D),   # reproduces ~334 KB PQ / ~9.8 MB fp32
-        ]
-        search = BankMemory.host_search_line(args.n_vectors, args.channels)
-        BankMemory._log(rows, search)
-        payload = {"sram_class_mib": SRAM_CLASS_MIB, "pq": {"m": _PQ_M, "bits": _PQ_BITS},
-                   "banks": [asdict(r) for r in rows], "host_search_per_frame": search}
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        log.info(f"wrote {args.json.relative_to(ROOT)}")
+        sec = BankMemory.section(args.n_vectors, args.channels)
+        BankMemory._log([BankMemory.cost("ours", args.n_vectors, args.channels),
+                         BankMemory.cost("patchcore_lite[S3]", _ANCHOR_K, _ANCHOR_D)],
+                        sec["host_search_per_frame"])
 
 
 SPEC = Spec("bank", BankMemory.add_args, BankMemory.run)

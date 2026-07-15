@@ -24,7 +24,9 @@ FlopCounterMode (`python -m surfscan.deploy profile`) — backbones counted trun
 PatchCore's AU-PRO (0.907 vs 0.902) at a quarter the params (6.2M vs 24.9M) and no memory bank.**
 PatchCore/fused additionally carry a **20k×1536 feature bank** (117 MiB fp32 / 1.65 MiB int8+PQ) whose
 kNN tail is host-side on every commodity NPU — the bank-memory model and the per-accelerator projection
-live in `docs/BANK_COST.json` / `docs/DEPLOY_PROJECTION.json` (`surfscan.deploy bank` / `project`).</sub>
+live in `docs/BANK_COST.json` / `docs/DEPLOY_PROJECTION.json` (`surfscan.deploy bank` / `project`). The
+deploy-driven detector choice is read off these numbers in
+[`interpretations/deploy/2026-07-15_deploy-cost-model.md`](../interpretations/deploy/2026-07-15_deploy-cost-model.md).</sub>
 
 <sub>¹ fused all-10 (<!--r:fused.au_pro-->0.929<!--/r-->) is the **top detector** — **+1.5pt** over rgb-only PatchCore (<!--r:patchcore.au_pro-->0.902<!--/r-->, same 0.1-greedy coreset), CIs near-disjoint ([0.911, 0.923] vs [0.892, 0.910]). Geometry fusion adds an orthogonal signal: biggest gains on geometry-rich categories (carrot 0.991, dowel 0.977, potato 0.979), small dips only where our preprocessing-limited BTF is weakest (cookie 0.811, foam 0.835). Fusion **pays even with degraded FPFH** — native-res geometry is further headroom. Single representative run (multi-seed to harden). Deployable trade-off: rgb-only stays the simplest edge path (no geometry pipeline); fused leads on accuracy.</sub>
 

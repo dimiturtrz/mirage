@@ -41,11 +41,26 @@ Weighted fusion **Pareto-dominates the old equal-sum fusion** (+1.2pp au_pro, +1
 one-line weight change, and lifts au_pro +2.7pp over rgb-alone with detection held flat. The new au_pro
 lower bound (0.923) meets the old upper bound — the marginal CIs are essentially disjoint.
 
-## Honest caveats
-- `w=0.7` is a **single global constant**, justified as down-weighting the empirically weaker geo bank
-  ~2:1 — not a per-category fit. The per-cat optimal `w` (0.3–0.9) means real headroom is left on the
-  table: the peeked best-`w` macro au_pro is ~0.95.
-- This is **not** the 0.96 SOTA target. It is the honest, CI-backed increment a *weighted* linear fusion
-  buys. Closing the rest needs a **learned per-category weight** — M3DM's OCSVM decision-fusion, which
-  picks the combination unsupervised from train-good and should capture the per-cat `w`-variance without
-  the global-constant detection tradeoff. That is the next step (bead iwq).
+## The fusion ceiling — per-cat weighting is a near-dead lever
+`w=0.7` is a **single global constant**, justified as down-weighting the empirically weaker geo bank
+~2:1. The obvious next idea is a **per-category** weight `w_c`. It does almost nothing on the headline:
+
+| | au_pro | img_auroc |
+|---|--------|-----------|
+| global w=0.7 (shipped) | 0.929 | 0.839 |
+| **per-cat oracle** (best `w_c`, test-peeked upper bound) | **0.934** | 0.866 |
+
+The per-cat **oracle** — cheating by picking each `w_c` on the test set — buys only **+0.5pp au_pro**. Any
+*unsupervised* per-cat rule gets less. So per-cat weighting is a dead lever for the au_pro headline (it's
+worth a modest +2.7pp on img_auroc, but that isn't the localization headline). Linear rgb+geo fusion
+**tops out ~0.93 au_pro no matter how it's weighted.**
+
+## Why 0.96 is out of reach here, and the honest close
+The gap from 0.93 to a SOTA 0.96 is **not weighting — it's signal.** It needs *better geometry features*
+(learned point features that beat hand-FPFH). The prior investigation (2026-07-09) already showed
+ShapeNet-pretrained Point-MAE geometry is **at parity with FPFH, not better**, on MVTec-3D partial scans.
+So 0.96 would require finetuning/retraining a point backbone on in-domain geometry (or full M3DM UFF) — a
+large build with weak priors it pays. Per the project's engine-first / honesty-over-leaderboard stance,
+**iwq's 0.96 sub-goal is banked as the measured fusion ceiling, not chased.** The kept result is the
++2.7pp au_pro weighted-fusion win over PatchCore and the mapped ceiling itself. Revisit only if a SOTA
+number becomes the explicit goal (fresh bead: better geometry features).

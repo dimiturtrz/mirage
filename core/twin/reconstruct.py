@@ -92,8 +92,13 @@ class CategoryReconstructor:
     def _main():
         ap = argparse.ArgumentParser(description="Reconstruct digital-twin meshes from good scans.")
         ap.add_argument("--cat", default=None, help="single category (default: all)")
+        ap.add_argument("--voxel", type=float, default=0.0008,
+                        help="fuse voxel size (m); ~Zivid native spacing 0.0002 preserves sub-mm detail")
+        ap.add_argument("--poisson-depth", type=int, default=9, help="Poisson octree depth (finer = more detail)")
+        ap.add_argument("--target-faces", type=int, default=150_000, help="decimation cap (0 = no decimation)")
         args = ap.parse_args()
-        r = CategoryReconstructor()
+        r = CategoryReconstructor(voxel=args.voxel, poisson_depth=args.poisson_depth,
+                                  target_faces=args.target_faces or 10**12)
         r.build(args.cat) if args.cat else r.build_all()
 
 

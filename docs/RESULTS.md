@@ -137,9 +137,15 @@ contribution is geometry (xyz), not appearance (rgb). Full method + diagnosis �
   statistics as well as the tuned grid defect. Not loss-engineered toward the eval.
 - **Honest negative, competence real.** The Isaac/USD/Replicator pipeline works end-to-end (10 categories
   reconstructed, path-traced, xyz-backprojected, feeding the same rigorous triad) and transfers genuine
-  geometric signal — it just doesn't beat on-the-fly synth here, because reconstruction fidelity (not
-  rendering) caps surface realism. The lever for a positive twin is higher-fidelity reconstruction
-  (multi-view / no Poisson smoothing / native-res), not the renderer.
+  geometric signal — it just doesn't beat on-the-fly synth here.
+- **Ablation (Fork A) — reconstruction fidelity is *not* the bottleneck.** Rebuilding every twin at higher
+  fidelity (fuse voxel 0.8 → 0.4 mm, decimation cap 150k → 300k faces) → re-render → re-run left shape-source
+  **flat** (−0.192 → −0.190 xyz, inside CI): the extra sub-mm mesh detail is resampled away at the 256²
+  train/eval resolution. So the reconstructed-surface deficit is a **render-vs-Zivid domain gap** (a clean
+  path-traced surface lacks the sensor's structured-light noise), not a mesh-resolution one. The finer mesh
+  *did* lift **twin_phys +0.093 (0.321 → 0.414)** — its several-mm physical defects survive 256² where the
+  fine grid defect's sub-mm structure does not. Open levers: native-res eval + closing the render↔sensor
+  domain gap, not more mesh detail. Full ablation → [`interpretations/twin/2026-07-15_twin-vs-classical.md`](../interpretations/twin/2026-07-15_twin-vs-classical.md).
 
 ## Known caveats (the measured gaps to SOTA)
 - **Deployable = rgb-only PatchCore, greedy coreset** (<!--r:patchcore.au_pro-->0.902<!--/r-->) — the

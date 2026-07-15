@@ -282,12 +282,24 @@ class TriadRun:
         for arm in ("twin_grid", "twin_phys"):                              # digital-twin synth sources
             if arm in res:
                 ap = res[arm]["mean"]["au_pro"]
-                g, lo, hi = TriadRun._pro_delta_ci(res[arm], res["real"])   # real − twin (the twin gap)
-                log.info(f">>> {arm.upper()}->real gap: real {real_ap:.3f} - {arm} {ap:.3f} "
-                         f"= {g:+.3f} pp  [{lo:+.3f}, {hi:+.3f}]")
+                pt, ci = TriadRun._delta_or_point(res[arm], res["real"], real_ap - ap)  # real − twin
+                log.info(f">>> {arm.upper()}->real gap: real {real_ap:.3f} - {arm} {ap:.3f} = {pt:+.3f} pp{ci}")
         if "twin_grid" in res:                                             # shape-source effect (same defect)
-            d, lo, hi = TriadRun._pro_delta_ci(res["synth"], res["twin_grid"])   # twin_grid − synth
-            log.info(f">>> SHAPE-SOURCE (twin_grid - synth, same defect): {d:+.3f} pp  [{lo:+.3f}, {hi:+.3f}]")
+            tg_ap = res["twin_grid"]["mean"]["au_pro"]
+            pt, ci = TriadRun._delta_or_point(res["synth"], res["twin_grid"], tg_ap - synth_ap)
+            log.info(f">>> SHAPE-SOURCE (twin_grid - synth, same defect): {pt:+.3f} pp{ci}")
+
+    @staticmethod
+    def _delta_or_point(res_a, res_b, point):
+        """(delta, ci-suffix) for a twin-arm bootstrap CI — a per-arm CI is optional decoration on the
+        headline POINT gap, so a degenerate bootstrap draw (mismatched paired resample / empty interval)
+        must not abort the whole report. On failure, fall back to the caller's point and note the reason
+        inline rather than killing the run."""
+        try:
+            d, lo, hi = TriadRun._pro_delta_ci(res_a, res_b)
+            return d, f"  [{lo:+.3f}, {hi:+.3f}]"
+        except (IndexError, ValueError) as exc:
+            return point, f"  [CI n/a: {exc}]"
 
 
 SPEC = Spec("triad", TriadRun.args, TriadRun.run)

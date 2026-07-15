@@ -78,18 +78,19 @@ label **source** to the twin, scored on **geometry** (xyz, the twin's actual axi
 
 **The twin transfers geometric signal but does not beat classical synth.** Holding the defect constant, the
 **shape-source** delta (twin_grid − synth) is **negative** (−0.192 AU-PRO on xyz): the *reconstructed* surface
-is a worse training substrate than the real good scan — single-view fusion → Poisson → decimation **smooths
-away the micro-geometry** localization rewards. The render is faithful; reconstruction fidelity is the
-bottleneck. Kept as a measured negative — the sim-to-real spine located *where* the twin loses (surface
-micro-geometry), rather than asserting a twin must help. Full diagnosis →
-[`interpretations/twin/2026-07-15_twin-vs-classical.md`](interpretations/twin/2026-07-15_twin-vs-classical.md).
+is a worse training substrate than the real good scan. A higher-fidelity rebuild (fuse voxel 0.8 → 0.4 mm,
+150k → 300k faces) **did not move it** (−0.190, flat) — the extra detail is resampled away at 256², so the
+deficit is a **render-vs-Zivid sensor domain gap**, not reconstruction resolution. Kept as a measured
+negative — the sim-to-real spine located *where* the twin loses and ruled out the obvious culprit. Full
+diagnosis + ablation → [`interpretations/twin/2026-07-15_twin-vs-classical.md`](interpretations/twin/2026-07-15_twin-vs-classical.md).
 
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
 - **Sim-to-real gap is real and open (0.166 AU-PRO).** Domain adaptation doesn't significantly close it
   (see [Stage 1](#stage-1--measuring-the-sim-to-real-gap)), and the [Stage 2](#stage-2--a-physics-based-digital-twin-the-honest-negative)
-  digital twin doesn't beat classical synth at the source (reconstruction smoothing, not rendering, is the
-  cap). Higher-fidelity reconstruction (multi-view / native-res) is the open lever.
+  digital twin doesn't beat classical synth at the source — and a higher-fidelity rebuild didn't close it
+  (ablated), so the cap is the render-vs-sensor domain gap at 256², not mesh resolution. Native-res eval +
+  render-domain adaptation are the open levers.
 - **The deployable is rgb-only PatchCore (greedy coreset, 0.90).** Adding **3D-geometry fusion** is measured
   at **+1.5pt → 0.92** (our best) even with preprocessing-limited BTF; the remaining gap to SOTA (~0.96) is
   *better* geometry (native-res FPFH / learned point features), not bank or resolution tuning (rgb tops ~0.93).

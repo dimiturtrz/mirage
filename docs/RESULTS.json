@@ -191,6 +191,14 @@
     "shape_source_rgb_pp": -0.327,
     "shape_source_rgb_lo": -0.356,
     "shape_source_rgb_hi": -0.299,
-    "shape_source_xyz_pp": -0.192
+    "shape_source_xyz_pp": -0.192,
+    "fork_a_hifi": {
+      "_comment": "Ablation (bead 5c8): rebuild twins at higher fidelity (voxel 0.8->0.4mm, decimation 150k->300k faces) -> re-render -> re-run xyz triad. Tests whether reconstruction smoothing is the shape-source bottleneck. KILLED for the headline: shape-source flat (-0.192 -> -0.190, inside CI) because sub-mm mesh detail is resampled away at 256^2 train/eval. twin_phys improved +0.093 (large physical defects survive 256^2). Redirects the diagnosis to the render-vs-Zivid domain gap, not mesh resolution. Headline arms table above stays the lo-fi baseline (consistent rgb+xyz mesh version).",
+      "twin_grid_xyz": 0.375,
+      "twin_phys_xyz": 0.414,
+      "shape_source_xyz_pp": -0.190,
+      "shape_source_xyz_lo": -0.217,
+      "shape_source_xyz_hi": -0.162
+    }
   }
 }

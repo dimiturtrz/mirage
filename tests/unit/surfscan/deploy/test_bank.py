@@ -41,11 +41,23 @@ class TestSramFit:
         assert below.int8_fits_sram and not above.int8_fits_sram
 
 
-class TestHostSearchLine:
-    def test_argmin_is_host_side(self):
-        line = BankMemory.host_search_line(20_000, 1536)
-        assert line["argmin_location"] == "host"
-        assert line["distance_macs_g"] > 0 and line["argmin_compares_m"] > 0
+class TestSearchCost:
+    def test_distance_and_argmin_scale_with_bank(self):
+        c = BankMemory.cost("x", 20_000, 1536)
+        assert c.distance_macs_g > 0 and c.argmin_compares_m > 0   # the host-side residue is non-trivial
 
     def test_cost_returns_dataclass(self):
         assert isinstance(BankMemory.cost("x", 10, 10), BankCost)
+
+
+class TestRoles:
+    def test_rgb_and_geometry_banks_present(self):
+        roles = BankMemory.roles()
+        assert set(roles) == {"rgb", "geometry"}
+        assert roles["geometry"].channels == 33          # FPFH descriptor dim, fixed by Open3D
+        assert roles["rgb"].fp32_mib > roles["geometry"].fp32_mib   # rgb (1536-d) bank dwarfs geometry (33-d)
+
+    def test_section_banks_keyed_by_role(self):
+        sec = BankMemory.section()
+        assert set(sec["banks"]) == {"rgb", "geometry"}
+        assert "anchor" in sec        # the PatchCore-Lite cross-check, not a deployable role

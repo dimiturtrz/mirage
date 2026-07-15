@@ -151,6 +151,20 @@
       "corroborates_op_class": true
     },
     {
+      "detector": "btf",
+      "op_class": "bank_lookup",
+      "pieces_exported": true,
+      "has_attention_op": false,
+      "corroborates_op_class": true
+    },
+    {
+      "detector": "fused",
+      "op_class": "bank_lookup",
+      "pieces_exported": true,
+      "has_attention_op": false,
+      "corroborates_op_class": true
+    },
+    {
       "detector": "pointmae",
       "op_class": "transformer_attention",
       "pieces_exported": true,

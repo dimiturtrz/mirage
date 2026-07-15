@@ -44,6 +44,7 @@ _MB = 1e6
 _BACKBONE = "wide_resnet50_2"
 _CUDA = "cuda"
 _LAYER2_CH = 512  # wide_resnet50_2 layer2 output channels (feat-recon AE input depth)
+_POINTMAE = "pointmae"
 _POINTMAE_N = 2048  # points fed to the Point-MAE transformer (num_group 1024 x group_size 128 -> grouped internally)
 _OPTIONAL_DEP = (ImportError, FileNotFoundError, RuntimeError, OSError)  # external/M3DM may be absent
 
@@ -65,12 +66,13 @@ class CostRow:
 class Detector:
     """A shippable detector as a composition of profiled components + its op-class (the fit axis).
 
-    `pieces` are `components` names summed for compute; `has_bank` flags the PatchCore kNN tail that the
-    op-class already encodes (BANK_LOOKUP) but the fit engine also needs to size the bank memory."""
+    `pieces` are `components` names summed for neural compute (empty for a pure geometry-bank detector like
+    BTF); `banks` names the stored kNN banks it carries (roles into the bank model — rgb / geometry), each
+    a distance-matmul + a host argmin/top-k residue the fit engine sizes."""
     name: str
     op_class: OpClass
     pieces: tuple[str, ...]
-    has_bank: bool
+    banks: tuple[str, ...]
 
 
 class TruncatedResnet:
@@ -136,11 +138,13 @@ class Profiler:
     """Measure params/FLOPs/activation-mem/disk per neural detector and emit the structured cost source."""
 
     _DETECTORS = (
-        Detector("convvae", OpClass.CONV_NATIVE, ("convvae_xyz",), has_bank=False),
-        Detector("draem", OpClass.CONV_NATIVE, ("draem_rgb",), has_bank=False),
-        Detector("feat_recon", OpClass.CONV_NATIVE, ("backbone_layer2", "feat_ae"), has_bank=False),
-        Detector("patchcore", OpClass.BANK_LOOKUP, ("backbone_layer3",), has_bank=True),
-        Detector("pointmae", OpClass.TRANSFORMER_ATTENTION, ("pointmae",), has_bank=False),
+        Detector("convvae", OpClass.CONV_NATIVE, ("convvae_xyz",), banks=()),
+        Detector("draem", OpClass.CONV_NATIVE, ("draem_rgb",), banks=()),
+        Detector("feat_recon", OpClass.CONV_NATIVE, ("backbone_layer2", "feat_ae"), banks=()),
+        Detector("patchcore", OpClass.BANK_LOOKUP, ("backbone_layer3",), banks=("rgb",)),
+        Detector("btf", OpClass.BANK_LOOKUP, (), banks=("geometry",)),                      # FPFH geometry bank only
+        Detector("fused", OpClass.BANK_LOOKUP, ("backbone_layer3",), banks=("rgb", "geometry")),  # rgb + geometry
+        Detector(_POINTMAE, OpClass.TRANSFORMER_ATTENTION, (_POINTMAE,), banks=()),
     )
 
     @staticmethod
@@ -200,7 +204,7 @@ class Profiler:
         ]
         pts = torch.randn(1, _POINTMAE_N, 3, device=dev)
         try:
-            out.append(("pointmae", PointmaeBackbone(dev), pts,
+            out.append((_POINTMAE, PointmaeBackbone(dev), pts,
                         "M3DM Point-MAE point-transformer (attention ops; xyz points, not pixels)"))
         except _OPTIONAL_DEP:
             log.info("pointmae skipped — external/M3DM not available (transformer op-class stays modelled, unprofiled)")
@@ -235,7 +239,7 @@ class Profiler:
             "input_size": size, "device": dev,
             "components": [asdict(r) for r in components],
             "detectors": [{"name": d.name, "op_class": d.op_class, "pieces": list(d.pieces),
-                           "has_bank": d.has_bank} for d in detectors],
+                           "banks": list(d.banks)} for d in detectors],
             "bank": bank.BankMemory.section(),
         }
 

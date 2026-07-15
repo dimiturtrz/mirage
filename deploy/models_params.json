@@ -71,7 +71,7 @@
       "pieces": [
         "convvae_xyz"
       ],
-      "has_bank": false
+      "banks": []
     },
     {
       "name": "draem",
@@ -79,7 +79,7 @@
       "pieces": [
         "draem_rgb"
       ],
-      "has_bank": false
+      "banks": []
     },
     {
       "name": "feat_recon",
@@ -88,7 +88,7 @@
         "backbone_layer2",
         "feat_ae"
       ],
-      "has_bank": false
+      "banks": []
     },
     {
       "name": "patchcore",
@@ -96,7 +96,28 @@
       "pieces": [
         "backbone_layer3"
       ],
-      "has_bank": true
+      "banks": [
+        "rgb"
+      ]
+    },
+    {
+      "name": "btf",
+      "op_class": "bank_lookup",
+      "pieces": [],
+      "banks": [
+        "geometry"
+      ]
+    },
+    {
+      "name": "fused",
+      "op_class": "bank_lookup",
+      "pieces": [
+        "backbone_layer3"
+      ],
+      "banks": [
+        "rgb",
+        "geometry"
+      ]
     },
     {
       "name": "pointmae",
@@ -104,7 +125,7 @@
       "pieces": [
         "pointmae"
       ],
-      "has_bank": false
+      "banks": []
     }
   ],
   "bank": {
@@ -113,36 +134,50 @@
       "m": 8,
       "bits": 8
     },
-    "banks": [
-      {
-        "label": "ours",
+    "pq_img_auroc_cost_pp": 9.0,
+    "banks": {
+      "rgb": {
+        "label": "rgb_patchcore",
         "n_vectors": 20000,
         "channels": 1536,
+        "patches_per_frame": 1024,
         "fp32_mib": 117.19,
         "int8_mib": 29.3,
         "pq_kib": 1692.2,
+        "distance_macs_g": 31.46,
+        "argmin_compares_m": 20.48,
         "fp32_fits_sram": false,
         "int8_fits_sram": false,
         "pq_fits_sram": true
       },
-      {
-        "label": "patchcore_lite[S3]",
-        "n_vectors": 10000,
-        "channels": 256,
-        "fp32_mib": 9.77,
-        "int8_mib": 2.44,
-        "pq_kib": 334.1,
+      "geometry": {
+        "label": "geometry_fpfh",
+        "n_vectors": 122000,
+        "channels": 33,
+        "patches_per_frame": 2000,
+        "fp32_mib": 15.36,
+        "int8_mib": 3.84,
+        "pq_kib": 985.1,
+        "distance_macs_g": 8.05,
+        "argmin_compares_m": 244.0,
         "fp32_fits_sram": false,
         "int8_fits_sram": true,
         "pq_fits_sram": true
       }
-    ],
-    "host_search_per_frame": {
+    },
+    "anchor": {
+      "label": "patchcore_lite[S3]",
+      "n_vectors": 10000,
+      "channels": 256,
       "patches_per_frame": 1024,
-      "distance_macs_g": 31.46,
-      "argmin_compares_m": 20.48,
-      "argmin_location": "host",
-      "pq_img_auroc_cost_pp": 9.0
+      "fp32_mib": 9.77,
+      "int8_mib": 2.44,
+      "pq_kib": 334.1,
+      "distance_macs_g": 2.62,
+      "argmin_compares_m": 10.24,
+      "fp32_fits_sram": false,
+      "int8_fits_sram": true,
+      "pq_fits_sram": true
     }
   }
 }

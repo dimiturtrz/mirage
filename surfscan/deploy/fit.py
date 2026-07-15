@@ -85,16 +85,18 @@ class Fit:
 
     @staticmethod
     def _work_mib(det: dict, comp: dict[str, dict], bank: dict, quant: str) -> tuple[float, float]:
-        """(summed GFLOPs, working-set MiB) for a detector at a precision: conv forward(s) + bank."""
+        """(summed GFLOPs, working-set MiB) for a detector: neural forward(s) + its named banks. `pieces`
+        is empty for a pure geometry-bank detector (BTF); `banks` roles index the bank-by-role model."""
         disk = "disk_int8_mb" if quant == _INT8 else "disk_fp32_mb"
-        gflops = sum(comp[p]["gflops"] for p in det["pieces"])
-        weights_mib = sum(comp[p][disk] * _MB_PER_MIB for p in det["pieces"])
-        act_mib = max(comp[p]["act_mb"] * _MB_PER_MIB for p in det["pieces"])
+        pieces = det["pieces"]
+        gflops = sum(comp[p]["gflops"] for p in pieces)
+        weights_mib = sum(comp[p][disk] * _MB_PER_MIB for p in pieces)
+        act_mib = max((comp[p]["act_mb"] * _MB_PER_MIB for p in pieces), default=0.0)
         bank_mib = 0.0
-        if det["has_bank"]:
-            row = bank["banks"][0]
-            bank_mib = row["pq_kib"] / 1024 if quant == _INT8 else row["fp32_mib"]  # PQ = the edge-deploy form
-            gflops += bank["host_search_per_frame"]["distance_macs_g"] * 2          # Conv1x1 MACs -> FLOPs
+        for role in det["banks"]:
+            b = bank["banks"][role]
+            bank_mib += b["pq_kib"] / 1024 if quant == _INT8 else b["fp32_mib"]  # PQ = the edge-deploy form
+            gflops += b["distance_macs_g"] * 2                                   # Conv1x1 MACs -> FLOPs
         return round(gflops, 2), round(weights_mib + act_mib + bank_mib, 2)
 
     @staticmethod
@@ -138,8 +140,10 @@ class Fit:
         if blocked is not None:
             return Verdict.BLOCKED, blocked
         if support == OpSupport.HOST_TAIL:
-            return Verdict.HOST_TAIL, (f"conv backbone runs on {acc.name}; the kNN argmin/top-k tail is a "
-                                       f"host residue ({acc.type} has no on-device top-k over the bank)")
+            head = (f"conv backbone runs on {acc.name}, but the" if det["pieces"]
+                    else "no accelerable neural graph — the FPFH descriptors and the")
+            return Verdict.HOST_TAIL, (f"{head} kNN argmin/top-k tail is a host residue "
+                                       f"({acc.type} has no on-device top-k over the bank)")
         return Fit._memory_verdict(work_mib, acc)
 
     @staticmethod

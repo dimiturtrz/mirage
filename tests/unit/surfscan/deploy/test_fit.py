@@ -8,11 +8,10 @@ from surfscan.deploy.accelerators import Accelerator, Accelerators
 from surfscan.deploy.fit import Fit, Options, Verdict
 from surfscan.deploy.schema import AccelType, MemoryModel, OpClass, OpSupport
 
-_CONV = {"name": "c", "op_class": OpClass.CONV_NATIVE, "pieces": ["m"], "has_bank": False}
-_BANK = {"name": "p", "op_class": OpClass.BANK_LOOKUP, "pieces": ["m"], "has_bank": True}
+_CONV = {"name": "c", "op_class": OpClass.CONV_NATIVE, "pieces": ["m"], "banks": []}
+_BANK = {"name": "p", "op_class": OpClass.BANK_LOOKUP, "pieces": ["m"], "banks": ["rgb"]}
 _COMP = {"m": {"name": "m", "gflops": 1.0, "disk_int8_mb": 1.0, "disk_fp32_mb": 4.0, "act_mb": 1.0}}
-_BANKSEC = {"banks": [{"pq_kib": 1024.0, "fp32_mib": 100.0}],
-            "host_search_per_frame": {"distance_macs_g": 1.0}}
+_BANKSEC = {"banks": {"rgb": {"pq_kib": 1024.0, "fp32_mib": 100.0, "distance_macs_g": 1.0}}}
 
 
 class _Make:

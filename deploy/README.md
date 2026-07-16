@@ -1,7 +1,13 @@
 # deploy — fit explorer
 
-**Live:** https://dimiturtrz.github.io/mirage/ (published from `main` by `.github/workflows/pages.yml`;
-enable Pages → "GitHub Actions" once in repo settings). The data is license-clean — our own measured
+**Live — two views on one Pages site** (`.github/workflows/pages.yml` assembles both branches):
+- https://dimiturtrz.github.io/mirage/ — **stable** (`main`)
+- https://dimiturtrz.github.io/mirage/preview/ — **latest** (`dev`)
+
+A push to either branch rebuilds the whole site from both branches' current `deploy/`; the header carries a
+link between the two. One-time setup: enable Pages at **Settings → Pages → Build and deployment → Source:
+"GitHub Actions"** (the default Actions token can't create the site itself); after that it deploys
+automatically. The data is license-clean — our own measured
 footprints + cited **public** vendor datasheets, zero MVTec-derived content — so unlike `pointcloud-viewer/`
 it is safe to host publicly.
 

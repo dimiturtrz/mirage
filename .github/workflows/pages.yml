@@ -1,16 +1,22 @@
 name: deploy-fit-explorer
 
-# Publish the deploy/ fit explorer (deploy/index.html + the committed models_params/accelerators/
-# fit_matrix JSON) to GitHub Pages. The data is license-clean — our measured footprints + cited PUBLIC
-# vendor datasheets, no MVTec-derived content — so unlike pointcloud-viewer it is safe to host publicly.
-# Static publish only: the GPU-measured models_params.json is committed from a local run; CI does NOT
-# regenerate it (no GPU / no external/M3DM on the runner). Drift is caught in the test suite instead
-# (tests/unit/surfscan/deploy/test_fit_insync.py asserts fit_matrix == a fresh CPU recompute).
+# Publish the deploy/ fit explorer to GitHub Pages as ONE site with THREE views (Pages gives one URL per
+# repo, so every view lives under it):
+#   /              = main  fit explorer (stable, reviewed)
+#   /preview/      = dev   fit explorer (always-latest working branch)
+#   /architecture/ = archmap interactive architecture (import graph of core + surfscan)
+# Deploys from `main` — the github-pages ENVIRONMENT is branch-protected to the default branch, so a
+# non-main deploy is rejected ("Branch not allowed to deploy to github-pages"). The workflow still bundles
+# BOTH branches so /preview/ tracks dev: it reads dev's deploy/ via `git archive origin/dev:deploy`, so each
+# main build refreshes the dev preview too. (To make /preview/ update on every dev PUSH instead of on main
+# builds, add `dev` under Settings -> Environments -> github-pages -> deployment branches.) The data is
+# license-clean (measured footprints + cited PUBLIC datasheets, no MVTec), so it is safe to host publicly.
+# Static only — models_params.json is committed; CI does not regenerate it (drift caught by test_fit_insync).
 
 on:
   push:
     branches: [main]
-    paths: ['deploy/**', '.github/workflows/pages.yml']
+    paths: ['deploy/**', 'docs/architecture/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -30,9 +36,28 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch both branches
+        run: git fetch origin main dev --depth=1
+      - name: Assemble site — main at root, dev at /preview
+        run: |
+          mkdir -p _site/preview
+          git archive origin/main:deploy | tar -x -C _site
+          git archive origin/dev:deploy  | tar -x -C _site/preview
+      # Compose the archmap architecture view at /architecture/ (one repo = one Pages site, so it folds into
+      # THIS workflow rather than a second deployer). Isolated: archmap comes from the scaffold's v1.6.0
+      # devtools with --no-project, so no synthscape sync + no touch to the pinned devtools — write_viewer
+      # only needs the vendored template+libs. graph.json is COMMITTED (the diff-truth); regen it locally with
+      # the same command when core/surfscan's import structure changes.
+      - uses: astral-sh/setup-uv@v5
+      - name: Architecture view (/architecture/)
+        run: |
+          uv run --no-project --with "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.6.0#subdirectory=sdlc-devtools" \
+            python -c "from devtools.archmap import Archmap; Archmap(['core','surfscan']).write_viewer(project='mirage')"
+          mkdir -p _site/architecture
+          cp docs/architecture/graph.json docs/architecture/index.html _site/architecture/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: deploy
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -12,7 +12,10 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 14px/1.55 system-ui, sans-serif; background: var(--bg); color: var(--ink); }
-  header { padding: 22px 26px 14px; border-bottom: 1px solid var(--line); }
+  header { padding: 22px 26px 14px; border-bottom: 1px solid var(--line); position: relative; }
+  #otherview { position: absolute; top: 18px; right: 26px; font-size: 12px; color: var(--accent);
+               text-decoration: none; border: 1px solid var(--line); border-radius: 20px; padding: 4px 12px; }
+  #otherview:hover { border-color: var(--accent); }
   header h1 { margin: 0; font-size: 20px; color: var(--accent); }
   header .sub { color: var(--dim); margin-top: 3px; }
   header .note { color: #6e7681; font-size: 12px; margin-top: 8px; max-width: 70ch; }
@@ -90,6 +93,7 @@
 </head>
 <body>
 <header>
+  <a id="otherview" href="#"></a>
   <h1>mirage — deployment fit explorer</h1>
   <div class="sub">which anomaly detector ships on which edge accelerator — and why</div>
   <div class="note" id="note"></div>
@@ -140,6 +144,14 @@ const VCLASS = { "full-ondevice": "full", "streams-offchip": "stream",
 const VLABEL = { "full-ondevice": "full on-device", "streams-offchip": "streams off-chip",
                  "backbone+host-tail": "backbone + host tail", "does-not-deploy": "does not deploy" };
 const ATYPES = ["cpu", "gpu", "npu_fixed", "npu_soc"];
+
+// same file serves both views — the stable site at / and the dev site at /preview/; cross-link by path
+(() => {
+  const isPreview = location.pathname.includes("/preview");
+  const a = document.getElementById("otherview");
+  a.textContent = isPreview ? "← stable (main)" : "dev preview →";
+  a.href = isPreview ? ".." : "preview/";
+})();
 
 const state = { precision: "int8", onnx: true };
 let cells = [], meta = {}, accels = [], detectors = [], verified = {}, targetFps = 30;

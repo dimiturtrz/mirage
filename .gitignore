@@ -71,3 +71,7 @@ sim/_smoke_out/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# archmap: graph.json is committed (diff-truth); the ~700KB viewer shell is regenerated (Pages workflow / locally)
+docs/architecture/index.html
+.grimp_cache/

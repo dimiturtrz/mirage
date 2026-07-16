@@ -7,7 +7,8 @@
     "transformer_attention": "unsupported"
   },
   "note": "conv-native NPU sharing the SoC's LPDDR. Closer to the bank tail than a pure dataflow NPU \u2014 Gather and ArgMin are in the op-set, so a k=1 nearest-neighbour is nearly feasible on-device, but TopK is not, and the fp32 bank is not native; the tail is still a host residue.",
-  "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md (op-support) + 2026-07-15_edge_accelerator_datasheets.md (specs)",
+  "op_support_provenance": "COMPILE-VERIFIED (rknn-toolkit2 2.3.2 simulator, no board): conv graph all ops -> NPU; bank tail Conv1x1 -> NPU while TopK and ArgMin -> CPU (host residue confirmed). NUANCE: a bare scaled-dot-product attention block fuses to the NPU (exSDPAttention), so 'transformer_attention: unsupported' is a DETECTOR-level verdict (Point-MAE's FPS/kNN tokenizer stays host), not a claim that no attention op exists. See deploy/compile_ops.json / bead j5s.5.",
+  "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md (op-support) + 2026-07-15_edge_accelerator_datasheets.md (specs) + 2026-07-16_edge_op_support_compiled.md (rknn compile-verification)",
   "instances": [
     {
       "name": "rknn_rk3588",

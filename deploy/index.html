@@ -154,7 +154,7 @@ const ATYPES = ["cpu", "gpu", "npu_fixed", "npu_soc"];
 })();
 
 const state = { precision: "int8", onnx: true };
-let cells = [], meta = {}, accels = [], detectors = [], verified = {}, targetFps = 30;
+let cells = [], meta = {}, accels = [], detectors = [], verified = {}, compiled = {}, targetFps = 30;
 
 const uniq = (xs) => [...new Set(xs)];
 const cell = (det, acc, precision) => cells.find(c =>
@@ -166,13 +166,14 @@ function metaCard(acc) {
     const s = m.op_support[k];
     return `<span class="pill ${s}">${k.split("_")[0]}: ${s.replace("_", " ")}</span>`;
   }).join("");
+  const cmp = compiled[acc] ? ` <span class="vfy" title="${compiled[acc]}">⚙ compiled</span>` : "";
   const num = (x, u) => x == null ? "—" : `${x}${u}`;
   const prec = Object.entries(m.precisions).map(([p, t]) => `${p} ${t} TOPS`).join(" · ");
   const only = Object.keys(m.precisions).length === 1;
   return `
     <div class="type">${m.typeLabel}</div>
     <h3>${m.label}</h3>
-    <div class="ops">${ops}</div>
+    <div class="ops">${ops}${cmp}</div>
     <dl>
       <dt>memory</dt><dd>${m.memory_model.replace(/_/g, " ")}</dd>
       <dt>envelope</dt><dd>${num(m.capacity_mib, " MiB")}</dd>
@@ -279,6 +280,11 @@ async function loadMeta() {
       const ex = await (await fetch("export_ops.json")).json();
       for (const d of ex.detectors) if (d.corroborates_op_class) verified[d.detector] = true;
     } catch { /* export gate not generated — cards just omit the badge */ }
+    try {  // optional — compile-verified op-support (deploy/compile_ops.json)
+      const co = await (await fetch("compile_ops.json")).json();
+      for (const r of co.results) compiled[r.target] =
+        `op-support compile-verified via ${co.toolchains[r.target].tool} ${co.toolchains[r.target].version}`;
+    } catch { /* compile gate not generated — cards just omit the badge */ }
     document.getElementById("note").textContent = fit.note +
       ` — profiled at ${fit.input_size}²px on ${fit.device}.`;
     accels = uniq(cells.map(c => c.accelerator));

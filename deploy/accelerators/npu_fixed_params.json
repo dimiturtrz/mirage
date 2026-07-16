@@ -7,7 +7,8 @@
     "transformer_attention": "unsupported"
   },
   "note": "quantized-conv dataflow graph: convolutions run at line rate, but the PatchCore distance/argmin/top-k tail is not expressible and spills to the host CPU; general attention is not in the op-set at all. This is the substrate the deploy thesis is about \u2014 it forces a bank-free conv detector.",
-  "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md (op-support) + 2026-07-15_edge_accelerator_datasheets.md (specs)",
+  "op_support_provenance": "coral_edgetpu: COMPILE-VERIFIED (edgetpu_compiler v16.0 partitions the representative graphs \u2014 conv fully Mapped to Edge TPU; ArgMin 'unsupported data type' and TopK 'not supported' fall to CPU; see deploy/compile_ops.json / bead j5s.5). hailo: CITED (dataflow compiler is Developer-Zone-gated).",
+  "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md (op-support) + 2026-07-15_edge_accelerator_datasheets.md (specs) + 2026-07-16_edge_op_support_compiled.md (coral compile-verification)",
   "instances": [
     {
       "name": "coral_edgetpu",

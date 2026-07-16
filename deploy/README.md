@@ -19,6 +19,14 @@ The load-bearing claim is architectural, not a FLOP count: a **conv** graph quan
 NPU; a PatchCore **bank kNN** tail (argmin/top-k over the bank) is a **host residue** on every commodity
 NPU and runs whole only on a GPU SoC; **attention** is not in a fixed-function op-set at all.
 
+That claim is **compile-verified**, not just cited: a representative graph per op-class is pushed through the
+real **RKNN** (`rknn-toolkit2`) and **Coral** (`edgetpu_compiler`) toolchains — static partitioners, no
+silicon — and both confirm conv maps to the accelerator while the bank's ArgMin/TopK fall to the host
+(`compile_ops.json`; deep-dive `2026-07-16_edge_op_support_compiled.md`). Cards for those two accelerators
+carry a **⚙ compiled** badge. Hailo's compiler is Developer-Zone-gated, so Hailo op-support stays cited; and
+one nuance surfaced — a bare attention block *fuses* to the RK3588 NPU, so "unsupported" is a detector-level
+verdict (Point-MAE's kNN tokenizer stays host), not a claim that no attention op exists.
+
 ## Layout
 ```
 deploy/
@@ -29,6 +37,7 @@ deploy/
     npu_fixed_params.json
     npu_soc_params.json
   fit_matrix.json                 generated — the (detector × accelerator × options) verdict grid
+  compile_ops.json                generated — op-support compile-verified on real RKNN + Coral toolchains
   index.html                      the viewer (three-free, no build step)
 ```
 
@@ -42,6 +51,8 @@ portal are `null`, never guessed; every instance cites its source `[S#]` in the
 ```bash
 python -m surfscan.deploy profile     # measure footprints -> models_params.json
 python -m surfscan.deploy fit         # cross with typed accelerators -> fit_matrix.json
+python -m surfscan.deploy compile_probe --build /tmp/g   # emit representative graphs; then, on a Linux box
+#   with the vendor SDKs, compile them and: compile_probe --rknn-log R --edgetpu-log E -> compile_ops.json
 ```
 The accelerator `*_params.json` are source (hand-authored); `profile`/`fit` never touch them. `profile`
 needs a GPU for the activation peak and `external/M3DM` for the pointmae transformer detector — both

@@ -100,12 +100,15 @@ seeds — then falls off a cliff: **60 ± 4.8 pp** at +50%, essentially gone by 
 and it tips its hand first — the policy takes visibly longer to reach the goal while it's still succeeding,
 before it starts missing outright. The full curve, method, and integrity live in [`control/`](control/README.md).
 
-Then I tried the obvious lever: train the policy across *randomized* dynamics instead of one nominal sim.
-It halves the gap right at the cliff's onset (+40% payload: **17.8 → 7.7 pp**) and tightens the seed spread —
-but it barely dents the deep collapse (+50/+60% stay >55 pp). That split is the honest part: this policy is
-dynamics-blind (it never sees a payload cue), so randomization can buy robustness in the marginal band but
-can't beat a hard actuator limit — the real fix there is an adaptive policy, not more variety. A partial
-lever, reported where it works and where it doesn't.
+So I tried two levers. First the obvious one: train across *randomized* dynamics instead of one nominal sim.
+It halves the gap at the cliff's onset (+40%: **17.8 → 7.7 pp**) but barely dents the deep collapse — because
+this policy is dynamics-blind (it never sees a payload cue), randomization can buy robustness in the marginal
+band but can't beat a hard actuator limit. Then the lever that actually follows from that diagnosis: give the
+policy one step of proprioception (its last action and the velocity change it caused), let it identify the
+plant online and compensate. That **erases the cliff up to +50% payload (60 → 0 pp)** and cuts the extreme
++60% case from 98 to 18 pp. The point isn't the toy number — it's the contrast: the fix for a dynamics shift
+is to *observe* it, not to average over it in training. (It closes this cleanly because the toy plant is a
+clean scalar gain; on a real robot that identification is much harder — the claim is directional.)
 
 Then the test of whether any of this is real engineering: the `Env` seam. I dropped in a PhysX rigid body
 (Isaac Sim — a real solver, same reach dynamics) and re-measured the whole curve *without changing a line*
@@ -136,9 +139,10 @@ Edge-deployable and honestly benchmarked — **not** a production system. The ga
 - **The control axis is a ramp.** The sim-to-real policy gap (60 ± 4.8 pp @ +50% payload,
   [above](#the-same-eval-on-a-second-axis--control-a-ramp)) is measured on a numpy point-mass and re-measured
   on a PhysX rigid body (Isaac Sim) via the `Env` seam — the headline transfers (60.0 → 62.5 pp). Domain
-  randomization moves it at the cliff onset (+40%: 17.8 → 7.7 pp) but not the deep collapse — a dynamics-blind
-  policy hits a hard actuator limit that needs an adaptive policy, not more randomization. Both rungs are
-  simplified reach dynamics, not a robot arm with contact/sensing — the honest ceiling.
+  randomization only nudges it (dynamics-blind policy); an **adaptive policy that senses the payload closes
+  the cliff to +50% (60 → 0 pp)**, +60% residual 18 pp — the honest contrast (observe the shift, don't
+  average over it). Both rungs are simplified reach dynamics, and the toy plant makes online system-ID easy,
+  so the adaptive claim is directional, not "sim-to-real solved" — the honest ceiling.
 - **Not a device.** Public research data only; edge deploy is real (ONNX), production-scale serving is not claimed.
 
 ## Data

@@ -23,20 +23,25 @@ seeds); past ~+45% the actuator can't overcome the added inertia within the hori
 An early-warning precedes the cliff: mean steps-to-goal climbs (36.5 → 38.6) while success is still 100% —
 the policy slows before it fails.
 
-### The lever — domain randomization
+### Two levers — randomize over the shift, or sense it
 
-A second arm clones the same expert on **randomized dynamics** (payload `~U(1.0, 1.6)`, gain `~U(0.85, 1.0)`),
-matched per seed. It **halves the gap at the cliff onset** but not the deep collapse:
+Two arms against the blind baseline. **Domain randomization** clones the same blind expert on randomized
+dynamics (payload `~U(1.0, 1.6)`, gain `~U(0.85, 1.0)`). **Adaptive** augments the observation with
+`[last_action, Δv]` (a `ProprioEnv`) and clones an online system-ID controller that estimates the plant gain
+`k = gain/mass` and inverts it — both matched per seed:
 
-| real payload | nominal gap | DR gap | Δ |
+| real payload | nominal gap | DR gap | adaptive gap |
 |---:|---:|---:|---:|
-| +40% | 17.8 ± 5.6 pp | **7.7 ± 4.4 pp** | **−10.1 pp** |
-| +50% | 60.0 ± 4.8 pp | 56.0 ± 1.2 pp | −4.0 |
-| +60% | 98.0 ± 2.8 pp | 93.3 ± 3.3 pp | −4.7 |
+| +40% | 17.8 ± 5.6 pp | 7.7 ± 4.4 pp | **0.0 ± 0.0 pp** |
+| +50% | **60.0 ± 4.8 pp** | 56.0 ± 1.2 pp | **0.0 ± 0.0 pp** |
+| +60% | 98.0 ± 2.8 pp | 93.3 ± 3.3 pp | **18.1 ± 6.9 pp** |
 
-The policy is **dynamics-blind** (obs = `[goal-pos, vel]`, no payload cue), so DR widens state-coverage in the
-marginal band but can't beat the actuator's hard authority limit — the collapse regime needs an *adaptive*
-policy (proprioceptive obs / online system-ID / RL), not more randomization. A real but partial lever.
+DR only nudges the cliff — the blind policy (obs `[goal-pos, vel]`, no payload cue) can gain marginal-band
+robustness but can't beat the actuator limit. The **adaptive policy erases the cliff to +50% (60 → 0 pp)** and
+cuts +60% from 98 → 18 pp, from **observable** proprioception only (no privileged `Phys`). The contrast is the
+point: *observe* the dynamics shift, don't *average over* it. What remains at +60% is the honest ceiling — a
+perfectly-estimated inverse still can't exceed the `amax` clip. (It closes this cleanly because the toy plant
+is a clean scalar gain; on a real robot, online ID is much harder — the claim is directional.)
 
 ### The fidelity rung — same curve on PhysX (Isaac Sim)
 
@@ -62,10 +67,12 @@ contradiction. Opt-in (GPU + Isaac kit boot, not CI-gated). Full method + integr
   clipped acceleration; success = inside `eps` before the horizon. Newtonian step; **sim vs real differ only
   in `Phys`** (payload mass, actuator gain) — the whole sim-to-real story in two mechanical numbers.
 - **Expert** (`expert.py`) — an analytic PD controller, the behavior-cloning demonstrator (a `ControlPolicy`).
-- **Policy** (`bc.py`) — a torch MLP behavior-cloned on nominal-sim demos (a `ControlPolicy`; torch stays
-  inside the impl, the `core` contract is numpy).
+- **Policy** (`bc.py`) — a torch MLP behavior-cloned on demos (a `ControlPolicy`; torch stays inside the impl,
+  the `core` contract is numpy).
+- **Adaptive** (`adaptive.py`) — the `ProprioEnv` obs-wrapper (`[last_action, Δv]`) + `AdaptiveExpert`, an
+  online system-ID PD controller; the demonstrator for the adaptive arm (observable-only, no privileged `Phys`).
 - **Experiment** (`experiment.py`) — train once, roll matched sim/real, sweep payload → the gap curve, over
-  N BC seeds, for both the nominal and domain-randomized training arms, logged to MLflow (`control-policy-gap`).
+  N BC seeds, for three arms (nominal / DR / adaptive), logged to MLflow (`control-policy-gap`).
 
 ## Integrity
 

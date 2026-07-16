@@ -19,7 +19,7 @@ class TestCompute:
         )
 
     def _nominal(self, cfg: ExperimentConfig):
-        return Experiment._compute(cfg, Experiment._nominal_train(cfg))
+        return Experiment._compute(cfg, Experiment._nominal_arm(cfg))
 
     def test_single_seed_metrics_carry_successes_and_per_payload_gap(self):
         m = self._nominal(self._cfg())
@@ -48,13 +48,19 @@ class TestCompute:
         assert not (dr_obs[2:] == self._step_once(nominal(0))[2:]).all()      # different Phys -> different vel
 
     def test_multiseed_aggregates_to_mean_and_std(self):
-        agg = Experiment._compute_multiseed(self._cfg(n_seeds=2), Experiment._nominal_train)
+        agg = Experiment._compute_multiseed(self._cfg(n_seeds=2), Experiment._nominal_arm)
         for key in ("bc_sim_success_mean", "bc_sim_success_std", "gap_pp_p160_mean", "gap_pp_p160_std"):
             assert key in agg
         assert agg["gap_pp_p160_mean"] >= agg["gap_pp_p110_mean"]
         assert agg["gap_pp_p160_std"] >= 0.0
 
     def test_dr_arm_computes_the_full_gap_curve(self):
-        agg = Experiment._compute_multiseed(self._cfg(n_seeds=1), Experiment._dr_factory)
+        agg = Experiment._compute_multiseed(self._cfg(n_seeds=1), Experiment._dr_arm)
         for key in ("bc_sim_success_mean", "gap_pp_p110_mean", "gap_pp_p160_mean"):
             assert key in agg
+
+    def test_adaptive_arm_uses_proprio_obs_and_computes_the_gap_curve(self):
+        agg = Experiment._compute_multiseed(self._cfg(n_seeds=1), Experiment._adaptive_arm)
+        for key in ("bc_sim_success_mean", "gap_pp_p110_mean", "gap_pp_p160_mean"):
+            assert key in agg
+        assert agg["bc_sim_success_mean"] > 0.7          # the adaptive clone still solves nominal sim

@@ -15,9 +15,12 @@ mirage detects **defects on 3D surface scans**, training only on *good* examples
 detector + an eval harness on **real** data and runs a like-for-like comparison of methods; Stage 1 adds
 a **synthetic-defect generator** and measures the **sim-to-real gap**.
 
-It's also how **I'm** ramping into 3D perception: built on public data, the data-engine + evaluation
-discipline carried from prior acoustic-detection work, the 3D modality learned as I go. Full plan →
-**[docs/PLAN.md](docs/PLAN.md)**.
+It's also how **I'm** ramping — into 3D perception first, and lately a second axis. The whole point is the
+sim-to-real *eval*, not any one detector, so I keep testing that it isn't perception-specific: the same
+discipline now points at **control** too — a policy learned in sim, the same gap measured when the dynamics
+shift under it (a deliberate ramp, [further down](#the-same-eval-on-a-second-axis--control-a-ramp)). All of
+it on public data, the data-engine + evaluation discipline carried from prior acoustic-detection work, the
+new modalities learned as I go. Full plan → **[docs/PLAN.md](docs/PLAN.md)**.
 
 ## Stage 0 result — the measured investigation
 Not a leaderboard number — the *measured contrast*. Per-category models, scored through one verified
@@ -84,28 +87,24 @@ deficit is a **render-vs-Zivid sensor domain gap**, not reconstruction resolutio
 negative — the sim-to-real spine located *where* the twin loses and ruled out the obvious culprit. Full
 diagnosis + ablation → [`interpretations/twin/2026-07-15_twin-vs-classical.md`](interpretations/twin/2026-07-15_twin-vs-classical.md).
 
-## Axis 3 — the same sim-to-real discipline, applied to control (a ramp)
-The contribution is the sim-to-real *eval*, not one perception model — so it should generalize past
-perception. The control leg tests that on the **same shared `core`**: a new `(train, act)` policy contract +
-rollout spine beside the perception `(fit, score)` one. A policy **behavior-cloned in nominal sim only** is
-rolled in sim and in a dynamics-shifted **real** (unmodeled payload + actuator sag), measuring the
-**sim-to-real policy gap** — the control analog of the [Stage 1](#stage-1--measuring-the-sim-to-real-gap)
-AU-PRO gap (5 BC seeds, mean ± sd):
+## The same eval on a second axis — control (a ramp)
+If the real contribution is the sim-to-real *eval* and not one detector, it shouldn't much care what the task
+is. So I gave it a different one: learn a policy in simulation, then ask how much it loses when the world
+stops matching the sim. Same shared `core`, a `(train, act)` policy contract sitting beside perception's
+`(fit, score)`, one rollout spine — a policy behavior-cloned in nominal sim, rolled against a *real* whose
+dynamics have drifted (a heavier payload, a weaker actuator). The gap is the [Stage 1](#stage-1--measuring-the-sim-to-real-gap)
+idea again, now in task success.
 
-| real payload | task success | sim-to-real gap |
-|---:|---:|---:|
-| +10 … +30% | 100.0 ± 0.0% | 0.0 ± 0.0 pp |
-| +40% | 82.2 ± 5.6% | 17.8 ± 5.6 pp |
-| +50% | 40.0 ± 4.8% | **60.0 ± 4.8 pp** |
-| +60% | 2.0 ± 2.8% | 98.0 ± 2.8 pp |
+It holds until it doesn't. Feedback soaks up a payload up to +30% at a **zero** gap — and zero spread across
+seeds — then falls off a cliff: **60 ± 4.8 pp** at +50%, essentially gone by +60%. Not a slope, a threshold,
+and it tips its hand first — the policy takes visibly longer to reach the goal while it's still succeeding,
+before it starts missing outright. The full curve, method, and integrity live in [`control/`](control/README.md).
 
-**The gap is a threshold, not a slope:** closed-loop feedback absorbs ≤ +30% payload (zero gap, *zero
-variance across seeds*), then success collapses past ~+45%. A **numpy point-mass reach** is the deliberate
-first rung — fast, deterministic, CI-runnable; the `Env` protocol is the seam, so an **Isaac Lab** env
-re-measures this exact curve at higher fidelity without touching policy, spine, or metric. This axis is a
-**ramp** (a new skill, said so). Method + integrity →
-[`interpretations/control/2026-07-16_policy-gap.md`](interpretations/control/2026-07-16_policy-gap.md) ·
-run it: `python -m control.experiment`.
+Honest read: this is a **ramp at toy fidelity** — a numpy point-mass, not a robot, so it's a projection of
+the mechanism, not a robotics result. And it only *measures* the gap so far; the lever that should actually
+move it — training the policy across randomized dynamics — is the next thing to try. The one piece of real
+engineering is the `Env` seam: an Isaac Lab env drops in and re-measures this same curve at higher fidelity
+without a line changing in the policy, the spine, or the metric.
 
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
@@ -122,9 +121,10 @@ Edge-deployable and honestly benchmarked — **not** a production system. The ga
   cloud, not native-resolution clean point clouds. A preprocessing limit, diagnosed, not a method failure.
 - **3D is a ramp.** The data-engine + eval discipline carry from prior work; the 3D-perception specifics are
   the genuinely new skill, learned as I go.
-- **The control leg is a ramp at toy fidelity.** The sim-to-real policy gap (60 ± 4.8 pp @ +50% payload,
-  [Axis 3](#axis-3--the-same-sim-to-real-discipline-applied-to-control-a-ramp)) is measured on a numpy
-  point-mass — a projection of the mechanism, not a high-fidelity robot; the Isaac rung (installed) sharpens it.
+- **The control axis is a ramp, and only half-done.** The sim-to-real policy gap (60 ± 4.8 pp @ +50% payload,
+  [above](#the-same-eval-on-a-second-axis--control-a-ramp)) is measured on a numpy point-mass — a projection,
+  not a robot — and it's *measured but not yet moved*: training across randomized dynamics is the open lever,
+  and Isaac (installed) is the fidelity rung.
 - **Not a device.** Public research data only; edge deploy is real (ONNX), production-scale serving is not claimed.
 
 ## Data

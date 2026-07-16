@@ -19,7 +19,9 @@ class TestCompute:
         m = Experiment._compute(self._cfg())
         assert m["expert_sim_success"] > 0.9              # analytic expert nearly perfect in-domain
         assert m["bc_sim_success"] > 0.7                  # clone learned the task
-        for key in ("real_success_p110", "gap_pp_p110", "real_success_p160", "gap_pp_p160"):
+        for key in ("bc_sim_return", "bc_sim_steps",
+                    "real_success_p110", "real_return_p110", "real_steps_p110", "gap_pp_p110",
+                    "real_success_p160", "gap_pp_p160"):
             assert key in m
 
     def test_gap_grows_with_payload(self):

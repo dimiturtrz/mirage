@@ -8,8 +8,17 @@ success_rate / mean_return reduce trajectories; gap subtracts two rollout sets.
 import numpy as np
 
 from core.policy import Trajectory
-from core.reference_policy import ConstantActionPolicy
 from core.rollout import Env, Rollout, StepResult
+
+
+class _ZeroPolicy:
+    """Trivial ControlPolicy — a stateless policy emitting a zero action; drives the spine in these tests."""
+
+    def train(self, task: str):
+        return None
+
+    def act(self, state, obs) -> np.ndarray:
+        return np.zeros(1)
 
 
 class CountdownEnv:
@@ -36,7 +45,7 @@ class TestEnvContract:
 
 class TestRollAssembly:
     def test_trajectory_is_axis0_aligned_and_ends_on_done(self):
-        pol = ConstantActionPolicy(np.zeros(1))
+        pol = _ZeroPolicy()
         traj = Rollout.roll(pol, pol.train("countdown"), CountdownEnv(3), max_steps=10)
         assert isinstance(traj, Trajectory)
         assert {f.shape[0] for f in traj} == {3}         # 3 steps, stopped early on done (not max_steps)
@@ -44,7 +53,7 @@ class TestRollAssembly:
         assert traj.rewards.sum() == 3.0
 
     def test_max_steps_caps_a_nonterminating_episode(self):
-        pol = ConstantActionPolicy(np.zeros(1))
+        pol = _ZeroPolicy()
         traj = Rollout.roll(pol, pol.train("countdown"), CountdownEnv(100), max_steps=5)
         assert traj.obs.shape[0] == 5 and not traj.dones.any()
 

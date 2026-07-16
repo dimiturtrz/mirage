@@ -9,10 +9,12 @@ achievable ceiling. Run: `python -m control.experiment`. Metrics + params are lo
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import mlflow
+import numpy as np
 
 from control.bc import BCConfig, BCPolicy
 from control.expert import PDExpert
@@ -61,10 +63,18 @@ class Experiment:
                 for i in range(plan.episodes)]
 
     @staticmethod
-    def _real_success(cfg: ExperimentConfig, bc: Any, state: Any, plan: EvalPlan, payload: float) -> float:
+    def _steps_to_goal(trajs: list[Trajectory]) -> float:
+        reached = [int(np.argmax(t.dones)) + 1 for t in trajs if t.dones.any()]   # first terminal step
+        return float(np.mean(reached)) if reached else math.nan
+
+    @staticmethod
+    def _summary(trajs: list[Trajectory]) -> tuple[float, float, float]:
+        return Rollout.success_rate(trajs), Rollout.mean_return(trajs), Experiment._steps_to_goal(trajs)
+
+    @staticmethod
+    def _real_summary(cfg: ExperimentConfig, bc: Any, state: Any, plan: EvalPlan, payload: float) -> tuple[float, float, float]:
         real_phys = Phys(mass=payload, gain=cfg.actuator_gain)
-        real = Experiment._rollset(bc, state, Experiment._factory(real_phys, cfg.task), plan)
-        return Rollout.success_rate(real)
+        return Experiment._summary(Experiment._rollset(bc, state, Experiment._factory(real_phys, cfg.task), plan))
 
     @staticmethod
     def _compute(cfg: ExperimentConfig) -> dict[str, float]:
@@ -75,14 +85,17 @@ class Experiment:
         bc = BCPolicy(sim_make, expert, cfg.bc)
         state = bc.train("reach")
 
-        sim_success = Rollout.success_rate(Experiment._rollset(bc, state, sim_make, plan))
+        sim_success, sim_return, sim_steps = Experiment._summary(Experiment._rollset(bc, state, sim_make, plan))
         expert_sim = Rollout.success_rate(Experiment._rollset(expert, expert.train("reach"), sim_make, plan))
 
-        metrics = {"bc_sim_success": sim_success, "expert_sim_success": expert_sim}
+        metrics = {"bc_sim_success": sim_success, "bc_sim_return": sim_return, "bc_sim_steps": sim_steps,
+                   "expert_sim_success": expert_sim}
         for payload in cfg.payload_sweep:
-            real_success = Experiment._real_success(cfg, bc, state, plan, payload)
+            real_success, real_return, real_steps = Experiment._real_summary(cfg, bc, state, plan, payload)
             tag = f"p{round(payload * _PP)}"
             metrics[f"real_success_{tag}"] = real_success
+            metrics[f"real_return_{tag}"] = real_return
+            metrics[f"real_steps_{tag}"] = real_steps
             metrics[f"gap_pp_{tag}"] = _PP * (sim_success - real_success)
         return metrics
 
@@ -102,15 +115,17 @@ class Experiment:
                 "bc_demos": cfg.bc.n_demo_episodes, "bc_epochs": cfg.bc.epochs,
                 "eval_episodes": cfg.eval_episodes,
             })
-            mlflow.log_metrics(metrics)
+            mlflow.log_metrics({k: v for k, v in metrics.items() if math.isfinite(v)})
         log.info("=== point-mass reach — sim-to-real policy gap (BC, sim-only training) ===")
         log.info("expert sim success : %5.1f%%   (achievable ceiling)", _PP * metrics["expert_sim_success"])
-        log.info("BC     sim success : %5.1f%%   (in-domain)", _PP * metrics["bc_sim_success"])
-        log.info("  payload   real-success   sim-to-real gap")
+        log.info("BC     sim         : success %5.1f%%   return %6.2f   steps-to-goal %4.1f",
+                 _PP * metrics["bc_sim_success"], metrics["bc_sim_return"], metrics["bc_sim_steps"])
+        log.info("  payload   real-success   gap       real-return   steps-to-goal")
         for payload in cfg.payload_sweep:
             tag = f"p{round(payload * _PP)}"
-            log.info("  +%3d%%      %5.1f%%          %5.1f pp",
-                     round((payload - 1.0) * _PP), _PP * metrics[f"real_success_{tag}"], metrics[f"gap_pp_{tag}"])
+            log.info("  +%3d%%      %5.1f%%       %5.1f pp    %6.2f       %4.1f",
+                     round((payload - 1.0) * _PP), _PP * metrics[f"real_success_{tag}"],
+                     metrics[f"gap_pp_{tag}"], metrics[f"real_return_{tag}"], metrics[f"real_steps_{tag}"])
 
     @staticmethod
     def main() -> None:

@@ -31,9 +31,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # ONE-TIME: enable Pages at Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+      # The default GITHUB_TOKEN cannot create the Pages site itself (admin-only), so this step must be done
+      # once in the repo settings; after that every push here deploys with no further manual action.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true   # create the Pages site on first run — no manual Settings->Pages step needed
       - uses: actions/upload-pages-artifact@v3
         with:
           path: deploy

@@ -1,8 +1,9 @@
 # deploy — fit explorer
 
 **Live:** https://dimiturtrz.github.io/mirage/ (published from `dev` by `.github/workflows/pages.yml` —
-always-latest; the workflow self-enables Pages on first run via `configure-pages` `enablement: true`).
-The data is license-clean — our own measured
+always-latest). One-time setup: enable Pages at **Settings → Pages → Build and deployment → Source:
+"GitHub Actions"** (the default Actions token can't create the site itself); after that every `dev` push
+with `deploy/` changes deploys automatically. The data is license-clean — our own measured
 footprints + cited **public** vendor datasheets, zero MVTec-derived content — so unlike `pointcloud-viewer/`
 it is safe to host publicly.
 

@@ -3,13 +3,14 @@ name: deploy-fit-explorer
 # Publish the deploy/ fit explorer (deploy/index.html + the committed models_params/accelerators/
 # fit_matrix JSON) to GitHub Pages. The data is license-clean — our measured footprints + cited PUBLIC
 # vendor datasheets, no MVTec-derived content — so unlike pointcloud-viewer it is safe to host publicly.
-# Static publish only: the GPU-measured models_params.json is committed from a local run; CI does NOT
-# regenerate it (no GPU / no external/M3DM on the runner). Drift is caught in the test suite instead
-# (tests/unit/surfscan/deploy/test_fit_insync.py asserts fit_matrix == a fresh CPU recompute).
+# Publishes from `dev` (the working branch) so the live page is always-latest — every deploy/ change
+# republishes without waiting on a main merge. Static publish only: the GPU-measured models_params.json is
+# committed from a local run; CI does NOT regenerate it (no GPU / no external/M3DM on the runner). Drift is
+# caught in the test suite (tests/unit/surfscan/deploy/test_fit_insync.py asserts fit_matrix == a recompute).
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths: ['deploy/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
@@ -31,6 +32,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true   # create the Pages site on first run — no manual Settings->Pages step needed
       - uses: actions/upload-pages-artifact@v3
         with:
           path: deploy

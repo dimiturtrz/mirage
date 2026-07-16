@@ -11,5 +11,5 @@ jscpd_paths: core surfscan
 lint_paths: core surfscan
 packages: core,surfscan
 project_name: mirage
-repo_url: ''
+repo_url: https://github.com/dimiturtrz/mirage
 

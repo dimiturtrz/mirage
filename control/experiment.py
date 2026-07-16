@@ -73,7 +73,8 @@ class Experiment:
         return Rollout.success_rate(trajs), Rollout.mean_return(trajs), Experiment._steps_to_goal(trajs)
 
     @staticmethod
-    def _real_summary(cfg: ExperimentConfig, bc: Any, state: Any, plan: EvalPlan, payload: float) -> tuple[float, float, float]:
+    def _real_summary(cfg: ExperimentConfig, bc: Any, state: Any, plan: EvalPlan,
+                      payload: float) -> tuple[float, float, float]:
         real_phys = Phys(mass=payload, gain=cfg.actuator_gain)
         return Experiment._summary(Experiment._rollset(bc, state, Experiment._factory(real_phys, cfg.task), plan))
 
@@ -133,7 +134,8 @@ class Experiment:
             mlflow.log_metrics({k: v for k, v in agg.items() if math.isfinite(v)})
         log.info("=== point-mass reach — sim-to-real policy gap (BC, sim-only; %d seeds, mean±sd) ===", cfg.n_seeds)
         log.info("expert sim success : %5.1f%%   (achievable ceiling)", _PP * agg["expert_sim_success_mean"])
-        log.info("BC     sim success : %5.1f ± %.1f%%", _PP * agg["bc_sim_success_mean"], _PP * agg["bc_sim_success_std"])
+        log.info("BC     sim success : %5.1f ± %.1f%%",
+                 _PP * agg["bc_sim_success_mean"], _PP * agg["bc_sim_success_std"])
         log.info("  payload   real-success (mean±sd)    sim-to-real gap (pp)")
         for payload in cfg.payload_sweep:
             tag = f"p{round(payload * _PP)}"

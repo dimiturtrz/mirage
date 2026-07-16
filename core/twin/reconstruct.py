@@ -90,7 +90,7 @@ class CategoryReconstructor:
         return [self.build(c) for c in self.categories()]
 
     @staticmethod
-    def _main():
+    def main():
         ap = argparse.ArgumentParser(description="Reconstruct digital-twin meshes from good scans.")
         ap.add_argument("--cat", default=None, help="single category (default: all)")
         ap.add_argument("--voxel", type=float, default=0.0008,
@@ -104,4 +104,4 @@ class CategoryReconstructor:
 
 
 if __name__ == "__main__":
-    CategoryReconstructor._main()
+    CategoryReconstructor.main()

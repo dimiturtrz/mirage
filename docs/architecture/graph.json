@@ -1,0 +1,1466 @@
+{
+  "edges": [
+    {
+      "source": "core.data.dataset",
+      "target": "core.data.preprocess",
+      "weight": 1
+    },
+    {
+      "source": "core.data.dataset",
+      "target": "core.data.store",
+      "weight": 1
+    },
+    {
+      "source": "core.data.defects",
+      "target": "core.geometry",
+      "weight": 1
+    },
+    {
+      "source": "core.data.mvtec",
+      "target": "core.config",
+      "weight": 1
+    },
+    {
+      "source": "core.data.store",
+      "target": "core.config",
+      "weight": 1
+    },
+    {
+      "source": "core.data.store",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "core.data.store",
+      "target": "core.data.preprocess",
+      "weight": 1
+    },
+    {
+      "source": "core.data.store",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "core.data.synth",
+      "target": "core.config",
+      "weight": 1
+    },
+    {
+      "source": "core.data.synth",
+      "target": "core.data.mvtec",
+      "weight": 2
+    },
+    {
+      "source": "core.twin.reconstruct",
+      "target": "core.config",
+      "weight": 1
+    },
+    {
+      "source": "core.twin.reconstruct",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "core.twin.reconstruct",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.__main__",
+      "target": "surfscan.deploy.accelerators",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.__main__",
+      "target": "surfscan.deploy.bank",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.__main__",
+      "target": "surfscan.deploy.export",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.__main__",
+      "target": "surfscan.deploy.fit",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.__main__",
+      "target": "surfscan.deploy.profile",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.__main__",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.accelerators",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.accelerators",
+      "target": "surfscan.deploy",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.accelerators",
+      "target": "surfscan.deploy.schema",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.accelerators",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.bank",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.bank",
+      "target": "surfscan.deploy.schema",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.bank",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.export",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.export",
+      "target": "surfscan.deploy",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.export",
+      "target": "surfscan.deploy.profile",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.export",
+      "target": "surfscan.deploy.schema",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.export",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.fit",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.fit",
+      "target": "surfscan.deploy",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.fit",
+      "target": "surfscan.deploy.accelerators",
+      "weight": 2
+    },
+    {
+      "source": "surfscan.deploy.fit",
+      "target": "surfscan.deploy.schema",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.fit",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.deploy",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.deploy.bank",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.deploy.schema",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.models.draem",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.models.feat_ae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.models.pointmae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.models.vae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.profile",
+      "target": "surfscan.training.hparams",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.diagnostics",
+      "target": "surfscan.evaluation.metrics",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "core.data.dataset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "core.method",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "surfscan.evaluation.harness",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "surfscan.evaluation.scoring",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "surfscan.tracking",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.evaluate",
+      "target": "surfscan.training.hparams",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "core.method",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "surfscan.evaluation.diagnostics",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "surfscan.evaluation.invariants",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "surfscan.evaluation.metrics",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "surfscan.evaluation.predictions",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "surfscan.evaluation.result_types",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.harness",
+      "target": "surfscan.tracking",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.invariants",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.modelcard",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.modelcard",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.modelcard",
+      "target": "surfscan.evaluation.results",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.predictions",
+      "target": "core.method",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.recompute",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.recompute",
+      "target": "surfscan.evaluation.harness",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.recompute",
+      "target": "surfscan.tracking",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.results",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.results",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.results",
+      "target": "surfscan.tracking",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.scoring",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.sync_numbers",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.sync_numbers",
+      "target": "surfscan.deploy",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.evaluation.sync_numbers",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.experiments.run_all",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.experiments.run_btf",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.experiments.run_draem",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.experiments.run_featrecon",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.experiments.run_fused",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.experiments.run_patchcore",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.experiments.run_pointmae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.registry",
+      "target": "surfscan.experiments.run_triad",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "surfscan.evaluation.evaluate",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "surfscan.evaluation.result_types",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "surfscan.tracking",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "surfscan.training.hparams",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_all",
+      "target": "surfscan.training.train",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_btf",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_btf",
+      "target": "core.data.store",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_btf",
+      "target": "surfscan.evaluation.scoring",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_btf",
+      "target": "surfscan.method_cli",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_btf",
+      "target": "surfscan.models.fpfh_bank",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_draem",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_draem",
+      "target": "core.data.dataset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_draem",
+      "target": "core.data.defects",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_draem",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_draem",
+      "target": "surfscan.evaluation.scoring",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_draem",
+      "target": "surfscan.method_cli",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_draem",
+      "target": "surfscan.models.draem",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_draem",
+      "target": "surfscan.training.trainer",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_featrecon",
+      "target": "core.data.dataset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_featrecon",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_featrecon",
+      "target": "surfscan.evaluation.scoring",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_featrecon",
+      "target": "surfscan.method_cli",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_featrecon",
+      "target": "surfscan.models.feat_recon",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_featrecon",
+      "target": "surfscan.training.trainer",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_fused",
+      "target": "core.data.dataset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_fused",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_fused",
+      "target": "core.data.store",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_fused",
+      "target": "surfscan.evaluation.scoring",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_fused",
+      "target": "surfscan.method_cli",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_fused",
+      "target": "surfscan.models.fpfh_bank",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_fused",
+      "target": "surfscan.models.patchcore",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_patchcore",
+      "target": "core.data.dataset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_patchcore",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_patchcore",
+      "target": "surfscan.evaluation.scoring",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_patchcore",
+      "target": "surfscan.method_cli",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_patchcore",
+      "target": "surfscan.models.patchcore",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_pointmae",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_pointmae",
+      "target": "core.data.store",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_pointmae",
+      "target": "surfscan.evaluation.scoring",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_pointmae",
+      "target": "surfscan.method_cli",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_pointmae",
+      "target": "surfscan.models.coreset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_pointmae",
+      "target": "surfscan.models.pointmae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_pointmae",
+      "target": "surfscan.models.pointmae_group",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "core.cli_config",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "core.data.dataset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "core.data.defects",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "core.data.store",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "core.method",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "surfscan.evaluation.harness",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "surfscan.evaluation.invariants",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "surfscan.evaluation.metrics",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "surfscan.evaluation.scoring",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "surfscan.models.draem",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "surfscan.training.curriculum",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.run_triad",
+      "target": "surfscan.training.trainer",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.triad_summary",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.experiments.triad_summary",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.method_cli",
+      "target": "core.cli_config",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.method_cli",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.method_cli",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.method_cli",
+      "target": "surfscan.evaluation.harness",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.models.feat_recon",
+      "target": "surfscan.models.feat_ae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.models.inpaint",
+      "target": "surfscan.models.vae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.models.inpaint",
+      "target": "surfscan.training.hparams",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.models.patchcore",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.models.patchcore",
+      "target": "surfscan.models.coreset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.models.pointmae",
+      "target": "surfscan.models.pointmae_group",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.models.vae",
+      "target": "surfscan.training.hparams",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.report",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.report",
+      "target": "surfscan.evaluation.evaluate",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.report",
+      "target": "surfscan.evaluation.modelcard",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.report",
+      "target": "surfscan.evaluation.recompute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.report",
+      "target": "surfscan.evaluation.results",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.report",
+      "target": "surfscan.evaluation.sync_numbers",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.report",
+      "target": "surfscan.experiments.triad_summary",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.run",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.run",
+      "target": "surfscan.experiments.registry",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "core.data.dataset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "surfscan.models.inpaint",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "surfscan.models.vae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "surfscan.tracking",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "surfscan.training.hparams",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "surfscan.training.losses",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.train",
+      "target": "surfscan.training.trainer",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.training.trainer",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.export_web",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.export_web",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.export_web",
+      "target": "surfscan.visualization.show",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "core.compute",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "core.config",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "core.data.dataset",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "core.data.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "core.data.preprocess",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "core.data.store",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "surfscan.models.patchcore",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "surfscan.models.vae",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.visualization.show",
+      "target": "surfscan.training.hparams",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.viz",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.viz",
+      "target": "surfscan.visualization.export_web",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.viz",
+      "target": "surfscan.visualization.show",
+      "weight": 1
+    }
+  ],
+  "nodes": [
+    {
+      "descendants": 15,
+      "id": "core",
+      "label": "core",
+      "parent": null
+    },
+    {
+      "descendants": 0,
+      "id": "core.cli_config",
+      "label": "cli_config",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
+      "id": "core.compute",
+      "label": "compute",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
+      "id": "core.config",
+      "label": "config",
+      "parent": "core"
+    },
+    {
+      "descendants": 6,
+      "id": "core.data",
+      "label": "data",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.dataset",
+      "label": "dataset",
+      "parent": "core.data"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.defects",
+      "label": "defects",
+      "parent": "core.data"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.mvtec",
+      "label": "mvtec",
+      "parent": "core.data"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.preprocess",
+      "label": "preprocess",
+      "parent": "core.data"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.store",
+      "label": "store",
+      "parent": "core.data"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.synth",
+      "label": "synth",
+      "parent": "core.data"
+    },
+    {
+      "descendants": 0,
+      "id": "core.geometry",
+      "label": "geometry",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
+      "id": "core.method",
+      "label": "method",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
+      "id": "core.obs",
+      "label": "obs",
+      "parent": "core"
+    },
+    {
+      "descendants": 1,
+      "id": "core.twin",
+      "label": "twin",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
+      "id": "core.twin.reconstruct",
+      "label": "reconstruct",
+      "parent": "core.twin"
+    },
+    {
+      "descendants": 58,
+      "id": "surfscan",
+      "label": "surfscan",
+      "parent": null
+    },
+    {
+      "descendants": 7,
+      "id": "surfscan.deploy",
+      "label": "deploy",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.deploy.__main__",
+      "label": "__main__",
+      "parent": "surfscan.deploy"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.deploy.accelerators",
+      "label": "accelerators",
+      "parent": "surfscan.deploy"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.deploy.bank",
+      "label": "bank",
+      "parent": "surfscan.deploy"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.deploy.export",
+      "label": "export",
+      "parent": "surfscan.deploy"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.deploy.fit",
+      "label": "fit",
+      "parent": "surfscan.deploy"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.deploy.profile",
+      "label": "profile",
+      "parent": "surfscan.deploy"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.deploy.schema",
+      "label": "schema",
+      "parent": "surfscan.deploy"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.dispatch",
+      "label": "dispatch",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 12,
+      "id": "surfscan.evaluation",
+      "label": "evaluation",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.diagnostics",
+      "label": "diagnostics",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.evaluate",
+      "label": "evaluate",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.harness",
+      "label": "harness",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.invariants",
+      "label": "invariants",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.metrics",
+      "label": "metrics",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.modelcard",
+      "label": "modelcard",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.predictions",
+      "label": "predictions",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.recompute",
+      "label": "recompute",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.result_types",
+      "label": "result_types",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.results",
+      "label": "results",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.scoring",
+      "label": "scoring",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.evaluation.sync_numbers",
+      "label": "sync_numbers",
+      "parent": "surfscan.evaluation"
+    },
+    {
+      "descendants": 10,
+      "id": "surfscan.experiments",
+      "label": "experiments",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.registry",
+      "label": "registry",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.run_all",
+      "label": "run_all",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.run_btf",
+      "label": "run_btf",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.run_draem",
+      "label": "run_draem",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.run_featrecon",
+      "label": "run_featrecon",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.run_fused",
+      "label": "run_fused",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.run_patchcore",
+      "label": "run_patchcore",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.run_pointmae",
+      "label": "run_pointmae",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.run_triad",
+      "label": "run_triad",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.experiments.triad_summary",
+      "label": "triad_summary",
+      "parent": "surfscan.experiments"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.method_cli",
+      "label": "method_cli",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 10,
+      "id": "surfscan.models",
+      "label": "models",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.coreset",
+      "label": "coreset",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.draem",
+      "label": "draem",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.feat_ae",
+      "label": "feat_ae",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.feat_recon",
+      "label": "feat_recon",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.fpfh_bank",
+      "label": "fpfh_bank",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.inpaint",
+      "label": "inpaint",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.patchcore",
+      "label": "patchcore",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.pointmae",
+      "label": "pointmae",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.pointmae_group",
+      "label": "pointmae_group",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.models.vae",
+      "label": "vae",
+      "parent": "surfscan.models"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.report",
+      "label": "report",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.run",
+      "label": "run",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.tracking",
+      "label": "tracking",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 5,
+      "id": "surfscan.training",
+      "label": "training",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.training.curriculum",
+      "label": "curriculum",
+      "parent": "surfscan.training"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.training.hparams",
+      "label": "hparams",
+      "parent": "surfscan.training"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.training.losses",
+      "label": "losses",
+      "parent": "surfscan.training"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.training.train",
+      "label": "train",
+      "parent": "surfscan.training"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.training.trainer",
+      "label": "trainer",
+      "parent": "surfscan.training"
+    },
+    {
+      "descendants": 2,
+      "id": "surfscan.visualization",
+      "label": "visualization",
+      "parent": "surfscan"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.visualization.export_web",
+      "label": "export_web",
+      "parent": "surfscan.visualization"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.visualization.show",
+      "label": "show",
+      "parent": "surfscan.visualization"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.viz",
+      "label": "viz",
+      "parent": "surfscan"
+    }
+  ]
+}

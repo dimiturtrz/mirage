@@ -1,9 +1,10 @@
 name: deploy-fit-explorer
 
-# Publish the deploy/ fit explorer to GitHub Pages as ONE site with TWO views (Pages gives one URL per
-# repo, so both live versions live under it):
-#   /            = main  (stable, reviewed)
-#   /preview/    = dev   (always-latest working branch)
+# Publish the deploy/ fit explorer to GitHub Pages as ONE site with THREE views (Pages gives one URL per
+# repo, so every view lives under it):
+#   /              = main  fit explorer (stable, reviewed)
+#   /preview/      = dev   fit explorer (always-latest working branch)
+#   /architecture/ = archmap interactive architecture (import graph of core + surfscan)
 # Deploys from `main` — the github-pages ENVIRONMENT is branch-protected to the default branch, so a
 # non-main deploy is rejected ("Branch not allowed to deploy to github-pages"). The workflow still bundles
 # BOTH branches so /preview/ tracks dev: it reads dev's deploy/ via `git archive origin/dev:deploy`, so each
@@ -15,7 +16,7 @@ name: deploy-fit-explorer
 on:
   push:
     branches: [main]
-    paths: ['deploy/**', '.github/workflows/pages.yml']
+    paths: ['deploy/**', 'docs/architecture/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -42,6 +43,18 @@ jobs:
           mkdir -p _site/preview
           git archive origin/main:deploy | tar -x -C _site
           git archive origin/dev:deploy  | tar -x -C _site/preview
+      # Compose the archmap architecture view at /architecture/ (one repo = one Pages site, so it folds into
+      # THIS workflow rather than a second deployer). Isolated: archmap comes from the scaffold's v1.6.0
+      # devtools with --no-project, so no synthscape sync + no touch to the pinned devtools — write_viewer
+      # only needs the vendored template+libs. graph.json is COMMITTED (the diff-truth); regen it locally with
+      # the same command when core/surfscan's import structure changes.
+      - uses: astral-sh/setup-uv@v5
+      - name: Architecture view (/architecture/)
+        run: |
+          uv run --no-project --with "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.6.0#subdirectory=sdlc-devtools" \
+            python -c "from devtools.archmap import Archmap; Archmap(['core','surfscan']).write_viewer(project='mirage')"
+          mkdir -p _site/architecture
+          cp docs/architecture/graph.json docs/architecture/index.html _site/architecture/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

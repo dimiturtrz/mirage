@@ -6,13 +6,14 @@
     "bank_lookup": "host_tail",
     "transformer_attention": "unsupported"
   },
-  "note": "conv-native NPU sharing the SoC's LPDDR. Closer to the bank tail than a pure dataflow NPU — Gather and ArgMin are in the op-set, so a k=1 nearest-neighbour is nearly feasible on-device, but TopK is not, and the fp32 bank is not native; the tail is still a host residue.",
+  "note": "conv-native NPU sharing the SoC's LPDDR. Closer to the bank tail than a pure dataflow NPU \u2014 Gather and ArgMin are in the op-set, so a k=1 nearest-neighbour is nearly feasible on-device, but TopK is not, and the fp32 bank is not native; the tail is still a host residue.",
   "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md (op-support) + 2026-07-15_edge_accelerator_datasheets.md (specs)",
   "instances": [
     {
       "name": "rknn_rk3588",
       "label": "Rockchip RK3588 RKNN NPU",
       "int8_tops": 6.0,
+      "float_tops": null,
       "fp_supported": true,
       "int8_mandatory": false,
       "memory_model": "unified",

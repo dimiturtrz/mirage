@@ -13,13 +13,14 @@
       "name": "jetson_orin_nx",
       "label": "Jetson Orin NX (TensorRT)",
       "int8_tops": 50.0,
+      "float_tops": 25.0,
       "fp_supported": true,
       "int8_mandatory": false,
       "memory_model": "unified",
       "capacity_mib": null,
       "ext_memory": "8–16 GiB LPDDR5X shared CPU/GPU",
       "sources": "S13 (50 dense / 100 sparse int8 TOPS), S12 (8–16 GiB LPDDR5X)",
-      "note": "50 DENSE int8 TOPS — the honest roofline rate (the 100 TOPS headline is 2:4 SPARSE, which our dense models do not exploit). Full ONNX + native TopK/ArgMin: runs PatchCore lookup end-to-end, no host tail. (Orin Nano 67 sparse / AGX Orin 170 sparse are the SKU bookends.)"
+      "note": "50 DENSE int8 TOPS — the honest roofline rate (the 100 TOPS headline is 2:4 SPARSE, which our dense models do not exploit); float_tops = 25 (fp16 tensor, ~half int8 on Ampere) for the fp32/non-int8 option. Full ONNX + native TopK/ArgMin: runs PatchCore lookup end-to-end, no host tail. (Orin Nano 67 sparse / AGX Orin 170 sparse are the SKU bookends.)"
     }
   ]
 }

@@ -11,14 +11,15 @@
     {
       "name": "rpi5_cortex_a76",
       "label": "Raspberry Pi 5 (Cortex-A76 x4 @ 2.4 GHz)",
-      "int8_tops": null,
+      "int8_tops": 0.61,
+      "float_tops": 0.15,
       "fp_supported": true,
       "int8_mandatory": false,
       "memory_model": "system",
       "capacity_mib": 8192,
       "ext_memory": "system LPDDR4X-4267 (shared; 1/2/4/8/16 GiB options, 8 GiB shown)",
-      "sources": "S15 (Cortex-A76, no int8 TOPS spec), S16 (LPDDR4X options)",
-      "note": "no NPU; a Cortex-A76 has no published int8 TOPS spec, and a roofline number would be misleading for a scalar/NEON CPU, so latency is left unprojected. The reference no-accelerator target."
+      "sources": "S15 (Cortex-A76 @2.4GHz x4, no vendor TOPS spec), S16 (LPDDR4X); compute rates DERIVED (see note)",
+      "note": "no NPU; peaks DERIVED from the Cortex-A76 ISA (2x 128-bit NEON SIMD/core): fp32 = 2.4GHz x 4 cores x 2 pipes x 8 FLOP/128-bit-FMA = 0.15 TFLOPS; int8 = same x 32 ops/128-bit-SDOT = 0.61 TOPS. THEORETICAL arithmetic ceilings — a general CPU on dense conv is memory-bound and sustains a small fraction, so treat the CPU latency band as an upper bound on FPS, not an estimate."
     }
   ]
 }

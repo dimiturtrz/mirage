@@ -24,7 +24,7 @@ class _Make:
     def accel(name: str, atype: AccelType, mem: MemoryModel, cap, int8_only: bool) -> Accelerator:
         types = {t.type: t for t in Accelerators.types()}
         return Accelerator(name=name, label=name, type=atype, op_support=types[atype].op_support,
-                           int8_tops=None, fp_supported=not int8_only, int8_mandatory=int8_only,
+                           int8_tops=None, float_tops=None, fp_supported=not int8_only, int8_mandatory=int8_only,
                            memory_model=mem, capacity_mib=cap, ext_memory="", sources="", note="")
 
 
@@ -76,6 +76,21 @@ class TestMemoryFit:
         acc = _Make.accel("big", AccelType.NPU_FIXED, MemoryModel.ON_DIE_ONLY, 10_000.0, int8_only=False)
         cell = Fit._cell(_CONV, acc, _COMP, Options("int8", onnx=True))
         assert cell.verdict == Verdict.FULL_ONDEVICE
+
+
+class TestComputeThroughput:
+    def test_cpu_now_gets_a_latency_band(self):
+        cell = Fit._cell(_CONV, _real("rpi5_cortex_a76"), _COMP, Options("int8", onnx=True))
+        assert cell.latency_ms_lo is not None and cell.fps_hi > 0   # derived CPU peak -> a band for all units
+
+    def test_int8_faster_than_float_on_same_part(self):
+        i8 = Fit._cell(_CONV, _real("jetson_orin_nx"), _COMP, Options("int8", onnx=True))
+        fp = Fit._cell(_CONV, _real("jetson_orin_nx"), _COMP, Options("fp32", onnx=True))
+        assert i8.latency_ms_lo < fp.latency_ms_lo   # int8 rate (50) beats float rate (25)
+
+    def test_no_float_rate_means_no_float_band(self):
+        cell = Fit._cell(_CONV, _real("coral_edgetpu"), _COMP, Options("fp32", onnx=True))
+        assert cell.latency_ms_lo is None   # coral is int8-only -> float_tops null -> no float latency
 
 
 class TestMatrix:

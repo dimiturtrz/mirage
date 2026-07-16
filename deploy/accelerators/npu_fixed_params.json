@@ -6,13 +6,14 @@
     "bank_lookup": "host_tail",
     "transformer_attention": "unsupported"
   },
-  "note": "quantized-conv dataflow graph: convolutions run at line rate, but the PatchCore distance/argmin/top-k tail is not expressible and spills to the host CPU; general attention is not in the op-set at all. This is the substrate the deploy thesis is about — it forces a bank-free conv detector.",
+  "note": "quantized-conv dataflow graph: convolutions run at line rate, but the PatchCore distance/argmin/top-k tail is not expressible and spills to the host CPU; general attention is not in the op-set at all. This is the substrate the deploy thesis is about \u2014 it forces a bank-free conv detector.",
   "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md (op-support) + 2026-07-15_edge_accelerator_datasheets.md (specs)",
   "instances": [
     {
       "name": "coral_edgetpu",
       "label": "Coral Edge TPU",
       "int8_tops": 4.0,
+      "float_tops": null,
       "fp_supported": false,
       "int8_mandatory": true,
       "memory_model": "scratchpad_host",
@@ -25,18 +26,20 @@
       "name": "hailo_8",
       "label": "Hailo-8",
       "int8_tops": 26.0,
+      "float_tops": null,
       "fp_supported": false,
       "int8_mandatory": true,
       "memory_model": "on_die_only",
       "capacity_mib": null,
       "ext_memory": "DRAM-free (all memory on-die)",
       "sources": "S3 (26 TOPS int8, DRAM-free); on-die SRAM capacity not published [S4]",
-      "note": "26 TOPS int8; build-time truncation at last CONV2D, pre/post on host. On-die SRAM size is not disclosed in public vendor docs (portal-gated), so the envelope is unknown, not guessed — no off-chip fallback means an over-envelope working set does not fit."
+      "note": "26 TOPS int8; build-time truncation at last CONV2D, pre/post on host. On-die SRAM size is not disclosed in public vendor docs (portal-gated), so the envelope is unknown, not guessed \u2014 no off-chip fallback means an over-envelope working set does not fit."
     },
     {
       "name": "hailo_8l",
       "label": "Hailo-8L",
       "int8_tops": 13.0,
+      "float_tops": null,
       "fp_supported": false,
       "int8_mandatory": true,
       "memory_model": "on_die_only",

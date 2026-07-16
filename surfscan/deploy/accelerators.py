@@ -33,7 +33,8 @@ class Accelerator:
     label: str
     type: AccelType
     op_support: dict[OpClass, OpSupport]  # inherited from the type — how each op-class runs here
-    int8_tops: float | None
+    int8_tops: float | None               # peak int8 compute rate (the roofline for an int8 graph)
+    float_tops: float | None              # peak float compute rate (fp16 tensor / fp32 CPU) for a non-int8 graph
     fp_supported: bool
     int8_mandatory: bool
     memory_model: MemoryModel
@@ -64,7 +65,7 @@ class Accelerators:
     def _instance(raw: dict, atype: AccelType, support: dict[OpClass, OpSupport]) -> Accelerator:
         return Accelerator(
             name=raw["name"], label=raw["label"], type=atype, op_support=support,
-            int8_tops=raw["int8_tops"], fp_supported=raw["fp_supported"],
+            int8_tops=raw["int8_tops"], float_tops=raw["float_tops"], fp_supported=raw["fp_supported"],
             int8_mandatory=raw["int8_mandatory"], memory_model=MemoryModel(raw["memory_model"]),
             capacity_mib=raw["capacity_mib"], ext_memory=raw["ext_memory"],
             sources=raw.get("sources", ""), note=raw["note"])

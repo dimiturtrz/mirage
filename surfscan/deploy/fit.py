@@ -96,13 +96,15 @@ class Fit:
         return round(gflops, 2), round(weights_mib + act_mib, 2)
 
     @staticmethod
-    def _latency(gflops: float, acc: Accelerator):
-        """Projected latency + FPS band from FLOPs / (peak-TOPS x efficiency). None where TOPS unsourced."""
-        if acc.int8_tops is None:
+    def _latency(gflops: float, acc: Accelerator, quant: str):
+        """Projected latency + FPS band from FLOPs / (peak compute rate x efficiency), at the cell's precision:
+        int8 graph -> int8_tops, float graph -> float_tops. None where that rate is unsourced for this part."""
+        rate = acc.int8_tops if quant == _INT8 else acc.float_tops
+        if rate is None:
             return None, None, None, None
         tflops = gflops / 1e3
-        ms_lo = tflops / (acc.int8_tops * _EFF_HI) * 1e3
-        ms_hi = tflops / (acc.int8_tops * _EFF_LO) * 1e3
+        ms_lo = tflops / (rate * _EFF_HI) * 1e3
+        ms_hi = tflops / (rate * _EFF_LO) * 1e3
         return round(ms_lo, 2), round(ms_hi, 2), round(1e3 / ms_hi, 1), round(1e3 / ms_lo, 1)
 
     @staticmethod
@@ -147,7 +149,7 @@ class Fit:
         op_class = OpClass(det["op_class"])
         gflops, work_mib = Fit._work_mib(det, comp, opt.quant)
         verdict, reason = Fit._resolve(det, acc, work_mib, opt)
-        ms_lo, ms_hi, fps_lo, fps_hi = Fit._latency(gflops, acc)
+        ms_lo, ms_hi, fps_lo, fps_hi = Fit._latency(gflops, acc, opt.quant)
         util = round(work_mib / acc.capacity_mib * 100, 1) if acc.capacity_mib is not None else None
         return FitCell(
             detector=det["name"], op_class=op_class, accelerator=acc.name,

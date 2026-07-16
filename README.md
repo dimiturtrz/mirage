@@ -84,6 +84,29 @@ deficit is a **render-vs-Zivid sensor domain gap**, not reconstruction resolutio
 negative — the sim-to-real spine located *where* the twin loses and ruled out the obvious culprit. Full
 diagnosis + ablation → [`interpretations/twin/2026-07-15_twin-vs-classical.md`](interpretations/twin/2026-07-15_twin-vs-classical.md).
 
+## Axis 3 — the same sim-to-real discipline, applied to control (a ramp)
+The contribution is the sim-to-real *eval*, not one perception model — so it should generalize past
+perception. The control leg tests that on the **same shared `core`**: a new `(train, act)` policy contract +
+rollout spine beside the perception `(fit, score)` one. A policy **behavior-cloned in nominal sim only** is
+rolled in sim and in a dynamics-shifted **real** (unmodeled payload + actuator sag), measuring the
+**sim-to-real policy gap** — the control analog of the [Stage 1](#stage-1--measuring-the-sim-to-real-gap)
+AU-PRO gap (5 BC seeds, mean ± sd):
+
+| real payload | task success | sim-to-real gap |
+|---:|---:|---:|
+| +10 … +30% | 100.0 ± 0.0% | 0.0 ± 0.0 pp |
+| +40% | 82.2 ± 5.6% | 17.8 ± 5.6 pp |
+| +50% | 40.0 ± 4.8% | **60.0 ± 4.8 pp** |
+| +60% | 2.0 ± 2.8% | 98.0 ± 2.8 pp |
+
+**The gap is a threshold, not a slope:** closed-loop feedback absorbs ≤ +30% payload (zero gap, *zero
+variance across seeds*), then success collapses past ~+45%. A **numpy point-mass reach** is the deliberate
+first rung — fast, deterministic, CI-runnable; the `Env` protocol is the seam, so an **Isaac Lab** env
+re-measures this exact curve at higher fidelity without touching policy, spine, or metric. This axis is a
+**ramp** (a new skill, said so). Method + integrity →
+[`interpretations/control/2026-07-16_policy-gap.md`](interpretations/control/2026-07-16_policy-gap.md) ·
+run it: `python -m control.experiment`.
+
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
 - **Sim-to-real gap is real and open (0.166 AU-PRO).** Domain adaptation doesn't significantly close it
@@ -99,6 +122,9 @@ Edge-deployable and honestly benchmarked — **not** a production system. The ga
   cloud, not native-resolution clean point clouds. A preprocessing limit, diagnosed, not a method failure.
 - **3D is a ramp.** The data-engine + eval discipline carry from prior work; the 3D-perception specifics are
   the genuinely new skill, learned as I go.
+- **The control leg is a ramp at toy fidelity.** The sim-to-real policy gap (60 ± 4.8 pp @ +50% payload,
+  [Axis 3](#axis-3--the-same-sim-to-real-discipline-applied-to-control-a-ramp)) is measured on a numpy
+  point-mass — a projection of the mechanism, not a high-fidelity robot; the Isaac rung (installed) sharpens it.
 - **Not a device.** Public research data only; edge deploy is real (ONNX), production-scale serving is not claimed.
 
 ## Data
@@ -109,19 +135,21 @@ scanned with a Zivid structured-light sensor (per-pixel rgb + xyz position map +
 redistributed here.
 
 ## Layout
-`core/` (reusable engine) + `surfscan/` (the ML science) + `sim/` (the synthetic engine, own env):
+`core/` (reusable engine) + `surfscan/` (perception science) + `control/` (control leg) + `sim/` (the synthetic engine, own env):
 ```
 core/                  the reusable, method-agnostic engine
   config.py            data root from paths.yaml (-> raw/ + processed/ + synth/)
   data/                adapters (mvtec · synth) + preprocess + unified store
-  method.py            the (fit_fn, score_fn) contract the harness scores
-surfscan/              the science layer
+  method.py            the (fit, score) contract the perception harness scores
+  policy.py rollout.py the (train, act) contract + rollout spine the control leg scores
+surfscan/              the perception science layer
   models/              vae · inpaint · draem · feat_recon · patchcore · fpfh_bank (BTF)
   training/            train spine + hparams + losses
   experiments/         run_* — per-method benchmark runners (produce the AU-PRO board)
   evaluation/          harness (spine) · metrics · scoring · diagnostics · sync_numbers
   deploy/              profile (footprints) · accelerators (typed loader) · bank · fit (verdict matrix)
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
+control/               the control leg — point_mass env · PD expert · BC policy · policy-gap experiment
 sim/                   synthetic-defect engine — Isaac/Replicator (its own env)
 deploy/            browsable fit explorer (LIVE → dimiturtrz.github.io/mirage) — models_params · accelerators/<type> · fit_matrix + viewer
 docs/                  PLAN.md · RESULTS.md (+ RESULTS.json canonical) · STRUCTURE.md

@@ -1,6 +1,41 @@
 {
   "edges": [
     {
+      "source": "control.bc",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "control.experiment",
+      "target": "control.bc",
+      "weight": 1
+    },
+    {
+      "source": "control.experiment",
+      "target": "control.expert",
+      "weight": 1
+    },
+    {
+      "source": "control.experiment",
+      "target": "control.point_mass",
+      "weight": 1
+    },
+    {
+      "source": "control.experiment",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "control.experiment",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "control.point_mass",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
       "source": "core.data.dataset",
       "target": "core.data.preprocess",
       "weight": 1
@@ -51,6 +86,11 @@
       "weight": 2
     },
     {
+      "source": "core.rollout",
+      "target": "core.policy",
+      "weight": 1
+    },
+    {
       "source": "core.twin.reconstruct",
       "target": "core.config",
       "weight": 1
@@ -73,6 +113,11 @@
     {
       "source": "surfscan.deploy.__main__",
       "target": "surfscan.deploy.bank",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.__main__",
+      "target": "surfscan.deploy.compile_probe",
       "weight": 1
     },
     {
@@ -127,6 +172,26 @@
     },
     {
       "source": "surfscan.deploy.bank",
+      "target": "surfscan.dispatch",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.compile_probe",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.compile_probe",
+      "target": "surfscan.deploy",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.compile_probe",
+      "target": "surfscan.deploy.schema",
+      "weight": 1
+    },
+    {
+      "source": "surfscan.deploy.compile_probe",
       "target": "surfscan.dispatch",
       "weight": 1
     },
@@ -1013,7 +1078,37 @@
   ],
   "nodes": [
     {
-      "descendants": 15,
+      "descendants": 4,
+      "id": "control",
+      "label": "control",
+      "parent": null
+    },
+    {
+      "descendants": 0,
+      "id": "control.bc",
+      "label": "bc",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.experiment",
+      "label": "experiment",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.expert",
+      "label": "expert",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.point_mass",
+      "label": "point_mass",
+      "parent": "control"
+    },
+    {
+      "descendants": 17,
       "id": "core",
       "label": "core",
       "parent": null
@@ -1097,6 +1192,18 @@
       "parent": "core"
     },
     {
+      "descendants": 0,
+      "id": "core.policy",
+      "label": "policy",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
+      "id": "core.rollout",
+      "label": "rollout",
+      "parent": "core"
+    },
+    {
       "descendants": 1,
       "id": "core.twin",
       "label": "twin",
@@ -1109,13 +1216,13 @@
       "parent": "core.twin"
     },
     {
-      "descendants": 58,
+      "descendants": 59,
       "id": "surfscan",
       "label": "surfscan",
       "parent": null
     },
     {
-      "descendants": 7,
+      "descendants": 8,
       "id": "surfscan.deploy",
       "label": "deploy",
       "parent": "surfscan"
@@ -1136,6 +1243,12 @@
       "descendants": 0,
       "id": "surfscan.deploy.bank",
       "label": "bank",
+      "parent": "surfscan.deploy"
+    },
+    {
+      "descendants": 0,
+      "id": "surfscan.deploy.compile_probe",
+      "label": "compile_probe",
       "parent": "surfscan.deploy"
     },
     {

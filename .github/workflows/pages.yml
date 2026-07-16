@@ -4,7 +4,7 @@ name: deploy-fit-explorer
 # repo, so every view lives under it):
 #   /              = main  fit explorer (stable, reviewed)
 #   /preview/      = dev   fit explorer (always-latest working branch)
-#   /architecture/ = archmap interactive architecture (import graph of core + surfscan)
+#   /architecture/ = archmap interactive architecture (import graph of core + surfscan + control)
 # Deploys from `main` — the github-pages ENVIRONMENT is branch-protected to the default branch, so a
 # non-main deploy is rejected ("Branch not allowed to deploy to github-pages"). The workflow still bundles
 # BOTH branches so /preview/ tracks dev: it reads dev's deploy/ via `git archive origin/dev:deploy`, so each
@@ -47,12 +47,12 @@ jobs:
       # THIS workflow rather than a second deployer). Isolated: archmap comes from the scaffold's v1.6.0
       # devtools with --no-project, so no synthscape sync + no touch to the pinned devtools — write_viewer
       # only needs the vendored template+libs. graph.json is COMMITTED (the diff-truth); regen it locally with
-      # the same command when core/surfscan's import structure changes.
+      # `nox -s archmap` when the core/surfscan/control import structure changes.
       - uses: astral-sh/setup-uv@v5
       - name: Architecture view (/architecture/)
         run: |
-          uv run --no-project --with "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.6.0#subdirectory=sdlc-devtools" \
-            python -c "from devtools.archmap import Archmap; Archmap(['core','surfscan']).write_viewer(project='mirage')"
+          uv run --no-project --with "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.13.0#subdirectory=sdlc-devtools" \
+            python -c "from devtools.archmap import Archmap; Archmap(['core','surfscan','control']).write_viewer(project='mirage')"
           mkdir -p _site/architecture
           cp docs/architecture/graph.json docs/architecture/index.html _site/architecture/
       - uses: actions/configure-pages@v5

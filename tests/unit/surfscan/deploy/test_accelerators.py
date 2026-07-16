@@ -47,4 +47,16 @@ class TestMemoryModel:
         by_name = {a.name: a for a in Accelerators.specs()}
         assert by_name["hailo_8"].capacity_mib is None    # on-die SRAM portal-gated -> None, never a guessed 0
         assert by_name["coral_edgetpu"].capacity_mib == 8.0   # the one sourced NPU envelope
-        assert by_name["coral_edgetpu"].int8_tops == 4.0      # now sourced [S1]
+
+
+class TestPrecisions:
+    def test_each_unit_declares_its_own_set(self):
+        by_name = {a.name: a for a in Accelerators.specs()}
+        assert set(by_name["rpi5_cortex_a76"].precisions) == {"fp32", "int8"}   # CPU: native fp32 + optional int8
+        assert set(by_name["jetson_orin_nx"].precisions) == {"fp16", "int8"}    # GPU: native fp16 + int8
+        assert set(by_name["coral_edgetpu"].precisions) == {"int8"}             # int8-only NPU: no choice
+
+    def test_int8_only_npus_offer_int8_alone(self):
+        for a in Accelerators.specs():
+            if a.type in (AccelType.NPU_FIXED, AccelType.NPU_SOC):
+                assert set(a.precisions) == {"int8"}   # quantization baked in — no fp32/fp16 to toggle

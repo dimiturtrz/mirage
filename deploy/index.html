@@ -100,11 +100,8 @@
     <label for="accel">accelerator</label>
     <select id="accel"></select>
 
-    <label>quantization</label>
-    <div class="seg" id="quant">
-      <button data-q="int8" class="on">int8</button>
-      <button data-q="fp32">fp32</button>
-    </div>
+    <label>precision <span class="hint">(this unit's own set)</span></label>
+    <div class="seg" id="precision"></div>
 
     <label>export toolchain</label>
     <div class="seg" id="onnx">
@@ -127,6 +124,7 @@
       <span class="stream">streams off-chip</span>
       <span class="block">does not deploy</span>
     </div>
+    <div class="hint" style="margin-top:6px">matrix shown at int8 (every unit's common deploy target); per-unit precision toggle drives the cards above.</div>
   </section>
 </main>
 
@@ -143,12 +141,12 @@ const VLABEL = { "full-ondevice": "full on-device", "streams-offchip": "streams 
                  "backbone+host-tail": "backbone + host tail", "does-not-deploy": "does not deploy" };
 const ATYPES = ["cpu", "gpu", "npu_fixed", "npu_soc"];
 
-const state = { quant: "int8", onnx: true };
+const state = { precision: "int8", onnx: true };
 let cells = [], meta = {}, accels = [], detectors = [], verified = {}, targetFps = 30;
 
 const uniq = (xs) => [...new Set(xs)];
-const cell = (det, acc) => cells.find(c =>
-  c.detector === det && c.accelerator === acc && c.quant === state.quant && c.onnx === state.onnx);
+const cell = (det, acc, precision) => cells.find(c =>
+  c.detector === det && c.accelerator === acc && c.precision === precision && c.onnx === state.onnx);
 
 function metaCard(acc) {
   const m = meta[acc];
@@ -157,6 +155,8 @@ function metaCard(acc) {
     return `<span class="pill ${s}">${k.split("_")[0]}: ${s.replace("_", " ")}</span>`;
   }).join("");
   const num = (x, u) => x == null ? "—" : `${x}${u}`;
+  const prec = Object.entries(m.precisions).map(([p, t]) => `${p} ${t} TOPS`).join(" · ");
+  const only = Object.keys(m.precisions).length === 1;
   return `
     <div class="type">${m.typeLabel}</div>
     <h3>${m.label}</h3>
@@ -165,8 +165,7 @@ function metaCard(acc) {
       <dt>memory</dt><dd>${m.memory_model.replace(/_/g, " ")}</dd>
       <dt>envelope</dt><dd>${num(m.capacity_mib, " MiB")}</dd>
       <dt>off-chip</dt><dd>${m.ext_memory || "—"}</dd>
-      <dt>compute</dt><dd>${m.int8_tops == null ? "—" : `int8 ${m.int8_tops} TOPS`}${m.float_tops == null ? "" : ` · float ${m.float_tops}`}</dd>
-      <dt>precision</dt><dd>${m.int8_mandatory ? "int8 only" : "int8 + fp"}</dd>
+      <dt>precisions</dt><dd>${prec}${only ? ' <span class="hint">(int8 baked in — no choice)</span>' : ""}</dd>
       <dt>sources</dt><dd>${m.sources || "—"}</dd>
     </dl>
     <div class="desc">${m.note}</div>`;
@@ -212,7 +211,7 @@ function grid() {
   const head = `<thead><tr><th class="row">detector \\ accelerator</th>${
     accels.map(a => `<th>${meta[a].label}</th>`).join("")}</tr></thead>`;
   const body = detectors.map(d => `<tr><td class="row">${d}</td>${
-    accels.map(a => { const c = cell(d, a); const k = VCLASS[c.verdict];
+    accels.map(a => { const c = cell(d, a, "int8"); const k = VCLASS[c.verdict];   // matrix at int8, the deploy target
       return `<td class="v ${k}" title="${c.reason}">${VLABEL[c.verdict]}</td>`; }).join("")}</tr>`).join("");
   return head + "<tbody>" + body + "</tbody>";
 }
@@ -221,8 +220,23 @@ function render() {
   const acc = document.getElementById("accel").value;
   document.getElementById("meta").innerHTML = metaCard(acc);
   document.getElementById("cards").innerHTML =
-    detectors.map(d => detectorCard(cell(d, acc))).join("");
+    detectors.map(d => detectorCard(cell(d, acc, state.precision))).join("");
   document.getElementById("grid").innerHTML = grid();
+}
+
+// the precision toggle is per-accelerator — rebuild it from the selected unit's own set on every change
+function onAccel() {
+  const acc = document.getElementById("accel").value;
+  const ps = Object.keys(meta[acc].precisions);
+  if (!ps.includes(state.precision)) state.precision = ps[0];   // default to the unit's native precision (first)
+  const seg = document.getElementById("precision");
+  seg.innerHTML = ps.map(p => `<button data-p="${p}" class="${p === state.precision ? "on" : ""}">${p}</button>`).join("");
+  seg.querySelectorAll("button").forEach(b => b.onclick = () => {
+    state.precision = b.dataset.p;
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.p === state.precision));
+    render();
+  });
+  render();
 }
 
 function wireSeg(id, key, cast) {
@@ -265,11 +279,10 @@ async function loadMeta() {
       group.forEach(a => og.appendChild(new Option(meta[a].label, a)));
       sel.appendChild(og);
     }
-    sel.onchange = render;
-    wireSeg("quant", "quant", String);
+    sel.onchange = onAccel;
     wireSeg("onnx", "onnx", v => v === "1");
     document.getElementById("app").hidden = false;
-    render();
+    onAccel();
   } catch { document.getElementById("empty").hidden = false; }
 })();
 </script>

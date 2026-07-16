@@ -33,10 +33,8 @@ class Accelerator:
     label: str
     type: AccelType
     op_support: dict[OpClass, OpSupport]  # inherited from the type — how each op-class runs here
-    int8_tops: float | None               # peak int8 compute rate (the roofline for an int8 graph)
-    float_tops: float | None              # peak float compute rate (fp16 tensor / fp32 CPU) for a non-int8 graph
-    fp_supported: bool
-    int8_mandatory: bool
+    precisions: dict[str, float]          # the precisions THIS unit runs, precision -> peak TOPS (native first):
+                                          # CPU {fp32,int8}, GPU {fp16,int8}, int8-only NPU {int8}
     memory_model: MemoryModel
     capacity_mib: float | None            # working-set envelope; None where unquoted
     ext_memory: str
@@ -65,8 +63,7 @@ class Accelerators:
     def _instance(raw: dict, atype: AccelType, support: dict[OpClass, OpSupport]) -> Accelerator:
         return Accelerator(
             name=raw["name"], label=raw["label"], type=atype, op_support=support,
-            int8_tops=raw["int8_tops"], float_tops=raw["float_tops"], fp_supported=raw["fp_supported"],
-            int8_mandatory=raw["int8_mandatory"], memory_model=MemoryModel(raw["memory_model"]),
+            precisions=raw["precisions"], memory_model=MemoryModel(raw["memory_model"]),
             capacity_mib=raw["capacity_mib"], ext_memory=raw["ext_memory"],
             sources=raw.get("sources", ""), note=raw["note"])
 
@@ -89,13 +86,13 @@ class Accelerators:
 
     @staticmethod
     def _log_table(specs: tuple[Accelerator, ...]) -> None:
-        log.info(f"{'accelerator':16s} {'type':10s} {'int8_TOPS':>9s} {'cap(MiB)':>9s} {'memory':>16s}  "
+        log.info(f"{'accelerator':16s} {'type':10s} {'precisions (TOPS)':>22s} {'cap(MiB)':>9s} {'memory':>16s}  "
                  f"conv / bank / attn")
         for a in specs:
-            tops = f"{a.int8_tops:.0f}" if a.int8_tops is not None else "?"
+            prec = ", ".join(f"{p}:{t:g}" for p, t in a.precisions.items())
             cap = f"{a.capacity_mib:.0f}" if a.capacity_mib is not None else "?"
             ops = " / ".join(a.op_support[c] for c in OpClass)
-            log.info(f"{a.name:16s} {a.type:10s} {tops:>9s} {cap:>9s} {a.memory_model:>16s}  {ops}")
+            log.info(f"{a.name:16s} {a.type:10s} {prec:>22s} {cap:>9s} {a.memory_model:>16s}  {ops}")
 
     @staticmethod
     def add_args(_ap: argparse.ArgumentParser) -> None:

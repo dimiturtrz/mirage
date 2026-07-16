@@ -12,10 +12,9 @@
     {
       "name": "coral_edgetpu",
       "label": "Coral Edge TPU",
-      "int8_tops": 4.0,
-      "float_tops": null,
-      "fp_supported": false,
-      "int8_mandatory": true,
+      "precisions": {
+        "int8": 4.0
+      },
       "memory_model": "scratchpad_host",
       "capacity_mib": 8.0,
       "ext_memory": "host off-chip (streamed, latency penalty)",
@@ -25,10 +24,9 @@
     {
       "name": "hailo_8",
       "label": "Hailo-8",
-      "int8_tops": 26.0,
-      "float_tops": null,
-      "fp_supported": false,
-      "int8_mandatory": true,
+      "precisions": {
+        "int8": 26.0
+      },
       "memory_model": "on_die_only",
       "capacity_mib": null,
       "ext_memory": "DRAM-free (all memory on-die)",
@@ -38,10 +36,9 @@
     {
       "name": "hailo_8l",
       "label": "Hailo-8L",
-      "int8_tops": 13.0,
-      "float_tops": null,
-      "fp_supported": false,
-      "int8_mandatory": true,
+      "precisions": {
+        "int8": 13.0
+      },
       "memory_model": "on_die_only",
       "capacity_mib": null,
       "ext_memory": "DRAM-free (all memory on-die)",

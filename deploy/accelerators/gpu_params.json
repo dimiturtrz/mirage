@@ -6,21 +6,21 @@
     "bank_lookup": "native",
     "transformer_attention": "native"
   },
-  "note": "full ONNX op-set, mixed precision, native TopK/ArgMin/Gather — the kNN-vs-bank tail runs end-to-end on-device. The only substrate that ships PatchCore whole.",
+  "note": "full ONNX op-set, mixed precision, native TopK/ArgMin/Gather \u2014 the kNN-vs-bank tail runs end-to-end on-device. The only substrate that ships PatchCore whole.",
   "source": "research/deep_dives/2026-07-08_edge_accelerator_landscape.md (op-support) + 2026-07-15_edge_accelerator_datasheets.md (specs)",
   "instances": [
     {
       "name": "jetson_orin_nx",
       "label": "Jetson Orin NX (TensorRT)",
-      "int8_tops": 50.0,
-      "float_tops": 25.0,
-      "fp_supported": true,
-      "int8_mandatory": false,
+      "precisions": {
+        "fp16": 25.0,
+        "int8": 50.0
+      },
       "memory_model": "unified",
       "capacity_mib": null,
-      "ext_memory": "8–16 GiB LPDDR5X shared CPU/GPU",
-      "sources": "S13 (50 dense / 100 sparse int8 TOPS), S12 (8–16 GiB LPDDR5X)",
-      "note": "50 DENSE int8 TOPS — the honest roofline rate (the 100 TOPS headline is 2:4 SPARSE, which our dense models do not exploit); float_tops = 25 (fp16 tensor, ~half int8 on Ampere) for the fp32/non-int8 option. Full ONNX + native TopK/ArgMin: runs PatchCore lookup end-to-end, no host tail. (Orin Nano 67 sparse / AGX Orin 170 sparse are the SKU bookends.)"
+      "ext_memory": "8\u201316 GiB LPDDR5X shared CPU/GPU",
+      "sources": "S13 (50 dense / 100 sparse int8 TOPS), S12 (8\u201316 GiB LPDDR5X)",
+      "note": "50 DENSE int8 TOPS \u2014 the honest roofline rate (the 100 TOPS headline is 2:4 SPARSE, which our dense models do not exploit); float_tops = 25 (fp16 tensor, ~half int8 on Ampere) for the fp32/non-int8 option. Full ONNX + native TopK/ArgMin: runs PatchCore lookup end-to-end, no host tail. (Orin Nano 67 sparse / AGX Orin 170 sparse are the SKU bookends.)"
     }
   ]
 }

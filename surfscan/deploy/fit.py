@@ -7,7 +7,8 @@ This is the deliverable the deploy work builds toward: not a FLOP table but a VE
   1. op-fit      the detector's OP-CLASS vs the accelerator type's op-support — a conv graph is native
                  everywhere, a bank kNN tail is a host residue on commodity NPUs, attention is unsupported
                  on any fixed-function part. This is the load-bearing axis; FLOPs never enter it.
-  2. quant gate  a full-int8 substrate (Coral/Hailo) will not load an fp32 graph at all.
+  2. precision   each accelerator runs its OWN set (int8-only NPU / fp16+int8 GPU / fp32+int8 CPU); the fit
+                 crosses each precision the unit actually supports, so there is no "fp32 on Hailo" to reject.
   3. export gate a fixed-function NPU needs a compiled graph — with ONNX/TFLite export off there is no
                  eager fallback, so it cannot deploy; a CPU/GPU runs eager.
   4. memory-fit  the working set (weights at the chosen precision + peak activation + the bank in its
@@ -23,7 +24,6 @@ Emits deploy/fit_matrix.json — the (detector x accelerator x options) grid the
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
@@ -40,14 +40,17 @@ _MIB = 1024 ** 2
 _MB_PER_MIB = 1e6 / _MIB
 _EFF_LO, _EFF_HI = 0.30, 0.70   # sustained fraction of peak TOPS (dataflow NPUs rarely exceed ~70% [roofline])
 _TARGET_FPS = 30.0              # industrial inline budget the compute-utilization % is stated against
-_INT8, _FP32 = "int8", "fp32"
+_INT8 = "int8"
+_PRECISION_BYTES = {"fp32": 4, "fp16": 2, "int8": 1}   # weight byte-width per precision (int8 uses the PQ-aware col)
 
 
 @dataclass(frozen=True)
 class Options:
-    """The deploy toggles the fit adapts to — precision and whether an export toolchain is present."""
-    quant: str   # _INT8 | _FP32
-    onnx: bool   # a compiled ONNX/TFLite graph is available (required by fixed-function NPUs)
+    """The deploy toggles the fit adapts to — the PRECISION (one of the accelerator's own supported set, not a
+    global choice) and whether an export toolchain is present. Precision is per-accelerator: an int8-only NPU
+    offers just int8 (quantization baked into the compiled graph); a GPU offers fp16+int8; a CPU fp32+int8."""
+    precision: str   # a key of the accelerator's `precisions` map: fp32 | fp16 | int8
+    onnx: bool       # a compiled ONNX/TFLite graph is available (required by fixed-function NPUs)
 
 
 class Verdict(StrEnum):
@@ -65,7 +68,7 @@ class FitCell:
     op_class: OpClass
     accelerator: str
     accel_type: str
-    quant: str
+    precision: str
     onnx: bool
     op_support: OpSupport
     work_mib: float
@@ -84,22 +87,29 @@ class Fit:
     """Cross detectors x typed accelerators x options into a prescriptive per-cell deployability matrix."""
 
     @staticmethod
-    def _work_mib(det: dict, comp: dict[str, dict], quant: str) -> tuple[float, float]:
+    def _weight_mib(c: dict, precision: str) -> float:
+        """Component weights at a precision: int8 uses the dedicated (PQ-aware) column; fp16/fp32 scale the
+        fp32 store by their byte width (fp16 = half fp32). A bank is a component, so this covers banks too."""
+        if precision == _INT8:
+            return c["disk_int8_mb"] * _MB_PER_MIB
+        return c["disk_fp32_mb"] * (_PRECISION_BYTES[precision] / 4) * _MB_PER_MIB
+
+    @staticmethod
+    def _work_mib(det: dict, comp: dict[str, dict], precision: str) -> tuple[float, float]:
         """(summed GFLOPs, working-set MiB) over a detector's pieces — conv stages AND banks alike, since a
         bank is a normal component (its disk is the store, its gflops the distance matmul). `pieces` is empty
         only for a detector with no on-device compute; a pure geometry-bank detector (BTF) lists its bank."""
-        disk = "disk_int8_mb" if quant == _INT8 else "disk_fp32_mb"
         pieces = det["pieces"]
         gflops = sum(comp[p]["gflops"] for p in pieces)
-        weights_mib = sum(comp[p][disk] * _MB_PER_MIB for p in pieces)
+        weights_mib = sum(Fit._weight_mib(comp[p], precision) for p in pieces)
         act_mib = max((comp[p]["act_mb"] * _MB_PER_MIB for p in pieces), default=0.0)
         return round(gflops, 2), round(weights_mib + act_mib, 2)
 
     @staticmethod
-    def _latency(gflops: float, acc: Accelerator, quant: str):
-        """Projected latency + FPS band from FLOPs / (peak compute rate x efficiency), at the cell's precision:
-        int8 graph -> int8_tops, float graph -> float_tops. None where that rate is unsourced for this part."""
-        rate = acc.int8_tops if quant == _INT8 else acc.float_tops
+    def _latency(gflops: float, acc: Accelerator, precision: str):
+        """Projected latency + FPS band from FLOPs / (peak compute rate x efficiency) at the cell's precision.
+        The rate is the accelerator's own peak for that precision (cells only exist for supported precisions)."""
+        rate = acc.precisions.get(precision)
         if rate is None:
             return None, None, None, None
         tflops = gflops / 1e3
@@ -112,8 +122,6 @@ class Fit:
         """The first gate that rejects the cell outright, as a prescriptive sentence — or None if it deploys."""
         if support == OpSupport.UNSUPPORTED:
             return f"{det['op_class']} is not in the {acc.type} op-set — runs only on CPU/GPU"
-        if acc.int8_mandatory and opt.quant == _FP32:
-            return f"{acc.name} requires full-int8 quantization; an fp32 graph will not load"
         if not opt.onnx and acc.type in {AccelType.NPU_FIXED, AccelType.NPU_SOC}:
             return f"{acc.type} needs a compiled graph — with export off there is no eager fallback"
         return None
@@ -147,33 +155,35 @@ class Fit:
     @staticmethod
     def _cell(det: dict, acc: Accelerator, comp: dict, opt: Options) -> FitCell:
         op_class = OpClass(det["op_class"])
-        gflops, work_mib = Fit._work_mib(det, comp, opt.quant)
+        gflops, work_mib = Fit._work_mib(det, comp, opt.precision)
         verdict, reason = Fit._resolve(det, acc, work_mib, opt)
-        ms_lo, ms_hi, fps_lo, fps_hi = Fit._latency(gflops, acc, opt.quant)
+        ms_lo, ms_hi, fps_lo, fps_hi = Fit._latency(gflops, acc, opt.precision)
         util = round(work_mib / acc.capacity_mib * 100, 1) if acc.capacity_mib is not None else None
         return FitCell(
             detector=det["name"], op_class=op_class, accelerator=acc.name,
-            accel_type=acc.type, quant=opt.quant, onnx=opt.onnx, op_support=acc.op_support[op_class],
+            accel_type=acc.type, precision=opt.precision, onnx=opt.onnx, op_support=acc.op_support[op_class],
             work_mib=work_mib, capacity_mib=acc.capacity_mib, mem_util_pct=util, gflops=gflops,
             latency_ms_lo=ms_lo, latency_ms_hi=ms_hi, fps_lo=fps_lo, fps_hi=fps_hi,
             verdict=verdict, reason=reason)
 
     @staticmethod
     def matrix(models: dict) -> list[FitCell]:
+        """Cross every detector with every accelerator, over THAT accelerator's own precisions (an int8-only
+        NPU yields int8 cells only; a GPU/CPU yields its float + int8) x the export toggle."""
         comp = {c["name"]: c for c in models["components"]}
         specs = accelerators.Accelerators.specs()
-        opts = tuple(Options(quant, onnx) for quant, onnx in itertools.product((_INT8, _FP32), (True, False)))
-        return [Fit._cell(det, acc, comp, opt)
-                for det in models["detectors"] for acc in specs for opt in opts]
+        return [Fit._cell(det, acc, comp, Options(precision, onnx))
+                for det in models["detectors"] for acc in specs
+                for precision in acc.precisions for onnx in (True, False)]
 
     @staticmethod
     def _log(cells: list[FitCell]) -> None:
-        log.info(f"{'detector':11s} {'accelerator':16s} {'quant':5s} {'onnx':4s} {'work(MiB)':>9s} "
+        log.info(f"{'detector':11s} {'accelerator':16s} {'prec':5s} {'onnx':4s} {'work(MiB)':>9s} "
                  f"{'verdict':>18s}  reason")
         for c in cells:
             if not c.onnx:
                 continue
-            log.info(f"{c.detector:11s} {c.accelerator:16s} {c.quant:5s} {c.onnx!s:4s} {c.work_mib:9.1f} "
+            log.info(f"{c.detector:11s} {c.accelerator:16s} {c.precision:5s} {c.onnx!s:4s} {c.work_mib:9.1f} "
                      f"{c.verdict:>18s}  {c.reason}")
 
     @staticmethod

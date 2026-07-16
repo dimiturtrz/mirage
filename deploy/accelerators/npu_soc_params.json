@@ -12,10 +12,9 @@
     {
       "name": "rknn_rk3588",
       "label": "Rockchip RK3588 RKNN NPU",
-      "int8_tops": 6.0,
-      "float_tops": null,
-      "fp_supported": true,
-      "int8_mandatory": false,
+      "precisions": {
+        "int8": 6.0
+      },
       "memory_model": "unified",
       "capacity_mib": null,
       "ext_memory": "shared system LPDDR4/4X/5 (+ ~956 KiB dedicated NPU SRAM per IP)",

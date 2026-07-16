@@ -37,7 +37,7 @@ class TestEnvContract:
 class TestRollAssembly:
     def test_trajectory_is_axis0_aligned_and_ends_on_done(self):
         pol = ConstantActionPolicy(np.zeros(1))
-        traj = Rollout.roll(pol, "countdown", CountdownEnv(3), max_steps=10)
+        traj = Rollout.roll(pol, pol.train("countdown"), CountdownEnv(3), max_steps=10)
         assert isinstance(traj, Trajectory)
         assert {f.shape[0] for f in traj} == {3}         # 3 steps, stopped early on done (not max_steps)
         assert traj.dones[-1] and not traj.dones[:-1].any()
@@ -45,7 +45,7 @@ class TestRollAssembly:
 
     def test_max_steps_caps_a_nonterminating_episode(self):
         pol = ConstantActionPolicy(np.zeros(1))
-        traj = Rollout.roll(pol, "countdown", CountdownEnv(100), max_steps=5)
+        traj = Rollout.roll(pol, pol.train("countdown"), CountdownEnv(100), max_steps=5)
         assert traj.obs.shape[0] == 5 and not traj.dones.any()
 
 

@@ -10,7 +10,7 @@ later by Isaac Lab / MuJoCo (bead hxq.3) without touching this file.
 """
 from __future__ import annotations
 
-from typing import NamedTuple, Protocol, runtime_checkable
+from typing import Any, NamedTuple, Protocol, runtime_checkable
 
 import numpy as np
 from jaxtyping import Shaped
@@ -40,8 +40,9 @@ class Rollout:
     """Drive a policy through an env into a Trajectory, then reduce trajectories to the policy gap."""
 
     @staticmethod
-    def roll(policy: ControlPolicy, task: str, env: Env, max_steps: int) -> Trajectory:
-        state = policy.train(task)
+    def roll(policy: ControlPolicy, state: Any, env: Env, max_steps: int) -> Trajectory:
+        """Roll a policy already trained to `state` (call `policy.train(task)` once, then roll many episodes —
+        the control analog of fit-once-score-many; training inside the loop would re-fit per episode)."""
         obs = env.reset()
         obs_log, act_log, rew_log, done_log, ok_log = [], [], [], [], []
         for _ in range(max_steps):

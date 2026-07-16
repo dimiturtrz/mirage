@@ -12,11 +12,11 @@ nox.options.sessions = ["lint", "test", "cov"]
 RUFF = "ruff@0.15.13"
 VULTURE = "vulture@2.16"
 SELECT = "F,B,I,T201,FBT,BLE001,S101,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,PLC0415,RUF100,N,E741,E742,E743,PLR0124,PLR1714,PLW3301,RUF012,RUF005,RUF007,RUF010,RUF022,RUF046,C408,C420,SIM,PERF401,PLW0108,E731,E402,ICN001,S603,S607,PTH123"
-LAYERS = ["core", "surfscan"]
+LAYERS = ["core", "surfscan", "control"]
 # ruff + jscpd are R1 HYGIENE gates — they may scan WIDER than the R2/R3 arch set LAYERS (a viewer / tests
 # tree worth linting). Default = LAYERS; widen via lint_paths/jscpd_paths in .copier-answers.yml (bd 9mu).
-LINT_LAYERS = ["core", "surfscan"]
-JSCPD_LAYERS = ["core", "surfscan"]
+LINT_LAYERS = ["core", "surfscan", "control"]
+JSCPD_LAYERS = ["core", "surfscan", "control"]
 
 
 @nox.session(venv_backend="none")

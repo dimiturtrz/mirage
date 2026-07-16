@@ -62,9 +62,12 @@
   .stats { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin-top: 12px; font-size: 12px; }
   .stats dt { color: var(--dim); }
   .stats dd { margin: 0; }
+  .hint { color: #6e7681; font-size: 10.5px; }
   .bar { height: 5px; border-radius: 3px; background: #21262d; margin-top: 4px; overflow: hidden; }
   .bar > i { display: block; height: 100%; background: var(--accent); }
   .bar > i.over { background: var(--stream); }
+  .bar.compute > i { background: #2bb2a8; }
+  .bar.compute > i.over { background: var(--stream); }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--dim); margin: 30px 0 12px; }
   .matrix { overflow-x: auto; }
   table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
@@ -140,7 +143,7 @@ const VLABEL = { "full-ondevice": "full on-device", "streams-offchip": "streams 
 const ATYPES = ["cpu", "gpu", "npu_fixed", "npu_soc"];
 
 const state = { quant: "int8", onnx: true };
-let cells = [], meta = {}, accels = [], detectors = [], verified = {};
+let cells = [], meta = {}, accels = [], detectors = [], verified = {}, targetFps = 30;
 
 const uniq = (xs) => [...new Set(xs)];
 const cell = (det, acc) => cells.find(c =>
@@ -161,7 +164,7 @@ function metaCard(acc) {
       <dt>memory</dt><dd>${m.memory_model.replace(/_/g, " ")}</dd>
       <dt>envelope</dt><dd>${num(m.capacity_mib, " MiB")}</dd>
       <dt>off-chip</dt><dd>${m.ext_memory || "—"}</dd>
-      <dt>int8 TOPS</dt><dd>${num(m.int8_tops, "")}</dd>
+      <dt>compute</dt><dd>${m.int8_tops == null ? "—" : `int8 ${m.int8_tops} TOPS`}${m.float_tops == null ? "" : ` · float ${m.float_tops}`}</dd>
       <dt>precision</dt><dd>${m.int8_mandatory ? "int8 only" : "int8 + fp"}</dd>
       <dt>sources</dt><dd>${m.sources || "—"}</dd>
     </dl>
@@ -176,8 +179,15 @@ function detectorCard(c) {
     ? `<dt>working set</dt><dd>${c.work_mib.toFixed(1)} MiB</dd>`
     : `<dt>working set</dt><dd>${c.work_mib.toFixed(1)} MiB / ${c.capacity_mib} MiB
          <div class="bar"><i class="${over ? "over" : ""}" style="width:${util}%"></i></div></dd>`;
-  const lat = c.latency_ms_lo == null ? "" :
-    `<dt>latency</dt><dd>${c.latency_ms_lo}–${c.latency_ms_hi} ms · ${c.fps_lo}–${c.fps_hi} fps</dd>`;
+  let lat = `<dt>throughput</dt><dd>— <span class="hint">no compute rate for this precision</span></dd>`;
+  if (c.latency_ms_lo != null) {
+    const budget = 1000 / targetFps;                       // ms per frame at the target FPS
+    const cu = Math.min(100, c.latency_ms_hi / budget * 100);
+    const overc = c.latency_ms_hi > budget;                // worst-case slower than the frame budget
+    lat = `<dt>throughput</dt><dd>${c.latency_ms_lo}–${c.latency_ms_hi} ms · ${c.fps_lo}–${c.fps_hi} fps
+             <div class="bar compute"><i class="${overc ? "over" : ""}" style="width:${cu}%"></i></div>
+             <span class="hint">vs ${budget.toFixed(0)} ms budget (${targetFps} fps)${c.accel_type === "cpu" ? " · CPU peak, real slower" : ""}</span></dd>`;
+  }
   const vfy = verified[c.detector] ? ` <span class="vfy" title="op-class confirmed against the exported ONNX graph">✓ ONNX-verified</span>` : "";
   return `<div class="card ${k}">
     <div class="top"><h4>${c.detector}</h4><span class="opc">${c.op_class.replace(/_/g, " ")}${vfy}</span></div>
@@ -228,6 +238,7 @@ async function loadMeta() {
   try {
     const fit = await (await fetch("fit_matrix.json")).json();
     cells = fit.cells;
+    targetFps = fit.target_fps || 30;
     if (!cells.length) throw 0;
     await loadMeta();
     try {  // optional — the measured ONNX export gate (deploy/export_ops.json)

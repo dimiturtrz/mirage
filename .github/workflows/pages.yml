@@ -44,14 +44,14 @@ jobs:
           git archive origin/main:deploy | tar -x -C _site
           git archive origin/dev:deploy  | tar -x -C _site/preview
       # Compose the archmap architecture view at /architecture/ (one repo = one Pages site, so it folds into
-      # THIS workflow rather than a second deployer). Isolated: archmap comes from the scaffold's v1.6.0
+      # THIS workflow rather than a second deployer). Isolated: archmap comes from the scaffold's v1.7.0
       # devtools with --no-project, so no synthscape sync + no touch to the pinned devtools — write_viewer
       # only needs the vendored template+libs. graph.json is COMMITTED (the diff-truth); regen it locally with
       # the same command when core/surfscan's import structure changes.
       - uses: astral-sh/setup-uv@v5
       - name: Architecture view (/architecture/)
         run: |
-          uv run --no-project --with "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.6.0#subdirectory=sdlc-devtools" \
+          uv run --no-project --with "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.7.0#subdirectory=sdlc-devtools" \
             python -c "from devtools.archmap import Archmap; Archmap(['core','surfscan']).write_viewer(project='mirage')"
           mkdir -p _site/architecture
           cp docs/architecture/graph.json docs/architecture/index.html _site/architecture/

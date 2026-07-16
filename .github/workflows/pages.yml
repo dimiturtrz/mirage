@@ -1,16 +1,20 @@
 name: deploy-fit-explorer
 
-# Publish the deploy/ fit explorer (deploy/index.html + the committed models_params/accelerators/
-# fit_matrix JSON) to GitHub Pages. The data is license-clean — our measured footprints + cited PUBLIC
-# vendor datasheets, no MVTec-derived content — so unlike pointcloud-viewer it is safe to host publicly.
-# Publishes from `dev` (the working branch) so the live page is always-latest — every deploy/ change
-# republishes without waiting on a main merge. Static publish only: the GPU-measured models_params.json is
-# committed from a local run; CI does NOT regenerate it (no GPU / no external/M3DM on the runner). Drift is
-# caught in the test suite (tests/unit/surfscan/deploy/test_fit_insync.py asserts fit_matrix == a recompute).
+# Publish the deploy/ fit explorer to GitHub Pages as ONE site with TWO views (Pages gives one URL per
+# repo, so both live versions live under it):
+#   /            = main  (stable, reviewed)
+#   /preview/    = dev   (always-latest working branch)
+# The workflow assembles both branches' deploy/ into one artifact, so a push to EITHER branch rebuilds the
+# whole site from the current state of both. The data is license-clean (our measured footprints + cited
+# PUBLIC datasheets, no MVTec), so it is safe to host publicly. Static only — the GPU-measured
+# models_params.json is committed; CI does not regenerate it (drift is caught by test_fit_insync.py).
+#
+# ONE-TIME: enable Pages at Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+# The default GITHUB_TOKEN cannot create the Pages site itself (admin-only); after that this runs untouched.
 
 on:
   push:
-    branches: [dev]
+    branches: [main, dev]
     paths: ['deploy/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
@@ -31,12 +35,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # ONE-TIME: enable Pages at Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
-      # The default GITHUB_TOKEN cannot create the Pages site itself (admin-only), so this step must be done
-      # once in the repo settings; after that every push here deploys with no further manual action.
+      - name: Fetch both branches
+        run: git fetch origin main dev --depth=1
+      - name: Assemble site — main at root, dev at /preview
+        run: |
+          mkdir -p _site/preview
+          git archive origin/main:deploy | tar -x -C _site
+          git archive origin/dev:deploy  | tar -x -C _site/preview
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: deploy
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

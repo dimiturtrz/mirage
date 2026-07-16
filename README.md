@@ -107,10 +107,16 @@ dynamics-blind (it never sees a payload cue), so randomization can buy robustnes
 can't beat a hard actuator limit — the real fix there is an adaptive policy, not more variety. A partial
 lever, reported where it works and where it doesn't.
 
-Honest read: this is still a **ramp at toy fidelity** — a numpy point-mass, not a robot, so it's a projection
-of the mechanism, not a robotics result. The one piece of real engineering is the `Env` seam: an Isaac Lab
-env drops in and re-measures this same curve at higher fidelity without a line changing in the policy, the
-spine, or the metric.
+Then the test of whether any of this is real engineering: the `Env` seam. I dropped in a PhysX rigid body
+(Isaac Sim — a real solver, same reach dynamics) and re-measured the whole curve *without changing a line*
+of the policy, the spine, or the metric — only a new environment. The finding **transferred**: same
+margin-then-cliff, and the headline +50% gap came back essentially unchanged (**60.0 pp** Euler → **62.5 pp**
+PhysX). The one honest difference — the cliff sits a touch earlier under real damping (+40%: 17.8 → 32.5 pp)
+— is the expected direction, more faithful physics being less forgiving, not a contradiction.
+
+Honest read: still simplified reach dynamics on both rungs, not a robot arm with contact and sensing — so
+it's "the mechanism holds across two solvers", not a robotics result. But the seam is no longer a promise;
+it's measured.
 
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
@@ -128,10 +134,11 @@ Edge-deployable and honestly benchmarked — **not** a production system. The ga
 - **3D is a ramp.** The data-engine + eval discipline carry from prior work; the 3D-perception specifics are
   the genuinely new skill, learned as I go.
 - **The control axis is a ramp.** The sim-to-real policy gap (60 ± 4.8 pp @ +50% payload,
-  [above](#the-same-eval-on-a-second-axis--control-a-ramp)) is measured on a numpy point-mass — a projection,
-  not a robot. Domain randomization moves it at the cliff onset (+40%: 17.8 → 7.7 pp) but not the deep
-  collapse — a dynamics-blind policy hits a hard actuator limit that needs an adaptive policy, not more
-  randomization. Isaac (installed) is the next fidelity rung.
+  [above](#the-same-eval-on-a-second-axis--control-a-ramp)) is measured on a numpy point-mass and re-measured
+  on a PhysX rigid body (Isaac Sim) via the `Env` seam — the headline transfers (60.0 → 62.5 pp). Domain
+  randomization moves it at the cliff onset (+40%: 17.8 → 7.7 pp) but not the deep collapse — a dynamics-blind
+  policy hits a hard actuator limit that needs an adaptive policy, not more randomization. Both rungs are
+  simplified reach dynamics, not a robot arm with contact/sensing — the honest ceiling.
 - **Not a device.** Public research data only; edge deploy is real (ONNX), production-scale serving is not claimed.
 
 ## Data

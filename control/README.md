@@ -36,10 +36,27 @@ matched per seed. It **halves the gap at the cliff onset** but not the deep coll
 
 The policy is **dynamics-blind** (obs = `[goal-pos, vel]`, no payload cue), so DR widens state-coverage in the
 marginal band but can't beat the actuator's hard authority limit — the collapse regime needs an *adaptive*
-policy (proprioceptive obs / online system-ID / RL), not more randomization. A real but partial lever. Full
-method + integrity → [`interpretations/control/2026-07-16_policy-gap.md`](../interpretations/control/2026-07-16_policy-gap.md).
+policy (proprioceptive obs / online system-ID / RL), not more randomization. A real but partial lever.
 
-## Method — point-mass reach, no Isaac
+### The fidelity rung — same curve on PhysX (Isaac Sim)
+
+The `Env` seam's payoff: `sim/isaac_reach.py` swaps the numpy point mass for a **PhysX rigid body** (zero
+gravity + linear damping `drag/mass` + a planar force → the *same* equation `acc = (gain·a − drag·v)/mass`,
+a real solver instead of Euler). `sim/isaac_gap.py` reuses `BCPolicy` / `PDExpert` / `Rollout` / the gap
+metric **unchanged** — only the env differs — and the finding transfers:
+
+| payload | point-mass gap | PhysX gap |
+|---:|---:|---:|
+| +40% | 17.8 ± 5.6 pp | 32.5 ± 4.3 pp |
+| +50% | **60.0 ± 4.8 pp** | **62.5 ± 11.5 pp** |
+| +60% | 98.0 ± 2.8 pp | 100.0 ± 0.0 pp |
+
+Same margin-then-cliff; the headline +50% gap is essentially unchanged across two solvers. The cliff sits a
+touch earlier under PhysX (implicit damping is less forgiving than Euler) — the expected direction, not a
+contradiction. Opt-in (GPU + Isaac kit boot, not CI-gated). Full method + integrity →
+[`interpretations/control/2026-07-16_policy-gap.md`](../interpretations/control/2026-07-16_policy-gap.md).
+
+## Method — point-mass reach (the fast rung)
 
 - **Task** (`point_mass.py`) — a planar point mass reaches a goal from rest; obs `[goal-pos, vel]`, action a
   clipped acceleration; success = inside `eps` before the horizon. Newtonian step; **sim vs real differ only
@@ -53,15 +70,20 @@ method + integrity → [`interpretations/control/2026-07-16_policy-gap.md`](../i
 ## Integrity
 
 A **numpy point mass is a deliberate first rung** — fast, deterministic, CI-runnable — a *projection* of the
-sim-to-real mechanism, not a high-fidelity robot. The `Env` protocol (`reset`/`step`) is the seam: an **Isaac
-Lab / MuJoCo** env re-measures this exact curve at higher fidelity **without touching the policy, spine, or
-metric**. The shift is chosen (mechanical, argued a priori) and swept, not cherry-picked; the ± sd is the
-5-seed spread (≤ 5.6 pp), small next to the transition. The DR ranges are the test-shift range itself, fixed
-a priori — not searched for the biggest reduction — and reported where DR helps *and* where it doesn't.
+sim-to-real mechanism. The `Env` protocol (`reset`/`step`) is the seam, and it is exercised, not just
+claimed: the **PhysX rung** (`sim/isaac_reach.py`) re-measures the same curve at solver fidelity **without
+touching the policy, spine, or metric**, and the headline transfers (60.0 → 62.5 pp). Both rungs are still
+simplified reach dynamics, not a robot arm with contact/friction/sensing. The shift is chosen (mechanical,
+argued a priori) and swept, not cherry-picked; the ± sd is the seed spread, small next to the transition.
+The DR ranges are the test-shift range itself, fixed a priori — not searched for the biggest reduction — and
+reported where DR helps *and* where it doesn't.
 
 ## Run
 
 ```bash
-python -m control.experiment      # prints the gap curve; logs params+metrics to MLflow 'control-policy-gap'
+python -m control.experiment      # point-mass gap + DR lever; logs to MLflow 'control-policy-gap'
 uv run pytest tests/unit/control -q
+
+# PhysX fidelity rung (opt-in; needs sim/'s isolated Isaac env + a GPU):
+cd sim && OMNI_KIT_ACCEPT_EULA=YES uv run python isaac_gap.py --seeds 3 --episodes 40
 ```

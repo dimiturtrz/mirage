@@ -4,17 +4,17 @@ name: deploy-fit-explorer
 # repo, so both live versions live under it):
 #   /            = main  (stable, reviewed)
 #   /preview/    = dev   (always-latest working branch)
-# The workflow assembles both branches' deploy/ into one artifact, so a push to EITHER branch rebuilds the
-# whole site from the current state of both. The data is license-clean (our measured footprints + cited
-# PUBLIC datasheets, no MVTec), so it is safe to host publicly. Static only — the GPU-measured
-# models_params.json is committed; CI does not regenerate it (drift is caught by test_fit_insync.py).
-#
-# ONE-TIME: enable Pages at Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
-# The default GITHUB_TOKEN cannot create the Pages site itself (admin-only); after that this runs untouched.
+# Deploys from `main` — the github-pages ENVIRONMENT is branch-protected to the default branch, so a
+# non-main deploy is rejected ("Branch not allowed to deploy to github-pages"). The workflow still bundles
+# BOTH branches so /preview/ tracks dev: it reads dev's deploy/ via `git archive origin/dev:deploy`, so each
+# main build refreshes the dev preview too. (To make /preview/ update on every dev PUSH instead of on main
+# builds, add `dev` under Settings -> Environments -> github-pages -> deployment branches.) The data is
+# license-clean (measured footprints + cited PUBLIC datasheets, no MVTec), so it is safe to host publicly.
+# Static only — models_params.json is committed; CI does not regenerate it (drift caught by test_fit_insync).
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
     paths: ['deploy/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 

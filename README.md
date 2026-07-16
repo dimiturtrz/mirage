@@ -15,9 +15,12 @@ mirage detects **defects on 3D surface scans**, training only on *good* examples
 detector + an eval harness on **real** data and runs a like-for-like comparison of methods; Stage 1 adds
 a **synthetic-defect generator** and measures the **sim-to-real gap**.
 
-It's also how **I'm** ramping into 3D perception: built on public data, the data-engine + evaluation
-discipline carried from prior acoustic-detection work, the 3D modality learned as I go. Full plan →
-**[docs/PLAN.md](docs/PLAN.md)**.
+It's also how **I'm** ramping — into 3D perception first, and lately a second axis. The whole point is the
+sim-to-real *eval*, not any one detector, so I keep testing that it isn't perception-specific: the same
+discipline now points at **control** too — a policy learned in sim, the same gap measured when the dynamics
+shift under it (a deliberate ramp, [further down](#the-same-eval-on-a-second-axis--control-a-ramp)). All of
+it on public data, the data-engine + evaluation discipline carried from prior acoustic-detection work, the
+new modalities learned as I go. Full plan → **[docs/PLAN.md](docs/PLAN.md)**.
 
 ## Stage 0 result — the measured investigation
 Not a leaderboard number — the *measured contrast*. Per-category models, scored through one verified
@@ -84,6 +87,25 @@ deficit is a **render-vs-Zivid sensor domain gap**, not reconstruction resolutio
 negative — the sim-to-real spine located *where* the twin loses and ruled out the obvious culprit. Full
 diagnosis + ablation → [`interpretations/twin/2026-07-15_twin-vs-classical.md`](interpretations/twin/2026-07-15_twin-vs-classical.md).
 
+## The same eval on a second axis — control (a ramp)
+If the real contribution is the sim-to-real *eval* and not one detector, it shouldn't much care what the task
+is. So I gave it a different one: learn a policy in simulation, then ask how much it loses when the world
+stops matching the sim. Same shared `core`, a `(train, act)` policy contract sitting beside perception's
+`(fit, score)`, one rollout spine — a policy behavior-cloned in nominal sim, rolled against a *real* whose
+dynamics have drifted (a heavier payload, a weaker actuator). The gap is the [Stage 1](#stage-1--measuring-the-sim-to-real-gap)
+idea again, now in task success.
+
+It holds until it doesn't. Feedback soaks up a payload up to +30% at a **zero** gap — and zero spread across
+seeds — then falls off a cliff: **60 ± 4.8 pp** at +50%, essentially gone by +60%. Not a slope, a threshold,
+and it tips its hand first — the policy takes visibly longer to reach the goal while it's still succeeding,
+before it starts missing outright. The full curve, method, and integrity live in [`control/`](control/README.md).
+
+Honest read: this is a **ramp at toy fidelity** — a numpy point-mass, not a robot, so it's a projection of
+the mechanism, not a robotics result. And it only *measures* the gap so far; the lever that should actually
+move it — training the policy across randomized dynamics — is the next thing to try. The one piece of real
+engineering is the `Env` seam: an Isaac Lab env drops in and re-measures this same curve at higher fidelity
+without a line changing in the policy, the spine, or the metric.
+
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
 - **Sim-to-real gap is real and open (0.166 AU-PRO).** Domain adaptation doesn't significantly close it
@@ -99,6 +121,10 @@ Edge-deployable and honestly benchmarked — **not** a production system. The ga
   cloud, not native-resolution clean point clouds. A preprocessing limit, diagnosed, not a method failure.
 - **3D is a ramp.** The data-engine + eval discipline carry from prior work; the 3D-perception specifics are
   the genuinely new skill, learned as I go.
+- **The control axis is a ramp, and only half-done.** The sim-to-real policy gap (60 ± 4.8 pp @ +50% payload,
+  [above](#the-same-eval-on-a-second-axis--control-a-ramp)) is measured on a numpy point-mass — a projection,
+  not a robot — and it's *measured but not yet moved*: training across randomized dynamics is the open lever,
+  and Isaac (installed) is the fidelity rung.
 - **Not a device.** Public research data only; edge deploy is real (ONNX), production-scale serving is not claimed.
 
 ## Data
@@ -109,19 +135,21 @@ scanned with a Zivid structured-light sensor (per-pixel rgb + xyz position map +
 redistributed here.
 
 ## Layout
-`core/` (reusable engine) + `surfscan/` (the ML science) + `sim/` (the synthetic engine, own env):
+`core/` (reusable engine) + `surfscan/` (perception science) + `control/` (control leg) + `sim/` (the synthetic engine, own env):
 ```
 core/                  the reusable, method-agnostic engine
   config.py            data root from paths.yaml (-> raw/ + processed/ + synth/)
   data/                adapters (mvtec · synth) + preprocess + unified store
-  method.py            the (fit_fn, score_fn) contract the harness scores
-surfscan/              the science layer
+  method.py            the (fit, score) contract the perception harness scores
+  policy.py rollout.py the (train, act) contract + rollout spine the control leg scores
+surfscan/              the perception science layer
   models/              vae · inpaint · draem · feat_recon · patchcore · fpfh_bank (BTF)
   training/            train spine + hparams + losses
   experiments/         run_* — per-method benchmark runners (produce the AU-PRO board)
   evaluation/          harness (spine) · metrics · scoring · diagnostics · sync_numbers
   deploy/              profile (footprints) · accelerators (typed loader) · bank · fit (verdict matrix)
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
+control/               the control leg — point_mass env · PD expert · BC policy · policy-gap experiment
 sim/                   synthetic-defect engine — Isaac/Replicator (its own env)
 deploy/            browsable fit explorer (LIVE → dimiturtrz.github.io/mirage) — models_params · accelerators/<type> · fit_matrix + viewer
 docs/                  PLAN.md · RESULTS.md (+ RESULTS.json canonical) · STRUCTURE.md

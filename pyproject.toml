@@ -48,7 +48,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["surfscan*", "core*"]
+include = ["surfscan*", "core*", "control*"]
 
 # torch + torchvision CUDA builds live on the PyTorch index, not PyPI. Pin them there explicitly so uv
 # resolves the cu130 wheels (RTX 5090) instead of CPU. `explicit` = only [tool.uv.sources] packages use it.
@@ -148,11 +148,13 @@ ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer"
 #   AnomalyMethod           Protocol, satisfied structurally (duck-typed) — never referenced as a class
 #   score_map               method dispatched through the (fit, score) method contract, not by name
 # NOT silenced: metrics.boot_ci / boot_delta_ci — tested but no prod caller (genuine, tracked separately).
+#   control-leg contract types (ControlPolicy/Policy/Trajectory) are NOT listed — they are consumed by
+#   the rollout spine (core/rollout.py), so real use clears them; abstract-stub params are `_`-prefixed.
 ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "fig", "C",
                 "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map"]
 # <<< LOCAL-SLOT: vulture-ignore-names
 # >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
-paths = ["core", "surfscan"]
+paths = ["core", "surfscan", "control"]
 exclude = ["sim"]
 # <<< LOCAL-SLOT: vulture-scan
 
@@ -162,13 +164,13 @@ exclude = ["sim"]
 # core is extracted out and tested (experiments/ = GPU+data CLI runners; visualization/ = render/IO;
 # patchcore/feat_recon import torchvision; evaluate = mlflow+GPU glue; run/viz = torchvision entry shells).
 # Honesty rule: never omit a module to DODGE pure logic — extract the core and test it, then omit the shell.
-source = ["core", "surfscan"]
+source = ["core", "surfscan", "control"]
 omit = ["surfscan/experiments/*", "surfscan/visualization/*",
         "surfscan/models/patchcore.py", "surfscan/models/feat_recon.py",
         # pure nn.Module architecture defs (no unit-testable logic; forward exercised via scoring/integration)
         "surfscan/models/feat_ae.py", "surfscan/models/inpaint.py",
         "surfscan/models/pointmae.py", "surfscan/models/vae.py",
-        "core/method.py",                       # NamedTuple contracts only (ScoreArrays / Method), no logic
+        "core/method.py", "core/policy.py",     # NamedTuple/Protocol contracts only, no logic
         "surfscan/evaluation/evaluate.py", "surfscan/evaluation/recompute.py",  # mlflow load/CLI glue; cores tested
         "surfscan/report.py", "surfscan/run.py", "surfscan/viz.py"]  # entry-point SPEC/registry shells
 # <<< LOCAL-SLOT: coverage-scan
@@ -194,13 +196,18 @@ exclude_lines = [
 # none of the others), the pattern all 3 house repos share. Add viewer/trainer or domain contracts below;
 # edit freely — copier update won't overwrite this region.
 [tool.importlinter]
-root_packages = ["core", "surfscan"]
+root_packages = ["core", "surfscan", "control"]
 
 [[tool.importlinter.contracts]]
-name = "core is an independent kernel (imports no surfscan)"
+name = "core is an independent kernel (imports no surfscan, no control)"
 type = "forbidden"
 source_modules = ["core"]
-forbidden_modules = ["surfscan"]
+forbidden_modules = ["surfscan", "control"]
+
+[[tool.importlinter.contracts]]
+name = "control and surfscan are independent sibling legs (neither imports the other)"
+type = "independence"
+modules = ["surfscan", "control"]
 # <<< LOCAL-SLOT: import-contracts
 
 

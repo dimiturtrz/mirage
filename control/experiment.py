@@ -44,6 +44,8 @@ class ExperimentConfig:
     bc: BCConfig = field(default_factory=BCConfig)
     actuator_gain: float = 0.9
     payload_sweep: tuple[float, ...] = (1.1, 1.2, 1.3, 1.4, 1.5, 1.6)
+    dr_mass_range: tuple[float, float] = (1.0, 1.6)
+    dr_gain_range: tuple[float, float] = (0.85, 1.0)
     eval_episodes: int = 200
     eval_seed: int = 10_000
     n_seeds: int = 5
@@ -56,6 +58,20 @@ class Experiment:
     def _factory(phys: Phys, task: Task) -> Callable[[int], PointMassReach]:
         def make(seed: int) -> PointMassReach:
             return PointMassReach(phys, task, seed)
+        return make
+
+    @staticmethod
+    def _dr_factory(cfg: ExperimentConfig) -> Callable[[int], PointMassReach]:
+        """Domain-randomized demo env: each episode samples payload mass + actuator gain from the training
+        ranges, so the cloned policy sees a spread of dynamics instead of nominal-only. The goal still rides
+        `seed` (same seed -> same goal as nominal), isolating the dynamics randomization from goal luck."""
+        lo_m, hi_m = cfg.dr_mass_range
+        lo_g, hi_g = cfg.dr_gain_range
+
+        def make(seed: int) -> PointMassReach:
+            rng = np.random.default_rng(seed)
+            phys = Phys(mass=float(rng.uniform(lo_m, hi_m)), gain=float(rng.uniform(lo_g, hi_g)))
+            return PointMassReach(phys, cfg.task, seed)
         return make
 
     @staticmethod
@@ -79,12 +95,12 @@ class Experiment:
         return Experiment._summary(Experiment._rollset(bc, state, Experiment._factory(real_phys, cfg.task), plan))
 
     @staticmethod
-    def _compute(cfg: ExperimentConfig) -> dict[str, float]:
-        sim_make = Experiment._factory(cfg.sim, cfg.task)
+    def _compute(cfg: ExperimentConfig, train_make: Callable[[int], PointMassReach]) -> dict[str, float]:
+        sim_make = Experiment._factory(cfg.sim, cfg.task)   # eval always on nominal sim + shifted reals
         plan = EvalPlan(cfg.eval_episodes, cfg.eval_seed, cfg.task.horizon)
 
         expert = PDExpert(amax=cfg.sim.amax)
-        bc = BCPolicy(sim_make, expert, cfg.bc)
+        bc = BCPolicy(train_make, expert, cfg.bc)
         state = bc.train("reach")
 
         sim_success, sim_return, sim_steps = Experiment._summary(Experiment._rollset(bc, state, sim_make, plan))
@@ -111,38 +127,54 @@ class Experiment:
         return agg
 
     @staticmethod
-    def _compute_multiseed(cfg: ExperimentConfig) -> dict[str, float]:
-        per_seed = [Experiment._compute(replace(cfg, bc=replace(cfg.bc, seed=s))) for s in range(cfg.n_seeds)]
-        return Experiment._aggregate(per_seed)
+    def _compute_multiseed(cfg: ExperimentConfig,
+                           make_train: Callable[[ExperimentConfig], Callable[[int], PointMassReach]]
+                           ) -> dict[str, float]:
+        seeded = [replace(cfg, bc=replace(cfg.bc, seed=s)) for s in range(cfg.n_seeds)]
+        return Experiment._aggregate([Experiment._compute(c, make_train(c)) for c in seeded])
 
     @staticmethod
-    def run(cfg: ExperimentConfig) -> dict[str, float]:
-        agg = Experiment._compute_multiseed(cfg)
-        Experiment._report(cfg, agg)
-        return agg
+    def _nominal_train(cfg: ExperimentConfig) -> Callable[[int], PointMassReach]:
+        return Experiment._factory(cfg.sim, cfg.task)
 
     @staticmethod
-    def _report(cfg: ExperimentConfig, agg: dict[str, float]) -> None:
+    def run(cfg: ExperimentConfig) -> dict[str, dict[str, float]]:
+        arms = {"nominal": Experiment._compute_multiseed(cfg, Experiment._nominal_train),
+                "dr": Experiment._compute_multiseed(cfg, Experiment._dr_factory)}
+        Experiment._report(cfg, arms)
+        return arms
+
+    @staticmethod
+    def _report(cfg: ExperimentConfig, arms: dict[str, dict[str, float]]) -> None:
         mlflow.set_experiment("control-policy-gap")
-        with mlflow.start_run(run_name="point-mass-reach-bc"):
+        with mlflow.start_run(run_name="point-mass-reach-bc-dr"):
             mlflow.log_params({
                 "actuator_gain": cfg.actuator_gain, "payload_sweep": str(cfg.payload_sweep),
+                "dr_mass_range": str(cfg.dr_mass_range), "dr_gain_range": str(cfg.dr_gain_range),
                 "success_eps": cfg.task.eps, "horizon": cfg.task.horizon,
                 "bc_demos": cfg.bc.n_demo_episodes, "bc_epochs": cfg.bc.epochs,
                 "eval_episodes": cfg.eval_episodes, "n_seeds": cfg.n_seeds,
             })
-            mlflow.log_metrics({k: v for k, v in agg.items() if math.isfinite(v)})
-        log.info("=== point-mass reach — sim-to-real policy gap (BC, sim-only; %d seeds, mean±sd) ===", cfg.n_seeds)
-        log.info("expert sim success : %5.1f%%   (achievable ceiling)", _PP * agg["expert_sim_success_mean"])
-        log.info("BC     sim success : %5.1f ± %.1f%%",
-                 _PP * agg["bc_sim_success_mean"], _PP * agg["bc_sim_success_std"])
-        log.info("  payload   real-success (mean±sd)    sim-to-real gap (pp)")
+            for arm, agg in arms.items():
+                mlflow.log_metrics({f"{arm}__{k}": v for k, v in agg.items() if math.isfinite(v)})
+        Experiment._log_board(cfg, arms)
+
+    @staticmethod
+    def _log_board(cfg: ExperimentConfig, arms: dict[str, dict[str, float]]) -> None:
+        nom, dr = arms["nominal"], arms["dr"]
+        log.info("=== point-mass reach — sim-to-real policy gap: DR lever (BC, sim-only; %d seeds, mean±sd) ===",
+                 cfg.n_seeds)
+        log.info("expert sim success  : %5.1f%%   (achievable ceiling)", _PP * nom["expert_sim_success_mean"])
+        log.info("BC sim success      : nominal %5.1f ± %.1f%%   dr %5.1f ± %.1f%%",
+                 _PP * nom["bc_sim_success_mean"], _PP * nom["bc_sim_success_std"],
+                 _PP * dr["bc_sim_success_mean"], _PP * dr["bc_sim_success_std"])
+        log.info("  payload      nominal gap (pp)        dr gap (pp)         delta (pp)")
         for payload in cfg.payload_sweep:
-            tag = f"p{round(payload * _PP)}"
-            log.info("  +%3d%%      %5.1f ± %4.1f%%           %5.1f ± %4.1f",
+            tag = f"gap_pp_p{round(payload * _PP)}"
+            gn, gd = nom[f"{tag}_mean"], dr[f"{tag}_mean"]
+            log.info("  +%3d%%      %5.1f ± %4.1f          %5.1f ± %4.1f        %+6.1f",
                      round((payload - 1.0) * _PP),
-                     _PP * agg[f"real_success_{tag}_mean"], _PP * agg[f"real_success_{tag}_std"],
-                     agg[f"gap_pp_{tag}_mean"], agg[f"gap_pp_{tag}_std"])
+                     gn, nom[f"{tag}_std"], gd, dr[f"{tag}_std"], gd - gn)
 
     @staticmethod
     def main() -> None:

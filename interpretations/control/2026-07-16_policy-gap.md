@@ -18,31 +18,34 @@ task (no Isaac install; that is the next fidelity rung, hxq.3).
   (mass multiplier) under **actuator sag** (`gain=0.9`, −10% authority). Effective acceleration scales
   by `gain/mass`. We sweep payload +10 … +60%.
 - **Policy.** A PD expert (`a = kp·(goal-pos) − kd·vel`, clipped) demonstrates in **nominal sim only**; a
-  2-hidden-layer MLP is **behavior-cloned** on those demos (seeded, reproducible). It never sees real.
+  2-hidden-layer MLP is **behavior-cloned** on those demos. It never sees real.
 - **Eval.** 200 matched episodes per condition — sim and every real share goal seeds, so the gap isolates
-  the dynamics shift from goal luck. `gap = success(sim) − success(real)`.
+  the dynamics shift from goal luck — over **5 BC seeds** (net init + demo goals varied), reported mean±sd.
+  `gap = success(sim) − success(real)`.
 
-## Result
+## Result (5 seeds, mean ± sd)
 
 | payload (real) | real success | sim-to-real gap |
 |---:|---:|---:|
-| +10% | 100.0% | 0.0 pp |
-| +20% | 100.0% | 0.0 pp |
-| +30% | 100.0% | 0.0 pp |
-| +40% | 88.0% | **12.0 pp** |
-| +50% | 44.5% | **55.5 pp** |
-| +60% | 6.0% | **94.0 pp** |
+| +10% | 100.0 ± 0.0% | 0.0 ± 0.0 pp |
+| +20% | 100.0 ± 0.0% | 0.0 ± 0.0 pp |
+| +30% | 100.0 ± 0.0% | 0.0 ± 0.0 pp |
+| +40% | 82.2 ± 5.6% | **17.8 ± 5.6 pp** |
+| +50% | 40.0 ± 4.8% | **60.0 ± 4.8 pp** |
+| +60% | 2.0 ± 2.8% | **98.0 ± 2.8 pp** |
 
-Expert sim success 100% (achievable ceiling); BC sim success 100% (the clone matches the expert in-domain).
+Expert sim success 100% (achievable ceiling); BC sim success 100.0 ± 0.0% (the clone matches the expert in-domain).
 
 ## Interpretation — a robustness margin, then a cliff
 
 The sim-to-real gap here is **not a slope but a threshold**. A closed-loop policy cloned from a PD expert
-carries the expert's feedback robustness: up to **+30% payload the gap is exactly zero** — feedback
-absorbs the mismatch and every goal is still reached inside the horizon. Past a critical payload (~+45%)
-the actuator can no longer overcome the added inertia within the deadline and success **collapses**:
-88% → 44.5% → 6% across +40/+50/+60%. The headline is a **55.5 pp gap at +50% payload**, with the whole
-transition mapped.
+carries the expert's feedback robustness: up to **+30% payload the gap is exactly zero, with zero variance
+across seeds** — feedback absorbs the mismatch and every goal is still reached inside the horizon. Past a
+critical payload (~+45%) the actuator can no longer overcome the added inertia within the deadline and
+success **collapses**: 82 → 40 → 2% across +40/+50/+60%. The headline is a **60.0 ± 4.8 pp gap at +50%
+payload**; the transition is sharp but stable — its spread (±~5 pp) is small next to the jump it sits on.
+An earlier signal precedes the cliff: even in the zero-gap zone the mean steps-to-goal climbs (36.5 → 38.6),
+so the policy slows *before* it fails.
 
 Why it matters for the engine thesis: the number is produced by the *same* rollout spine and gap metric a
 higher-fidelity env will use — the `Env` Protocol is the seam. Swapping the numpy point mass for an Isaac
@@ -55,9 +58,9 @@ sharpen with fidelity.
 - **Not Isaac.** A numpy point mass is a deliberate first rung — fast, deterministic, CI-runnable — a
   *projection* of the sim-to-real mechanism, not a high-fidelity robot. Isaac (installed, in `sim/`'s
   isolated env) is the next rung; this result is honest about being the toy-fidelity anchor.
-- **Single BC seed.** The curve is reproducible (torch + env + eval all seeded — two runs identical), but
-  it is one BC initialization. The *shape* (zero-gap margin then collapse) is the claim; multi-seed
-  hardening of the exact transition payload is a follow-up (the finding stage doesn't multi-seed).
+- **5 seeds, reproducible.** Each BC seed varies net init + demo goals; the run is deterministic (torch +
+  env + eval all seeded). The ±sd is the seed spread — small (≤5.6 pp) relative to the transition, so the
+  margin-then-cliff shape is not single-init scatter. More seeds would tighten the exact transition payload.
 - **The shift is chosen, not fit.** Payload + actuator-sag are mechanical, argued a priori; we sweep the
   whole range rather than cherry-pick one shift, so the reported gap is a point on a disclosed curve.
 

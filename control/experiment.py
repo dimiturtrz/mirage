@@ -10,7 +10,7 @@ achievable ceiling. Run: `python -m control.experiment`. Metrics + params are lo
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 import mlflow
@@ -46,6 +46,7 @@ class ExperimentConfig:
     payload_sweep: tuple[float, ...] = (1.1, 1.2, 1.3, 1.4, 1.5, 1.6)
     eval_episodes: int = 200
     eval_seed: int = 10_000
+    n_seeds: int = 5
 
 
 class Experiment:
@@ -100,32 +101,46 @@ class Experiment:
         return metrics
 
     @staticmethod
-    def run(cfg: ExperimentConfig) -> dict[str, float]:
-        metrics = Experiment._compute(cfg)
-        Experiment._report(cfg, metrics)
-        return metrics
+    def _aggregate(per_seed: list[dict[str, float]]) -> dict[str, float]:
+        agg: dict[str, float] = {}
+        for key in per_seed[0]:
+            vals = np.array([ps[key] for ps in per_seed], dtype=float)
+            agg[f"{key}_mean"] = float(np.nanmean(vals))
+            agg[f"{key}_std"] = float(np.nanstd(vals, ddof=1)) if len(vals) > 1 else 0.0
+        return agg
 
     @staticmethod
-    def _report(cfg: ExperimentConfig, metrics: dict[str, float]) -> None:
+    def _compute_multiseed(cfg: ExperimentConfig) -> dict[str, float]:
+        per_seed = [Experiment._compute(replace(cfg, bc=replace(cfg.bc, seed=s))) for s in range(cfg.n_seeds)]
+        return Experiment._aggregate(per_seed)
+
+    @staticmethod
+    def run(cfg: ExperimentConfig) -> dict[str, float]:
+        agg = Experiment._compute_multiseed(cfg)
+        Experiment._report(cfg, agg)
+        return agg
+
+    @staticmethod
+    def _report(cfg: ExperimentConfig, agg: dict[str, float]) -> None:
         mlflow.set_experiment("control-policy-gap")
         with mlflow.start_run(run_name="point-mass-reach-bc"):
             mlflow.log_params({
                 "actuator_gain": cfg.actuator_gain, "payload_sweep": str(cfg.payload_sweep),
                 "success_eps": cfg.task.eps, "horizon": cfg.task.horizon,
                 "bc_demos": cfg.bc.n_demo_episodes, "bc_epochs": cfg.bc.epochs,
-                "eval_episodes": cfg.eval_episodes,
+                "eval_episodes": cfg.eval_episodes, "n_seeds": cfg.n_seeds,
             })
-            mlflow.log_metrics({k: v for k, v in metrics.items() if math.isfinite(v)})
-        log.info("=== point-mass reach — sim-to-real policy gap (BC, sim-only training) ===")
-        log.info("expert sim success : %5.1f%%   (achievable ceiling)", _PP * metrics["expert_sim_success"])
-        log.info("BC     sim         : success %5.1f%%   return %6.2f   steps-to-goal %4.1f",
-                 _PP * metrics["bc_sim_success"], metrics["bc_sim_return"], metrics["bc_sim_steps"])
-        log.info("  payload   real-success   gap       real-return   steps-to-goal")
+            mlflow.log_metrics({k: v for k, v in agg.items() if math.isfinite(v)})
+        log.info("=== point-mass reach — sim-to-real policy gap (BC, sim-only; %d seeds, mean±sd) ===", cfg.n_seeds)
+        log.info("expert sim success : %5.1f%%   (achievable ceiling)", _PP * agg["expert_sim_success_mean"])
+        log.info("BC     sim success : %5.1f ± %.1f%%", _PP * agg["bc_sim_success_mean"], _PP * agg["bc_sim_success_std"])
+        log.info("  payload   real-success (mean±sd)    sim-to-real gap (pp)")
         for payload in cfg.payload_sweep:
             tag = f"p{round(payload * _PP)}"
-            log.info("  +%3d%%      %5.1f%%       %5.1f pp    %6.2f       %4.1f",
-                     round((payload - 1.0) * _PP), _PP * metrics[f"real_success_{tag}"],
-                     metrics[f"gap_pp_{tag}"], metrics[f"real_return_{tag}"], metrics[f"real_steps_{tag}"])
+            log.info("  +%3d%%      %5.1f ± %4.1f%%           %5.1f ± %4.1f",
+                     round((payload - 1.0) * _PP),
+                     _PP * agg[f"real_success_{tag}_mean"], _PP * agg[f"real_success_{tag}_std"],
+                     agg[f"gap_pp_{tag}_mean"], agg[f"gap_pp_{tag}_std"])
 
     @staticmethod
     def main() -> None:

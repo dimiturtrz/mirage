@@ -73,7 +73,6 @@ class FitCell:
     op_support: OpSupport
     work_mib: float
     capacity_mib: float | None
-    mem_util_pct: float | None
     gflops: float
     latency_ms_lo: float | None
     latency_ms_hi: float | None
@@ -158,11 +157,10 @@ class Fit:
         gflops, work_mib = Fit._work_mib(det, comp, opt.precision)
         verdict, reason = Fit._resolve(det, acc, work_mib, opt)
         ms_lo, ms_hi, fps_lo, fps_hi = Fit._latency(gflops, acc, opt.precision)
-        util = round(work_mib / acc.capacity_mib * 100, 1) if acc.capacity_mib is not None else None
         return FitCell(
             detector=det["name"], op_class=op_class, accelerator=acc.name,
             accel_type=acc.type, precision=opt.precision, onnx=opt.onnx, op_support=acc.op_support[op_class],
-            work_mib=work_mib, capacity_mib=acc.capacity_mib, mem_util_pct=util, gflops=gflops,
+            work_mib=work_mib, capacity_mib=acc.capacity_mib, gflops=gflops,
             latency_ms_lo=ms_lo, latency_ms_hi=ms_hi, fps_lo=fps_lo, fps_hi=fps_hi,
             verdict=verdict, reason=reason)
 

@@ -1,0 +1,192 @@
+{
+  "note": "compile-verified op-support \u2014 representative graph per op-class pushed through real vendor toolchains (static partitioners, no silicon). NATIVE/HOST_TAIL/UNSUPPORTED, measured not cited.",
+  "toolchains": {
+    "rknn_rk3588": {
+      "tool": "rknn-toolkit2",
+      "version": "2.3.2",
+      "mode": "simulator (no board)"
+    },
+    "coral_edgetpu": {
+      "tool": "edgetpu_compiler",
+      "version": "16.0.384591198",
+      "mode": "static (no TPU)"
+    }
+  },
+  "gated": {
+    "hailo": "dataflow compiler is Developer-Zone-gated \u2014 stays CITED",
+    "latency": "on-device FPS is a separate hardware anchor (bead 0sq)"
+  },
+  "results": [
+    {
+      "graph": "conv_rep",
+      "represents": "conv_native",
+      "target": "rknn_rk3588",
+      "per_op": [
+        {
+          "op": "ConvRelu",
+          "on": "NPU"
+        },
+        {
+          "op": "MaxPool",
+          "on": "NPU"
+        },
+        {
+          "op": "ConvRelu",
+          "on": "NPU"
+        }
+      ],
+      "verdict": "native"
+    },
+    {
+      "graph": "conv_rep",
+      "represents": "conv_native",
+      "target": "coral_edgetpu",
+      "per_op": [
+        {
+          "op": "TRANSPOSE",
+          "count": 1,
+          "on": "EDGETPU",
+          "status": "Mapped to Edge TPU"
+        },
+        {
+          "op": "MAX_POOL_2D",
+          "count": 1,
+          "on": "EDGETPU",
+          "status": "Mapped to Edge TPU"
+        },
+        {
+          "op": "ADD",
+          "count": 1,
+          "on": "EDGETPU",
+          "status": "Mapped to Edge TPU"
+        },
+        {
+          "op": "CONV_2D",
+          "count": 2,
+          "on": "EDGETPU",
+          "status": "Mapped to Edge TPU"
+        }
+      ],
+      "verdict": "native"
+    },
+    {
+      "graph": "bank_tail",
+      "represents": "bank_lookup",
+      "target": "rknn_rk3588",
+      "per_op": [
+        {
+          "op": "Conv",
+          "on": "NPU"
+        },
+        {
+          "op": "Mul",
+          "on": "NPU"
+        },
+        {
+          "op": "TopK",
+          "on": "CPU"
+        },
+        {
+          "op": "ArgMin",
+          "on": "CPU"
+        },
+        {
+          "op": "Reshape",
+          "on": "CPU"
+        }
+      ],
+      "verdict": "host_tail"
+    },
+    {
+      "graph": "bank_tail",
+      "represents": "bank_lookup",
+      "target": "coral_edgetpu",
+      "per_op": [
+        {
+          "op": "NEG",
+          "count": 1,
+          "on": "CPU",
+          "status": "Operation is working on an unsupported data type"
+        },
+        {
+          "op": "ARG_MIN",
+          "count": 1,
+          "on": "CPU",
+          "status": "Operation is working on an unsupported data type"
+        },
+        {
+          "op": "CONV_2D",
+          "count": 1,
+          "on": "EDGETPU",
+          "status": "Mapped to Edge TPU"
+        },
+        {
+          "op": "QUANTIZE",
+          "count": 1,
+          "on": "CPU",
+          "status": "Operation is otherwise supported, but not mapped due to some unspecified limitation"
+        },
+        {
+          "op": "DEQUANTIZE",
+          "count": 1,
+          "on": "CPU",
+          "status": "Operation is working on an unsupported data type"
+        },
+        {
+          "op": "TOPK_V2",
+          "count": 1,
+          "on": "CPU",
+          "status": "Operation not supported"
+        },
+        {
+          "op": "TRANSPOSE",
+          "count": 1,
+          "on": "CPU",
+          "status": "Operation is otherwise supported, but not mapped due to some unspecified limitation"
+        }
+      ],
+      "verdict": "host_tail"
+    },
+    {
+      "graph": "attn_rep",
+      "represents": "transformer_attention",
+      "target": "rknn_rk3588",
+      "per_op": [
+        {
+          "op": "Reshape",
+          "on": "NPU"
+        },
+        {
+          "op": "Transpose",
+          "on": "NPU"
+        },
+        {
+          "op": "Conv",
+          "on": "NPU"
+        },
+        {
+          "op": "Split",
+          "on": "NPU"
+        },
+        {
+          "op": "exSDPAttention",
+          "on": "NPU"
+        },
+        {
+          "op": "Transpose",
+          "on": "NPU"
+        },
+        {
+          "op": "Reshape",
+          "on": "NPU"
+        }
+      ],
+      "verdict": "native"
+    }
+  ],
+  "reconciliation": {
+    "conv_native": "CONFIRMED native on rknn_rk3588 and coral_edgetpu \u2014 every conv/pool/add op maps to the accelerator.",
+    "bank_lookup": "CONFIRMED host_tail on both \u2014 the Conv1x1 distance maps to the accelerator; ArgMin and TopK are rejected (Coral: 'not supported' / 'unsupported data type'; RKNN: assigned to CPU). The kNN selection is a host residue, exactly as the fit matrix asserts.",
+    "transformer_attention": "REFINED, not overturned. Bare scaled-dot-product attention FUSES to the RK3588 NPU (exSDPAttention), so 'unsupported' is too strong for a lone SDPA block; but (a) Coral cannot int8-quantize it to TFLite at all (BatchMatMul), and (b) the real Point-MAE detector carries FPS/kNN tokenizer ops (TopK/ScatterND/ArgMax, per export_ops.json) that stay on the host \u2014 so the DETECTOR-level verdict (not accelerator-native end to end) holds, for a subtler reason than 'no attention op'."
+  }
+}

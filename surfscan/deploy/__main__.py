@@ -15,10 +15,10 @@ See also `surfscan.run` (experiments) and `surfscan.report` (docs/metrics).
 """
 from __future__ import annotations
 
-from surfscan.deploy import accelerators, bank, export, fit, profile
+from surfscan.deploy import accelerators, bank, compile_probe, export, fit, profile
 from surfscan.dispatch import Dispatch
 
-STEPS = [profile.SPEC, fit.SPEC, export.SPEC, accelerators.SPEC, bank.SPEC]
+STEPS = [profile.SPEC, fit.SPEC, export.SPEC, compile_probe.SPEC, accelerators.SPEC, bank.SPEC]
 
 if __name__ == "__main__":
     Dispatch.dispatch("surfscan.deploy", STEPS)

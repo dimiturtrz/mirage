@@ -1,4 +1,4 @@
-# The control leg's first measured number — a sim-to-real policy gap with a robustness cliff
+# The control leg — a sim-to-real policy gap with a robustness cliff, and a DR lever that softens its onset
 
 **Date:** 2026-07-16 · **Epic:** hxq.5 · **Code:** `control/` · **Run:** `python -m control.experiment` (MLflow `control-policy-gap`)
 
@@ -19,6 +19,10 @@ task (no Isaac install; that is the next fidelity rung, hxq.3).
   by `gain/mass`. We sweep payload +10 … +60%.
 - **Policy.** A PD expert (`a = kp·(goal-pos) − kd·vel`, clipped) demonstrates in **nominal sim only**; a
   2-hidden-layer MLP is **behavior-cloned** on those demos. It never sees real.
+- **Lever — domain randomization.** A second arm clones the same expert on demos whose dynamics are
+  **randomized per episode** — payload mass `~U(1.0, 1.6)` and actuator gain `~U(0.85, 1.0)`, covering the
+  test-shift range. Same expert, same spine, same eval (nominal sim + shifted reals); only demo-collection
+  changes. Goals still ride the seed, so nominal-vs-DR is matched per seed.
 - **Eval.** 200 matched episodes per condition — sim and every real share goal seeds, so the gap isolates
   the dynamics shift from goal luck — over **5 BC seeds** (net init + demo goals varied), reported mean±sd.
   `gap = success(sim) − success(real)`.
@@ -47,6 +51,29 @@ payload**; the transition is sharp but stable — its spread (±~5 pp) is small 
 An earlier signal precedes the cliff: even in the zero-gap zone the mean steps-to-goal climbs (36.5 → 38.6),
 so the policy slows *before* it fails.
 
+## The lever — domain randomization softens the cliff onset (5 seeds, mean ± sd)
+
+Training the clone on randomized dynamics instead of nominal-only moves the gap — most at the **onset** of
+the cliff, where the policy sits near the success boundary:
+
+| payload (real) | nominal gap | DR gap | Δ (DR − nominal) |
+|---:|---:|---:|---:|
+| +10 … +30% | 0.0 ± 0.0 pp | 0.0 ± 0.0 pp | +0.0 |
+| +40% | 17.8 ± 5.6 pp | **7.7 ± 4.4 pp** | **−10.1 pp** |
+| +50% | 60.0 ± 4.8 pp | 56.0 ± 1.2 pp | −4.0 |
+| +60% | 98.0 ± 2.8 pp | 93.3 ± 3.3 pp | −4.7 |
+
+DR **halves the gap at the cliff onset** (+40%: 17.8 → 7.7 pp) and tightens its seed spread (±5.6 → ±1.2 pp
+at +50%). It does *not* rescue the deep-collapse regime (+50/+60% stay >55 pp). That split is the honest
+mechanism: this expert is **dynamics-blind** — its observation is `[goal-pos, vel]` with no proprioceptive
+cue of payload — so DR cannot teach it to *sense* and compensate the shift. What DR *can* do is widen the
+state distribution the clone is fit on, buying robustness in the marginal band where a slightly-heavier
+payload only just pushes a goal outside the deadline. Past the actuator's hard authority limit (`gain/mass`
+too small to decelerate in time) no amount of demo variety helps — that is a physical ceiling, not a
+data-coverage problem. The reading: **DR is a real but partial lever here; the full fix for the collapse
+regime is an adaptive policy (proprioceptive obs / online system-ID / RL), not more randomization** — which
+is exactly the next rung the leg is built to measure.
+
 Why it matters for the engine thesis: the number is produced by the *same* rollout spine and gap metric a
 higher-fidelity env will use — the `Env` Protocol is the seam. Swapping the numpy point mass for an Isaac
 Lab env (hxq.3) re-measures this exact curve at higher fidelity **without touching the policy, the spine,
@@ -63,6 +90,10 @@ sharpen with fidelity.
   margin-then-cliff shape is not single-init scatter. More seeds would tighten the exact transition payload.
 - **The shift is chosen, not fit.** Payload + actuator-sag are mechanical, argued a priori; we sweep the
   whole range rather than cherry-pick one shift, so the reported gap is a point on a disclosed curve.
+- **The lever is not tuned to the result.** The DR ranges are the test-shift range itself (payload up to
+  +60%, gain down to −15%), fixed a priori — not searched for the biggest gap reduction. DR is reported
+  where it helps (+40%) *and* where it barely moves (+50/+60%), with the dynamics-blind mechanism that
+  explains the split; it is not sold as a fix for the collapse regime it does not fix.
 
 ## Reproduce
 

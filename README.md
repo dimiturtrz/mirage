@@ -100,11 +100,17 @@ seeds — then falls off a cliff: **60 ± 4.8 pp** at +50%, essentially gone by 
 and it tips its hand first — the policy takes visibly longer to reach the goal while it's still succeeding,
 before it starts missing outright. The full curve, method, and integrity live in [`control/`](control/README.md).
 
-Honest read: this is a **ramp at toy fidelity** — a numpy point-mass, not a robot, so it's a projection of
-the mechanism, not a robotics result. And it only *measures* the gap so far; the lever that should actually
-move it — training the policy across randomized dynamics — is the next thing to try. The one piece of real
-engineering is the `Env` seam: an Isaac Lab env drops in and re-measures this same curve at higher fidelity
-without a line changing in the policy, the spine, or the metric.
+Then I tried the obvious lever: train the policy across *randomized* dynamics instead of one nominal sim.
+It halves the gap right at the cliff's onset (+40% payload: **17.8 → 7.7 pp**) and tightens the seed spread —
+but it barely dents the deep collapse (+50/+60% stay >55 pp). That split is the honest part: this policy is
+dynamics-blind (it never sees a payload cue), so randomization can buy robustness in the marginal band but
+can't beat a hard actuator limit — the real fix there is an adaptive policy, not more variety. A partial
+lever, reported where it works and where it doesn't.
+
+Honest read: this is still a **ramp at toy fidelity** — a numpy point-mass, not a robot, so it's a projection
+of the mechanism, not a robotics result. The one piece of real engineering is the `Env` seam: an Isaac Lab
+env drops in and re-measures this same curve at higher fidelity without a line changing in the policy, the
+spine, or the metric.
 
 ## Limits (measured, not assumed)
 Edge-deployable and honestly benchmarked — **not** a production system. The gaps, measured rather than assumed:
@@ -121,10 +127,11 @@ Edge-deployable and honestly benchmarked — **not** a production system. The ga
   cloud, not native-resolution clean point clouds. A preprocessing limit, diagnosed, not a method failure.
 - **3D is a ramp.** The data-engine + eval discipline carry from prior work; the 3D-perception specifics are
   the genuinely new skill, learned as I go.
-- **The control axis is a ramp, and only half-done.** The sim-to-real policy gap (60 ± 4.8 pp @ +50% payload,
+- **The control axis is a ramp.** The sim-to-real policy gap (60 ± 4.8 pp @ +50% payload,
   [above](#the-same-eval-on-a-second-axis--control-a-ramp)) is measured on a numpy point-mass — a projection,
-  not a robot — and it's *measured but not yet moved*: training across randomized dynamics is the open lever,
-  and Isaac (installed) is the fidelity rung.
+  not a robot. Domain randomization moves it at the cliff onset (+40%: 17.8 → 7.7 pp) but not the deep
+  collapse — a dynamics-blind policy hits a hard actuator limit that needs an adaptive policy, not more
+  randomization. Isaac (installed) is the next fidelity rung.
 - **Not a device.** Public research data only; edge deploy is real (ONNX), production-scale serving is not claimed.
 
 ## Data

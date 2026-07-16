@@ -191,13 +191,24 @@ uvx nox -s lint        # ruff · vulture · import-linter · graph --assert · a
 ([sdlc-scaffold](https://github.com/dimiturtrz/sdlc-scaffold)) — refresh with `uvx copier update` (both
 pinned in `.copier-answers.yml`). Template-owned: fix a gate upstream, don't hand-edit it to pass.
 
+### Local hooks
+The same gates CI enforces bind to git events via pre-commit. Install **both** stages:
+```bash
+pre-commit install                        # commit stage — fast static gates (ruff/vulture/arch-fitness/…)
+pre-commit install --hook-type pre-push   # push stage — fast unit suite (tests/unit)
+```
+The pre-push hook runs `pytest tests/unit`, so a change that lints clean but breaks a test **contract** (a
+signature change a mirror test still calls the old way) is caught before the push, not after CI goes red —
+push-only (not every commit), unit-only (integration/e2e + the coverage floor stay CI jobs). The default
+`pre-commit install` does **not** wire pre-push; run the second line once per clone.
+
 ## How it's built
 Agent-driven build, human-owned judgment — the modeling, measurement correctness, and evaluation are
 mine; coding agents scaffold the plumbing. Data-structure reasoning and evaluation discipline carry over
 from prior ML work; the 3D specifics I learn as I go ([`learning/`](learning/)).
 
 ## Architecture
-Interactive import graph of `core` + `surfscan` — **live** at
+Interactive import graph of `core` + `surfscan` + `control` — **live** at
 [dimiturtrz.github.io/mirage/architecture/](https://dimiturtrz.github.io/mirage/architecture/), composed into
 the `deploy-fit-explorer` Pages workflow beside the fit-explorer views. `nox -s archmap` regenerates
 `docs/architecture/graph.json` (committed + diffable — the architecture-erosion record; the `index.html`

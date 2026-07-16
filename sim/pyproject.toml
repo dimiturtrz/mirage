@@ -10,6 +10,7 @@ requires-python = "==3.12.*"          # isaacsim 6.0 ships cp312 wheels (5.1 was
 dependencies = [
     "isaacsim[all,extscache]==6.0.1.0",
     "tifffile",                          # MVTec-format xyz position-map export (matches the real scans)
+    "jaxtyping",                         # shape annotations on core.rollout / control — imported by the Isaac gap runner
 ]
 
 # NVIDIA's index hosts isaacsim + all its isaacsim-* / omni-* subpackages.

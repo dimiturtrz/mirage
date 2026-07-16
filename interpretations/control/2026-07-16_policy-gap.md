@@ -1,6 +1,6 @@
-# The control leg — a sim-to-real policy gap with a robustness cliff, and a DR lever that softens its onset
+# The control leg — a sim-to-real policy gap with a robustness cliff, a DR lever, and a PhysX fidelity rung
 
-**Date:** 2026-07-16 · **Epic:** hxq.5 · **Code:** `control/` · **Run:** `python -m control.experiment` (MLflow `control-policy-gap`)
+**Date:** 2026-07-16 · **Epic:** hxq · **Code:** `control/` + `sim/isaac_reach.py` · **Run:** `python -m control.experiment` (point mass + DR) · `sim/ … isaac_gap.py` (PhysX rung)
 
 ## Question
 
@@ -75,16 +75,43 @@ regime is an adaptive policy (proprioceptive obs / online system-ID / RL), not m
 is exactly the next rung the leg is built to measure.
 
 Why it matters for the engine thesis: the number is produced by the *same* rollout spine and gap metric a
-higher-fidelity env will use — the `Env` Protocol is the seam. Swapping the numpy point mass for an Isaac
-Lab env (hxq.3) re-measures this exact curve at higher fidelity **without touching the policy, the spine,
-or the metric**. The mechanism (robustness margin → cliff) is the transferable finding; the numbers will
-sharpen with fidelity.
+higher-fidelity env will use — the `Env` Protocol is the seam. The mechanism (robustness margin → cliff) is
+the transferable finding; the numbers should hold as fidelity rises. The next section tests exactly that.
+
+## The fidelity rung — re-measured on PhysX (Isaac Sim)
+
+The `Env` seam's claim is that swapping the sim engine re-measures this curve **without touching the policy,
+the spine, or the metric**. Tested: `sim/isaac_reach.py` is a rigid-body reach env (`core.rollout.Env`) —
+a dynamic sphere in a zero-gravity PhysX scene, actuated by a planar force `gain·clip(a)` with linear
+damping `drag/mass`, so its equation of motion is `dv/dt = (gain·clip(a) − drag·v)/mass`: the *identical*
+point-mass dynamics, now integrated by PhysX (substeps + implicit damping) instead of explicit Euler.
+`sim/isaac_gap.py` imports the **same** `BCPolicy`, `PDExpert`, `Rollout`, and gap metric — only the `Env`
+implementation is new. Payload sweep, actuator sag, matched goal seeds all unchanged (3 seeds; opt-in, GPU,
+not CI-gated — it needs a ~30 s Isaac kit boot in `sim/`'s isolated env).
+
+| payload (real) | point-mass gap (Euler) | PhysX gap (Isaac) |
+|---:|---:|---:|
+| +20% | 0.0 ± 0.0 pp | 0.0 ± 0.0 pp |
+| +40% | 17.8 ± 5.6 pp | 32.5 ± 4.3 pp |
+| +50% | **60.0 ± 4.8 pp** | **62.5 ± 11.5 pp** |
+| +60% | 98.0 ± 2.8 pp | 100.0 ± 0.0 pp |
+
+**The finding transfers.** Same margin-then-cliff shape, and the headline **+50% gap is essentially the same
+number** across a hand-rolled Euler step and a production PhysX solver (60.0 vs 62.5 pp). The one honest
+difference: the cliff is slightly *earlier / sharper* under PhysX (+40% gap 17.8 → 32.5 pp) — the implicit
+damping and finite solver substeps make the marginal-payload band a touch harder to reach in-deadline than
+Euler's frictionless integration, so the transition payload shifts down a little. That is the expected
+direction (more faithful contact/damping → less forgiving), not a contradiction: the mechanism is identical,
+the exact transition point sharpens with fidelity — which is precisely why the seam exists.
 
 ## Integrity
 
-- **Not Isaac.** A numpy point mass is a deliberate first rung — fast, deterministic, CI-runnable — a
-  *projection* of the sim-to-real mechanism, not a high-fidelity robot. Isaac (installed, in `sim/`'s
-  isolated env) is the next rung; this result is honest about being the toy-fidelity anchor.
+- **Toy anchor, validated up one rung.** The numpy point mass is a deliberate first rung — fast,
+  deterministic, CI-runnable — a *projection* of the sim-to-real mechanism. It is no longer the only
+  measurement: the PhysX rung above it (Isaac Sim, `sim/isaac_gap.py`) re-measures the same curve and the
+  headline transfers (60.0 → 62.5 pp @ +50%). Both are still simplified reach dynamics, not a real robot
+  arm with contact/friction/sensing — the honest ceiling is "the mechanism holds across two solvers", not
+  "this is a robotics result".
 - **5 seeds, reproducible.** Each BC seed varies net init + demo goals; the run is deterministic (torch +
   env + eval all seeded). The ±sd is the seed spread — small (≤5.6 pp) relative to the transition, so the
   margin-then-cliff shape is not single-init scatter. More seeds would tighten the exact transition payload.
@@ -98,5 +125,9 @@ sharpen with fidelity.
 ## Reproduce
 
 ```bash
+# point-mass gap + DR lever (fast, CI-gated env)
 python -m control.experiment      # prints the table; logs params+metrics to MLflow 'control-policy-gap'
+
+# PhysX fidelity rung (opt-in; needs sim/'s isolated Isaac env + a GPU)
+cd sim && OMNI_KIT_ACCEPT_EULA=YES uv run python isaac_gap.py --seeds 3 --episodes 40
 ```

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mirage — deployment fit explorer</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0e1116; --panel: #161b22; --line: #2a3340; --ink: #d6dae0; --dim: #8b949e; --accent: #6cb6ff;
+    --full: #3fb950; --stream: #d29922; --tail: #a371f7; --block: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.55 system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 22px 26px 14px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 20px; color: var(--accent); }
+  header .sub { color: var(--dim); margin-top: 3px; }
+  header .note { color: #6e7681; font-size: 12px; margin-top: 8px; max-width: 70ch; }
+  main { display: grid; grid-template-columns: 300px 1fr; gap: 0; align-items: start; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+  aside { padding: 20px 22px; border-right: 1px solid var(--line); position: sticky; top: 0; }
+  @media (max-width: 820px) { aside { border-right: none; border-bottom: 1px solid var(--line); position: static; } }
+  section { padding: 20px 26px; min-width: 0; }
+  label { display: block; color: var(--dim); font-size: 12px; text-transform: uppercase;
+          letter-spacing: .04em; margin: 16px 0 6px; }
+  aside label:first-of-type { margin-top: 0; }
+  select { width: 100%; background: #21262d; color: var(--ink); border: 1px solid #30363d;
+           border-radius: 7px; padding: 8px 10px; font: inherit; cursor: pointer; }
+  .seg { display: inline-flex; gap: 5px; }
+  .seg button { background: #21262d; color: var(--ink); border: 1px solid #30363d; border-radius: 7px;
+                padding: 7px 13px; font: inherit; cursor: pointer; }
+  .seg button.on { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  .meta { margin-top: 20px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .meta h3 { margin: 0 0 2px; font-size: 15px; }
+  .meta .type { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .meta dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 12px 0 0; font-size: 12.5px; }
+  .meta dt { color: var(--dim); }
+  .meta dd { margin: 0; }
+  .meta .desc { color: var(--dim); font-size: 12px; margin-top: 10px; }
+  .ops { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--line); color: var(--dim); }
+  .pill.native { color: var(--full); border-color: #23502e; }
+  .pill.host_tail { color: var(--tail); border-color: #3d2b5c; }
+  .pill.unsupported { color: var(--block); border-color: #5c2626; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+          border-left-width: 4px; }
+  .card.full { border-left-color: var(--full); }
+  .card.stream { border-left-color: var(--stream); }
+  .card.tail { border-left-color: var(--tail); }
+  .card.block { border-left-color: var(--block); }
+  .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .card h4 { margin: 0; font-size: 15px; }
+  .card .opc { font-size: 11px; color: var(--dim); }
+  .vfy { color: var(--full); font-size: 10px; border: 1px solid #23502e; border-radius: 20px; padding: 1px 6px; white-space: nowrap; }
+  .verdict { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; margin: 10px 0; }
+  .verdict.full { background: #12261a; color: var(--full); }
+  .verdict.stream { background: #2a2211; color: var(--stream); }
+  .verdict.tail { background: #22183a; color: var(--tail); }
+  .verdict.block { background: #2a1414; color: var(--block); }
+  .card .reason { color: var(--dim); font-size: 12.5px; }
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin-top: 12px; font-size: 12px; }
+  .stats dt { color: var(--dim); }
+  .stats dd { margin: 0; }
+  .hint { color: #6e7681; font-size: 10.5px; }
+  .bar { height: 5px; border-radius: 3px; background: #21262d; margin-top: 4px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .bar > i.lo { background: var(--full); }
+  .bar > i.mid { background: var(--stream); }
+  .bar > i.hi { background: var(--block); }
+  b.lo { color: var(--full); } b.mid { color: var(--stream); } b.hi { color: var(--block); }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--dim); margin: 30px 0 12px; }
+  .matrix { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+  th, td { padding: 7px 9px; text-align: center; border: 1px solid var(--line); white-space: nowrap; }
+  th.row, td.row { text-align: left; color: var(--ink); }
+  thead th { color: var(--dim); font-weight: 500; }
+  td.v { font-weight: 600; cursor: default; }
+  td.v.full { background: #12261a; color: var(--full); }
+  td.v.stream { background: #2a2211; color: var(--stream); }
+  td.v.tail { background: #22183a; color: var(--tail); }
+  td.v.block { background: #2a1414; color: var(--block); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--dim); }
+  .legend span::before { content: "■ "; }
+  .legend .full::before { color: var(--full); } .legend .stream::before { color: var(--stream); }
+  .legend .tail::before { color: var(--tail); } .legend .block::before { color: var(--block); }
+  #empty { padding: 60px 26px; color: var(--dim); }
+  #empty code { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>mirage — deployment fit explorer</h1>
+  <div class="sub">which anomaly detector ships on which edge accelerator — and why</div>
+  <div class="note" id="note"></div>
+</header>
+
+<main id="app" hidden>
+  <aside>
+    <label for="accel">accelerator</label>
+    <select id="accel"></select>
+
+    <label>precision <span class="hint">(this unit's own set)</span></label>
+    <div class="seg" id="precision"></div>
+
+    <label>export toolchain</label>
+    <div class="seg" id="onnx">
+      <button data-o="1" class="on">ONNX / TFLite</button>
+      <button data-o="0">eager only</button>
+    </div>
+
+    <div class="meta" id="meta"></div>
+  </aside>
+
+  <section>
+    <h2>detectors on this accelerator</h2>
+    <div class="cards" id="cards"></div>
+
+    <h2>full fit matrix — current options</h2>
+    <div class="matrix"><table id="grid"></table></div>
+    <div class="legend">
+      <span class="full">full-ondevice</span>
+      <span class="tail">backbone + host tail</span>
+      <span class="stream">streams off-chip</span>
+      <span class="block">does not deploy</span>
+    </div>
+    <div class="hint" style="margin-top:6px">matrix shown at int8 (every unit's common deploy target); per-unit precision toggle drives the cards above.</div>
+  </section>
+</main>
+
+<div id="empty" hidden>
+  No fit data. Generate it:<br><br>
+  <code>python -m surfscan.deploy profile &amp;&amp; python -m surfscan.deploy fit</code><br>
+  then serve: <code>cd deployment &amp;&amp; python -m http.server 8000</code>
+</div>
+
+<script type="module">
+const VCLASS = { "full-ondevice": "full", "streams-offchip": "stream",
+                 "backbone+host-tail": "tail", "does-not-deploy": "block" };
+const VLABEL = { "full-ondevice": "full on-device", "streams-offchip": "streams off-chip",
+                 "backbone+host-tail": "backbone + host tail", "does-not-deploy": "does not deploy" };
+const ATYPES = ["cpu", "gpu", "npu_fixed", "npu_soc"];
+
+const state = { precision: "int8", onnx: true };
+let cells = [], meta = {}, accels = [], detectors = [], verified = {}, targetFps = 30;
+
+const uniq = (xs) => [...new Set(xs)];
+const cell = (det, acc, precision) => cells.find(c =>
+  c.detector === det && c.accelerator === acc && c.precision === precision && c.onnx === state.onnx);
+
+function metaCard(acc) {
+  const m = meta[acc];
+  const ops = ["conv_native", "bank_lookup", "transformer_attention"].map(k => {
+    const s = m.op_support[k];
+    return `<span class="pill ${s}">${k.split("_")[0]}: ${s.replace("_", " ")}</span>`;
+  }).join("");
+  const num = (x, u) => x == null ? "—" : `${x}${u}`;
+  const prec = Object.entries(m.precisions).map(([p, t]) => `${p} ${t} TOPS`).join(" · ");
+  const only = Object.keys(m.precisions).length === 1;
+  return `
+    <div class="type">${m.typeLabel}</div>
+    <h3>${m.label}</h3>
+    <div class="ops">${ops}</div>
+    <dl>
+      <dt>memory</dt><dd>${m.memory_model.replace(/_/g, " ")}</dd>
+      <dt>envelope</dt><dd>${num(m.capacity_mib, " MiB")}</dd>
+      <dt>off-chip</dt><dd>${m.ext_memory || "—"}</dd>
+      <dt>precisions</dt><dd>${prec}${only ? ' <span class="hint">(int8 baked in — no choice)</span>' : ""}</dd>
+      <dt>sources</dt><dd>${m.sources || "—"}</dd>
+    </dl>
+    <div class="desc">${m.note}</div>`;
+}
+
+// utilization tier: <=50% green (headroom), <=100% yellow (tight), >100% red (over budget / does not fit)
+function utilClass(u) { return u <= 50 ? "lo" : u <= 100 ? "mid" : "hi"; }
+
+function barRow(label, valueText, util, hint) {
+  const tail = hint ? ` <span class="hint">${hint}</span>` : "";
+  if (util == null) return `<dt>${label}</dt><dd>${valueText}${tail}</dd>`;
+  return `<dt>${label}</dt><dd>${valueText} · <b class="${utilClass(util)}">${util.toFixed(0)}% util</b>
+    <div class="bar"><i class="${utilClass(util)}" style="width:${Math.min(100, util)}%"></i></div>${tail}</dd>`;
+}
+
+function detectorCard(c) {
+  const k = VCLASS[c.verdict];
+  const memUtil = c.capacity_mib != null ? c.work_mib / c.capacity_mib * 100 : null;
+  const work = barRow("working set",
+    c.capacity_mib != null ? `${c.work_mib.toFixed(1)} MiB / ${c.capacity_mib} MiB` : `${c.work_mib.toFixed(1)} MiB`,
+    memUtil, null);
+  const budget = 1000 / targetFps;                          // ms per frame at the target FPS
+  const cUtil = c.latency_ms_lo != null ? c.latency_ms_hi / budget * 100 : null;
+  const lat = barRow("throughput",
+    c.latency_ms_lo != null ? `${c.latency_ms_lo}–${c.latency_ms_hi} ms · ${c.fps_lo}–${c.fps_hi} fps` : "—",
+    cUtil,
+    c.latency_ms_lo != null
+      ? `vs ${budget.toFixed(0)} ms budget (${targetFps} fps)${c.accel_type === "cpu" ? " · CPU peak, real slower" : ""}`
+      : "no compute rate for this precision");
+  const vfy = verified[c.detector] ? ` <span class="vfy" title="op-class confirmed against the exported ONNX graph">✓ ONNX-verified</span>` : "";
+  return `<div class="card ${k}">
+    <div class="top"><h4>${c.detector}</h4><span class="opc">${c.op_class.replace(/_/g, " ")}${vfy}</span></div>
+    <span class="verdict ${k}">${VLABEL[c.verdict]}</span>
+    <div class="reason">${c.reason}</div>
+    <dl class="stats">
+      <dt>compute</dt><dd>${c.gflops.toFixed(1)} GFLOPs</dd>
+      ${work}
+      ${lat}
+    </dl></div>`;
+}
+
+function grid() {
+  const head = `<thead><tr><th class="row">detector \\ accelerator</th>${
+    accels.map(a => `<th>${meta[a].label}</th>`).join("")}</tr></thead>`;
+  const body = detectors.map(d => `<tr><td class="row">${d}</td>${
+    accels.map(a => { const c = cell(d, a, "int8"); const k = VCLASS[c.verdict];   // matrix at int8, the deploy target
+      return `<td class="v ${k}" title="${c.reason}">${VLABEL[c.verdict]}</td>`; }).join("")}</tr>`).join("");
+  return head + "<tbody>" + body + "</tbody>";
+}
+
+function render() {
+  const acc = document.getElementById("accel").value;
+  document.getElementById("meta").innerHTML = metaCard(acc);
+  document.getElementById("cards").innerHTML =
+    detectors.map(d => detectorCard(cell(d, acc, state.precision))).join("");
+  document.getElementById("grid").innerHTML = grid();
+}
+
+// the precision toggle is per-accelerator — rebuild it from the selected unit's own set on every change
+function onAccel() {
+  const acc = document.getElementById("accel").value;
+  const ps = Object.keys(meta[acc].precisions);
+  if (!ps.includes(state.precision)) state.precision = ps[0];   // default to the unit's native precision (first)
+  const seg = document.getElementById("precision");
+  seg.innerHTML = ps.map(p => `<button data-p="${p}" class="${p === state.precision ? "on" : ""}">${p}</button>`).join("");
+  seg.querySelectorAll("button").forEach(b => b.onclick = () => {
+    state.precision = b.dataset.p;
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.p === state.precision));
+    render();
+  });
+  render();
+}
+
+function wireSeg(id, key, cast) {
+  document.querySelectorAll(`#${id} button`).forEach(b => b.onclick = () => {
+    document.querySelectorAll(`#${id} button`).forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    state[key] = cast(b.dataset[id === "quant" ? "q" : "o"]);
+    render();
+  });
+}
+
+async function loadMeta() {
+  for (const t of ATYPES) {
+    const f = await (await fetch(`accelerators/${t}_params.json`)).json();
+    for (const inst of f.instances)
+      meta[inst.name] = { ...inst, type: f.type, typeLabel: f.label, op_support: f.op_support };
+  }
+}
+
+(async () => {
+  try {
+    const fit = await (await fetch("fit_matrix.json")).json();
+    cells = fit.cells;
+    targetFps = fit.target_fps || 30;
+    if (!cells.length) throw 0;
+    await loadMeta();
+    try {  // optional — the measured ONNX export gate (deploy/export_ops.json)
+      const ex = await (await fetch("export_ops.json")).json();
+      for (const d of ex.detectors) if (d.corroborates_op_class) verified[d.detector] = true;
+    } catch { /* export gate not generated — cards just omit the badge */ }
+    document.getElementById("note").textContent = fit.note +
+      ` — profiled at ${fit.input_size}²px on ${fit.device}.`;
+    accels = uniq(cells.map(c => c.accelerator));
+    detectors = uniq(cells.map(c => c.detector));
+    const sel = document.getElementById("accel");
+    for (const t of ATYPES) {
+      const group = accels.filter(a => meta[a].type === t);
+      if (!group.length) continue;
+      const og = document.createElement("optgroup"); og.label = meta[group[0]].typeLabel;
+      group.forEach(a => og.appendChild(new Option(meta[a].label, a)));
+      sel.appendChild(og);
+    }
+    sel.onchange = onAccel;
+    wireSeg("onnx", "onnx", v => v === "1");
+    document.getElementById("app").hidden = false;
+    onAccel();
+  } catch { document.getElementById("empty").hidden = false; }
+})();
+</script>
+</body>
+</html>

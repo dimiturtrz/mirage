@@ -22,3 +22,6 @@ it links out to.
     fixed (normal-displaced), now tied on localization / better on detection.
 - **`sim-to-real/`** — Stage-1 transfer (the triad, the measured gap, domain adaptation).
   - `2026-07-08_sim-to-real-triad.md` — method + diagnosis behind the 0.166 gap and the AdaBN negative.
+- **`deploy/`** — Stage-3 edge deployability (measured footprint × cited accelerator specs).
+  - `2026-07-15_deploy-cost-model.md` — params/FLOPs/bank-memory projected onto Coral/Hailo/RKNN/Jetson;
+    the deploy-driven detector choice (bank-free conv on a fixed-function NPU vs PatchCore on a Jetson).

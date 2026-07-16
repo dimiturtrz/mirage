@@ -21,12 +21,16 @@ import re
 from pathlib import Path
 
 from core.obs import Obs
+from surfscan.deploy import MODELS_DOC
 from surfscan.dispatch import Spec
 
 log = Obs.get()
 
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = json.loads((ROOT / "docs" / "RESULTS.json").read_text(encoding="utf-8"))
+# Deploy-cost atoms keyed by component name (the `components` section of deploy/models_params.json); a
+# method's "cost_ref" sums over them for the RESULTS cost columns.
+_COST = {r["name"]: r for r in json.loads(MODELS_DOC.read_text(encoding="utf-8"))["components"]}
 
 
 class NumberSync:
@@ -35,6 +39,17 @@ class NumberSync:
     @staticmethod
     def _n(x: float | None, p: int = 3) -> str:
         return "—" if x is None else f"{x:.{p}f}"
+
+    @staticmethod
+    def _cost_cols(method: dict) -> str:
+        """`| params(M) | GFLOPs | int8(MB) |` summed over the method's profiled pieces, or dashes."""
+        refs = method.get("cost_ref")
+        if not refs:
+            return "| — | — | — |"
+        params = sum(_COST[r]["params_m"] for r in refs)
+        gflops = sum(_COST[r]["gflops"] for r in refs)
+        disk = sum(_COST[r]["disk_int8_mb"] for r in refs)
+        return f"| {params:.1f} | {gflops:.1f} | {disk:.1f} |"
 
     @staticmethod
     def _ci(obj: dict, base: str, p: int = 3) -> str:
@@ -46,15 +61,16 @@ class NumberSync:
 
     @staticmethod
     def methods() -> str:
-        rows = ["| method | modality | mean img-AUROC | mean pixel AU-PRO |", "|---|---|---|---|"]
+        header = "| method | modality | mean img-AUROC | mean pixel AU-PRO | params (M) | GFLOPs | int8 (MB) |"
+        rows = [header, "|---|---|---|---|---|---|---|"]
         for method in RESULTS["methods"]:
             name = f"**{method['name']}**" if method.get("deployable") else method["name"]
             rows.append(f"| {name} — ours | {method['modality']} | {NumberSync._ci(method, 'img_auroc')} "
-                        f"| {NumberSync._ci(method, 'au_pro')} |")
+                        f"| {NumberSync._ci(method, 'au_pro')} {NumberSync._cost_cols(method)}")
         sota = RESULTS["sota"]
         mark = "†" if sota.get("verified") else " ⚠"
         rows.append(f"| SOTA ({sota['name']}){mark} | {sota['modality']} "
-                    f"| ~{sota['img_auroc']:.2f} | ~{sota['au_pro']:.2f} |")
+                    f"| ~{sota['img_auroc']:.2f} | ~{sota['au_pro']:.2f} | — | — | — |")
         return "\n".join(rows)
 
     @staticmethod

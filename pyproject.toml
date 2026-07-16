@@ -31,7 +31,7 @@ dev = ["pytest", "pytest-cov"]
 # update is a one-line `devtools_ref` bump on `copier update`, no source diff in your PRs. Imports as
 # `devtools` (`python -m devtools.graph …`); grimp/networkx arrive transitively. ast-grep/jscpd configs are
 # located from the install via `python -m devtools.config`. Pin lives in .copier-answers.yml (devtools_ref).
-devtools = ["sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.8.0#subdirectory=sdlc-devtools"]
+devtools = ["sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.9.0#subdirectory=sdlc-devtools"]
 export = ["onnxruntime", "onnx"]   # ONNX export + op-inventory / parity check (train-vs-deploy skew, carried from acoustic)
 features = [
     "timm>=1.0.27",
@@ -41,7 +41,7 @@ features = [
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
 all = ["pytest", "pytest-cov", "onnxruntime", "onnx", "timm>=1.0.27", "torchvision",
-       "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.8.0#subdirectory=sdlc-devtools"]  # dev+devtools+export+features
+       "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.9.0#subdirectory=sdlc-devtools"]  # dev+devtools+export+features
 
 [build-system]
 requires = ["setuptools>=68"]

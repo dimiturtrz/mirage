@@ -2565,8 +2565,8 @@ wheels = [
 
 [[package]]
 name = "sdlc-devtools"
-version = "1.7.0"
-source = { git = "https://github.com/dimiturtrz/sdlc-scaffold.git?subdirectory=sdlc-devtools&rev=v1.7.0#d25799fcc31747174c0e542e35ebd27bf6832240" }
+version = "1.8.0"
+source = { git = "https://github.com/dimiturtrz/sdlc-scaffold.git?subdirectory=sdlc-devtools&rev=v1.8.0#b0cd0dcf4627570aff8c6aee9f88075427f08814" }
 dependencies = [
     { name = "grimp" },
     { name = "networkx" },
@@ -2755,8 +2755,8 @@ requires-dist = [
     { name = "scikit-image" },
     { name = "scikit-learn" },
     { name = "scipy" },
-    { name = "sdlc-devtools", marker = "extra == 'all'", git = "https://github.com/dimiturtrz/sdlc-scaffold.git?subdirectory=sdlc-devtools&rev=v1.7.0" },
-    { name = "sdlc-devtools", marker = "extra == 'devtools'", git = "https://github.com/dimiturtrz/sdlc-scaffold.git?subdirectory=sdlc-devtools&rev=v1.7.0" },
+    { name = "sdlc-devtools", marker = "extra == 'all'", git = "https://github.com/dimiturtrz/sdlc-scaffold.git?subdirectory=sdlc-devtools&rev=v1.8.0" },
+    { name = "sdlc-devtools", marker = "extra == 'devtools'", git = "https://github.com/dimiturtrz/sdlc-scaffold.git?subdirectory=sdlc-devtools&rev=v1.8.0" },
     { name = "tifffile" },
     { name = "timm", marker = "extra == 'all'", specifier = ">=1.0.27" },
     { name = "timm", marker = "extra == 'features'", specifier = ">=1.0.27" },

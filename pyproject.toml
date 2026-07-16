@@ -31,7 +31,7 @@ dev = ["pytest", "pytest-cov"]
 # update is a one-line `devtools_ref` bump on `copier update`, no source diff in your PRs. Imports as
 # `devtools` (`python -m devtools.graph …`); grimp/networkx arrive transitively. ast-grep/jscpd configs are
 # located from the install via `python -m devtools.config`. Pin lives in .copier-answers.yml (devtools_ref).
-devtools = ["sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.2.0#subdirectory=sdlc-devtools"]
+devtools = ["sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.7.0#subdirectory=sdlc-devtools"]
 export = ["onnxruntime", "onnx"]   # ONNX export + op-inventory / parity check (train-vs-deploy skew, carried from acoustic)
 features = [
     "timm>=1.0.27",
@@ -41,8 +41,7 @@ features = [
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
 all = ["pytest", "pytest-cov", "onnxruntime", "onnx", "timm>=1.0.27", "torchvision",
-       "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.2.0#subdirectory=sdlc-devtools"]  # dev+devtools+export+features
-
+       "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.7.0#subdirectory=sdlc-devtools"]  # dev+devtools+export+features
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -66,6 +65,31 @@ torchvision = { index = "pytorch-cu130" }
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "--import-mode=importlib"
+
+# Dependency hygiene (deptry, ENFORCED): imported-but-undeclared (DEP001) / declared-but-unused (DEP002) /
+# transitive (DEP003) imports. noxfile.py imports the `nox` runner (invoked via uvx, deliberately not a
+# project dep) so it's excluded from the scan.
+[tool.deptry]
+# sim/ is a separate Isaac Sim env (isaacsim/omni/pxr/carb live there, never in the project deps) — excluded
+# like the ruff/structure gates do; noxfile imports the nox runner (uvx, deliberately not a project dep).
+extend_exclude = ["noxfile.py", "sim"]
+
+# deptry does not scan tests/ (its default exclude), so DEP002 (declared-but-unused) fires for anything
+# only exercised by the test suite or by tooling. PERMANENT ignores (never imported in scanned source by
+# design): the test-runner deps `pytest`/`pytest-cov`, and `sdlc-devtools` (the analyzers, invoked as a CLI
+# `python -m devtools.*`). STARTERS: the runtime deps the scaffold ships for you to build on
+# (numpy/jaxtyping/beartype/pydantic) — they read as unused until you import them.
+[tool.deptry.per_rule_ignores]
+# >>> LOCAL-SLOT: deptry-unused — PRUNE a starter once you wire it (keep pytest/pytest-cov/sdlc-devtools)
+# tqdm (progress bars), timm (alt backbone source — torchvision supplies wide_resnet50_2 today), onnxruntime
+# (ONNX runtime for the deploy parity check, not yet wired — `onnx` itself IS imported in deploy/export.py):
+# declared for real use, not yet imported in core/surfscan, so DEP002 fires until they're wired.
+DEP002 = ["pytest", "pytest-cov", "sdlc-devtools", "numpy", "jaxtyping", "beartype", "pydantic",
+          "tqdm", "timm", "onnxruntime"]
+# `models` = M3DM's PointTransformer, imported from external/M3DM via a sys.path shim (checked out, never
+# vendored/PyPI), so it is not a declarable dependency — see surfscan/models/pointmae.py.
+DEP001 = ["models"]
+# <<< LOCAL-SLOT: deptry-unused
 
 [tool.ruff]
 line-length = 120
@@ -194,23 +218,10 @@ test_layout = "mirror"   # every logic module needs a unit test: "mirror" = test
                          # (strict, one home); "flat" = test_<name>.py anywhere under tests/; "off" = no check
 # <<< LOCAL-SLOT: arch-thresholds
 
-# magic-literals ENFORCED ratchet (devtools/magic_literals.py) — the recurring-string / repeated-key-set
-# floor is frozen as a ceiling; a NEW magic literal pushes the count over and fails the merge (migrate it
-# to a StrEnum/constant, or raise the ceiling in the same commit with a reason). The MECHANISM is a base
-# gate (all repos run it enforced); the NUMBERS are a per-repo FACT (each repo's legitimate non-enum-able
-# floor differs — column names, framework vocab, path segments). A fresh repo ships 0/0 and ratchets up.
-[tool.magic_literals]
-# >>> LOCAL-SLOT: magic-ceilings — this repo's frozen literal floor (raise only with a documented reason)
-# Floor set by the v0.16 detector (v0.13's was blind to these). The split names (train/test) migrated to
-# the core.data.mvtec.Split StrEnum in synthscape-zka, so the floor ratchets 15 -> 13. The remaining 13 are
-# the domain's non-enum-able vocab: channel/modality names (rgb/xyz), device (cuda), metric-column keys
-# (au_pro/img_auroc/label/split/category), encoding (utf-8), path/project segments (surfscan/data/docs),
-# and the "nan" sentinel — column-names + framework vocab, not magic numbers.
-max_strings = 13
-# The metric-dict key-sets were migrated to Scores/RunParams dataclasses (surfscan/evaluation/result_types.py)
-# in synthscape-e7k, so the floor ratchets to 0 — a NEW repeated key-set now fails the merge.
-max_key_sets = 0
-# <<< LOCAL-SLOT: magic-ceilings
+# magic-literals + complexity are ADVISORY explorers (devtools/magic_literals.py, devtools/complexity.py) —
+# ranked reports, no gate, no config. The FIXED complexity gate is ruff C901 (CC>10). There is no honest
+# universal magic-literal ceiling (0 too strict, N arbitrary), so it stays a report. If a repo later needs
+# to enforce a budget, add a legislated config knob at that point — a knob is added on real need, not now.
 
 # Shape-contract gate (devtools/shape_contracts.py) — a public array/tensor boundary must carry a
 # jaxtyping shape, not a bare `np.ndarray`/`Tensor`. The universal `ndarray`/`Tensor` are builtin; a

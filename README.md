@@ -168,6 +168,13 @@ Agent-driven build, human-owned judgment — the modeling, measurement correctne
 mine; coding agents scaffold the plumbing. Data-structure reasoning and evaluation discipline carry over
 from prior ML work; the 3D specifics I learn as I go ([`learning/`](learning/)).
 
+## Architecture
+Interactive import graph of `core` + `surfscan` — **live** at
+[dimiturtrz.github.io/mirage/architecture/](https://dimiturtrz.github.io/mirage/architecture/), composed into
+the `deploy-fit-explorer` Pages workflow beside the fit-explorer views. `nox -s archmap` regenerates
+`docs/architecture/graph.json` (committed + diffable — the architecture-erosion record; the `index.html`
+viewer is gitignored, rebuilt on demand).
+
 ## References
 - **MVTec 3D-AD** — Bergmann et al., *The MVTec 3D-AD Dataset for Unsupervised 3D Anomaly Detection and
   Localization*, VISAPP 2022.

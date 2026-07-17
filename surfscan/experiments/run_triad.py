@@ -135,18 +135,15 @@ class TriadRun:
         return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"synth:{cat}")).fit(
             tr_t.shape[0], cfg.epochs, step, after_epoch=(ctrl.end_epoch if ctrl else None), stop=stop)
 
-    def fit_real(self, cat):
-        """Train on REAL defect masks (calib half of test). The real->real ceiling — note it's a
-        *scarce-label* ceiling (only ~half of an already-small defect set), not an oracle; that's the
-        measured supervised bar for this detector, and why the unsupervised memory bank can beat it."""
+    def _fit_bce(self, data, tag, rows=None):
+        """Shared supervised-BCE seg arm — seed, a fresh model, AdamW, per-batch masked BCE, Trainer.fit.
+        The real (scarce-label calib half, `rows`=calib idx) and twin-phys (whole rendered synthetic
+        split) arms differ only in which loaded split feeds it + the telemetry `tag`."""
         cfg, dev = self.cfg, self.dev
-        ch = tuple(cfg.channels)
         torch.manual_seed(cfg.seed)
-        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=ch, device=dev)
-        ci, _ = TriadRun._split_idx(test.df["label"].to_numpy())
-        t = torch.as_tensor(ci, device=dev)
-        x, v, g = test.x[t], test.valid[t], test.gt[t]
-        model = self._new(test.in_ch)
+        sel = slice(None) if rows is None else torch.as_tensor(rows, device=dev)
+        x, v, g = data.x[sel], data.valid[sel], data.gt[sel]
+        model = self._new(data.in_ch)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
 
         def step(idx):
@@ -154,29 +151,24 @@ class TriadRun:
                 logits = model(x[idx].to(memory_format=torch.channels_last))
                 return F.binary_cross_entropy_with_logits(logits.float(), g[idx], weight=v[idx])
 
-        return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"real:{cat}")).fit(
-            x.shape[0], cfg.epochs, step)
+        return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(tag)).fit(x.shape[0], cfg.epochs, step)
+
+    def fit_real(self, cat):
+        """Train on REAL defect masks (calib half of test). The real->real ceiling — note it's a
+        *scarce-label* ceiling (only ~half of an already-small defect set), not an oracle; that's the
+        measured supervised bar for this detector, and why the unsupervised memory bank can beat it."""
+        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels),
+                                   device=self.dev)
+        ci, _ = TriadRun._split_idx(test.df["label"].to_numpy())
+        return self._fit_bce(test, f"real:{cat}", rows=ci)
 
     def fit_twin_phys(self, cat):
         """Train on the twin's RENDERED physical-defect scans + their depth-diff gt (all of them —
         synthetic, so no eval leakage). The full physics-twin arm: shape AND defect come from the
         Isaac render, scored on the shared real eval half."""
-        cfg, dev = self.cfg, self.dev
-        ch = tuple(cfg.channels)
-        torch.manual_seed(cfg.seed)
-        twin = GpuSplit.load_split(split=Split.TEST, label=1, cats=[cat], channels=ch, device=dev,
-                                   source=Source.twin())
-        x, v, g = twin.x, twin.valid, twin.gt
-        model = self._new(twin.in_ch)
-        opt = optim.AdamW(model.parameters(), lr=1e-3)
-
-        def step(idx):
-            with Compute.autocast(x):
-                logits = model(x[idx].to(memory_format=torch.channels_last))
-                return F.binary_cross_entropy_with_logits(logits.float(), g[idx], weight=v[idx])
-
-        return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"twin_phys:{cat}")).fit(
-            x.shape[0], cfg.epochs, step)
+        twin = GpuSplit.load_split(split=Split.TEST, label=1, cats=[cat], channels=tuple(self.cfg.channels),
+                                   device=self.dev, source=Source.twin())
+        return self._fit_bce(twin, f"twin_phys:{cat}")
 
     @staticmethod
     @torch.no_grad()

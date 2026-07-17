@@ -107,6 +107,20 @@ class Scoring:
         numpy-wanting callers append `.numpy()`."""
         return (torch.sigmoid(logits.float()) * valid).squeeze(1).cpu()
 
+    @staticmethod
+    @torch.no_grad()
+    def score_logits(forward, valid, test, batch, idx=None):
+        """Discriminative scorer (DRAEM / triad): batched forward -> sigmoid amap tail -> ScoreArrays.
+        `forward(i0, i1)` returns the model's raw segmentation logits for that row-span; every model-specific
+        part (tuple unpack, autocast, channels_last, the triad's eval-half subset) lives in that closure.
+        `valid` is the per-pixel mask aligned to forward's row space (its length is the row count); `idx`
+        subsets the split rows for score_arrays (the triad scores only the shared real-eval half; DRAEM
+        scores the whole split)."""
+        def span(i0, i1):
+            return Scoring.logits_to_amap(forward(i0, i1), valid[i0:i1])
+        amaps = Compute.batched_forward(span, valid.shape[0], batch).numpy()
+        return Scoring.score_arrays(amaps, test, idx=idx)
+
     @torch.no_grad()
     def latents(self, data, batch=64):
         """-> (N,D) encoder latent means (VAE mu) — the input to latent-distance scoring."""

@@ -212,12 +212,10 @@ class TriadRun:
         x, v = test.x[t], test.valid[t]
         model.eval()
 
-        def span(i0, i1):
+        def forward(i0, i1):
             with Compute.autocast(x):
-                logits = model(x[i0:i1].to(memory_format=torch.channels_last))
-            return scoring.Scoring.logits_to_amap(logits, v[i0:i1])
-        amaps = Compute.batched_forward(span, x.shape[0], batch).numpy()
-        return scoring.Scoring.score_arrays(amaps, test, idx=ei)
+                return model(x[i0:i1].to(memory_format=torch.channels_last))
+        return scoring.Scoring.score_logits(forward, v, test, batch, idx=ei)
 
     @staticmethod
     def args(ap):

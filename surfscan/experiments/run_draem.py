@@ -65,12 +65,9 @@ class DraemMethod:
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=self.cfg.channels, device=self.dev)
         model.eval()
 
-        def span(i0, i1):
-            _, logits = model(test.x[i0:i1].to(memory_format=torch.channels_last))
-            return scoring.Scoring.logits_to_amap(logits, test.valid[i0:i1])
-        with torch.no_grad():
-            amaps = Compute.batched_forward(span, len(test), 16).numpy()
-        return scoring.Scoring.score_arrays(amaps, test)
+        def forward(i0, i1):
+            return model(test.x[i0:i1].to(memory_format=torch.channels_last))[1]
+        return scoring.Scoring.score_logits(forward, test.valid, test, 16)
 
 
 SPEC = MethodCli.method_spec("draem", DraemMethod, DraemCfg)

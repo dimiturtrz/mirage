@@ -6,8 +6,8 @@ to an Mvtec bound to that root (same format, only the source differs).
 from pathlib import Path
 
 from core import config
-from core.data import mvtec, synth
-from core.data.synth import Synth
+from core.data.static import mvtec, synth
+from core.data.static.synth import Synth
 
 
 def test_synth_root_is_data_root_slash_synth(monkeypatch, tmp_path):

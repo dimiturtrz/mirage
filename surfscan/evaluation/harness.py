@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from core.data import mvtec
+from core.data.static import mvtec
 from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
 from core.obs import Obs, Progress
 from surfscan import tracking

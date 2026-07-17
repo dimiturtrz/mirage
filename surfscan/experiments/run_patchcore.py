@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from core.data.dataset import GpuSplit
-from core.data.mvtec import Split
+from core.data.static.dataset import GpuSplit
+from core.data.static.mvtec import Split
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.patchcore import FitCfg, PatchCore

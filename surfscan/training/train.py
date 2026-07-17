@@ -17,8 +17,8 @@ import torch
 from torch import optim
 
 from core.compute import Compute
-from core.data.dataset import GpuSplit
-from core.data.mvtec import Split
+from core.data.static.dataset import GpuSplit
+from core.data.static.mvtec import Split
 from core.obs import Obs
 from surfscan import tracking
 from surfscan.models.inpaint import InpaintAE

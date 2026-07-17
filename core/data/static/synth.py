@@ -18,8 +18,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from core import config
-from core.data import mvtec
-from core.data.mvtec import Mvtec, Sample, Split  # identical on-disk format -> reuse the loader + Sample type
+from core.data.static import mvtec
+from core.data.static.mvtec import Mvtec, Sample, Split  # identical on-disk format -> reuse the loader + Sample type
 
 SPLITS = mvtec.SPLITS
 

@@ -9,8 +9,8 @@ needs: the Replicator render reproduces the same top-down view distribution as t
 so no back/underside completion is required. The dominant ground plane is removed so the asset is
 object-only, and the largest connected cluster is kept to drop stray table remnants.
 
-CLI:  uv run python -m core.twin.reconstruct            # all categories
-      uv run python -m core.twin.reconstruct --cat bagel
+CLI:  uv run python -m core.data.dynamic.reconstruct            # all categories
+      uv run python -m core.data.dynamic.reconstruct --cat bagel
 """
 import argparse
 
@@ -20,7 +20,7 @@ import tifffile
 from jaxtyping import Float
 
 from core.config import Config
-from core.data.mvtec import Split
+from core.data.static.mvtec import Split
 from core.obs import Obs
 
 

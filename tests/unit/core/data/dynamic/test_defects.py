@@ -6,7 +6,7 @@ and channel-aware — xyz displaces geometry along the surface normal, rgb edits
 import numpy as np
 import torch
 
-from core.data.defects import KINDS, Defects
+from core.data.dynamic.defects import KINDS, Defects
 
 
 def _sample(b=4, c=3, h=64, w=64):

@@ -6,8 +6,8 @@ the invalid-zeroed guarantee surviving the stack) without any dataset or GPU.
 """
 import numpy as np
 
-from core.data.dataset import GpuSplit
-from core.data.preprocess import SIZE, Preprocess
+from core.data.static.dataset import GpuSplit
+from core.data.static.preprocess import SIZE, Preprocess
 
 
 def _sample(h=200, w=200):

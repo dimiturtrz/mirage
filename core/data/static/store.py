@@ -8,7 +8,7 @@
 IS the inventory — filter it (category / split / label) to get any split; no separate
 index. Mirrors systole's cardioseg/data/store.py.
 
-CLI:  python -m core.data.store [--cats bagel ...] [--size 256] [--rebuild]
+CLI:  python -m core.data.static.store [--cats bagel ...] [--size 256] [--rebuild]
 """
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ import numpy as np
 import polars as pl
 
 from core import config
-from core.data import mvtec
-from core.data import preprocess as pp
+from core.data.static import mvtec
+from core.data.static import preprocess as pp
 from core.obs import Obs
 
 log = Obs.get()

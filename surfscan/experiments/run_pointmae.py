@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import torch
 
-from core.data import store
-from core.data.mvtec import Split
+from core.data.static import store
+from core.data.static.mvtec import Split
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.coreset import Coreset

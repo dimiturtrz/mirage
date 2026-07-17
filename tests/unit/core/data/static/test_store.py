@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from core.data import mvtec, store
+from core.data.static import mvtec, store
 
 
 def _sample(defect="hole"):

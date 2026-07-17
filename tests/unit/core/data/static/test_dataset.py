@@ -5,7 +5,7 @@ the requested channel order — the pure transform that feeds the GPU-resident t
 """
 import numpy as np
 
-from core.data.dataset import GpuSplit
+from core.data.static.dataset import GpuSplit
 
 
 def test_stack_channels_order_and_shape():

@@ -30,10 +30,10 @@ from torch import Tensor, optim
 
 from core.cli_config import CliConfig
 from core.compute import Compute
-from core.data.dataset import GpuSplit
-from core.data.defects import KINDS, Defects
-from core.data.mvtec import Split
-from core.data.store import Source
+from core.data.dynamic.defects import KINDS, Defects
+from core.data.static.dataset import GpuSplit
+from core.data.static.mvtec import Split
+from core.data.static.store import Source
 from core.method import Method, ScoreArrays
 from core.obs import Obs
 from surfscan.dispatch import Dispatch, Spec

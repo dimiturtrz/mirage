@@ -10,7 +10,7 @@ Two packages — a reusable engine and the science on top — plus the sim engin
 ```
 core/                the reusable, method-agnostic ENGINE (perception env — uv .venv, py3.12, torch cu130)
   config.py          one data root from paths.yaml -> raw/ + processed/ + synth/
-  data/              adapters (mvtec · synth) -> unified store; dataset (GPU-resident splits)
+  data/              static/ (adapters mvtec · synth -> unified store; dataset GPU-resident) + dynamic/ (Defects + twin engine)
   method.py          the (fit_fn, score_fn) contract + ScoreArrays the harness scores
 surfscan/            the SCIENCE layer (imports core)
   models/            the three method families: vae · inpaint · draem · feat_recon · patchcore · fpfh_bank
@@ -48,15 +48,16 @@ One-root `paths.yaml` → `<data>/{raw,processed,synth}`. Two adapters emit the 
 (rgb · xyz position-map · gt), so the store/preprocess/harness ingest them identically:
 
 ```
-raw/mvtec…  ──(core/data/mvtec.py)──┐
-                                    ├──► core/data/store ──► dataset (GPU-resident) ──► harness
-synth/…     ──(core/data/synth.py)──┘        ▲
+raw/mvtec…  ──(core/data/static/mvtec.py)──┐
+                                           ├──► core/data/static/store ──► dataset (GPU-resident) ──► harness
+synth/…     ──(core/data/static/synth.py)──┘        ▲
    ▲                                         │
-   └── sim/ engine (Isaac/Replicator, separate env) renders the labeled task-graph
+   └── core/data/dynamic engine (Isaac/Replicator) renders the labeled task-graph
 ```
 Real vs synthetic scored through one harness **is** the sim-to-real gap — the Stage-1 contribution.
-The `sim/` env is isolated only because Isaac bundles a conflicting runtime; the code + data-contract
-live in-repo (see [`sim/README.md`](../sim/README.md)).
+The engine runs in the **main** env (no nested venv — bd 53z proved co-resolution); isaacsim just sits
+behind the opt-in `sim` extra so gate/CI runs never pull it (see
+[`core/data/dynamic/README.md`](../core/data/dynamic/README.md)).
 
 ## Numbers live in one place
 `docs/RESULTS.json` is the canonical source of published numbers; `evaluation/sync_numbers.py` renders

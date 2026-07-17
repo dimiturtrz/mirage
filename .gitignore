@@ -67,9 +67,6 @@ wandb/
 # Web viewer data (MVTec-derived, CC BY-NC-SA — generate locally, do not redistribute)
 pointcloud-viewer/data/
 
-# sim engine scratch (Replicator smoke renders — datagen/ scripts write beside themselves)
-sim/**/_smoke_out/
-
 # Editor / OS
 .idea/
 .vscode/

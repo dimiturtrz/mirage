@@ -11,8 +11,8 @@ Run:  python -m surfscan.report evaluate --run-id <mlflow-run-id> [--cats bagel]
 from __future__ import annotations
 
 from core.compute import Compute
-from core.data.dataset import GpuSplit
-from core.data.mvtec import Split
+from core.data.static.dataset import GpuSplit
+from core.data.static.mvtec import Split
 from core.method import Method
 from surfscan import tracking
 from surfscan.dispatch import Spec

@@ -5,7 +5,7 @@ flying-pixel cluster dropped (xyz bounded by the centroid clip).
 """
 import numpy as np
 
-from core.data.preprocess import CLIP, SIZE, Preprocess
+from core.data.static.preprocess import CLIP, SIZE, Preprocess
 
 
 def _sample(h=200, w=200):

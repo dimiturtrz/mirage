@@ -64,13 +64,13 @@ class DraemMethod:
     def score(self, model, cat):
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=self.cfg.channels, device=self.dev)
         model.eval()
-        amaps = []
+
+        def span(i0, i1):
+            _, logits = model(test.x[i0:i1].to(memory_format=torch.channels_last))
+            return scoring.Scoring.logits_to_amap(logits, test.valid[i0:i1])
         with torch.no_grad():
-            for i in range(0, len(test), 16):
-                x, v = test.x[i:i + 16], test.valid[i:i + 16]
-                _, logits = model(x.to(memory_format=torch.channels_last))
-                amaps.append((torch.sigmoid(logits.float()) * v).squeeze(1).cpu())
-        return scoring.Scoring.score_arrays(torch.cat(amaps).numpy(), test)
+            amaps = Compute.batched_forward(span, len(test), 16).numpy()
+        return scoring.Scoring.score_arrays(amaps, test)
 
 
 SPEC = MethodCli.method_spec("draem", DraemMethod, DraemCfg)

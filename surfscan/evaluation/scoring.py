@@ -30,15 +30,15 @@ class Scoring:
     def anomaly_maps(self, data, batch=64):
         """-> (N,H,W) per-pixel squared-reconstruction-error maps, zeroed outside the object."""
         self.model.eval()
-        out = []
-        for i in range(0, len(data), batch):
-            x = data.x[i:i + batch].to(memory_format=torch.channels_last)
-            m = data.valid[i:i + batch]
+
+        def span(i0, i1):
+            x = data.x[i0:i1].to(memory_format=torch.channels_last)
+            m = data.valid[i0:i1]
             with Compute.autocast(x, amp=self.amp):
                 recon, _, _ = self.model(x)
             err = ((recon.float() - x.float()) ** 2).sum(1, keepdim=True) * m   # N,1,H,W
-            out.append(err.squeeze(1).cpu())
-        return torch.cat(out).numpy()
+            return err.squeeze(1).cpu()
+        return Compute.batched_forward(span, len(data), batch).numpy()
 
     @torch.no_grad()
     def inpaint_maps(self, data, grid=8, batch=16):
@@ -47,10 +47,10 @@ class Scoring:
         self.model.eval()
         size = data.x.shape[-1]
         patch = size // grid
-        out = []
-        for i in range(0, len(data), batch):
-            x = data.x[i:i + batch]
-            m = data.valid[i:i + batch]
+
+        def span(i0, i1):
+            x = data.x[i0:i1]
+            m = data.valid[i0:i1]
             inpainted = torch.zeros_like(x)
             for gy in range(grid):
                 for gx in range(grid):
@@ -62,8 +62,8 @@ class Scoring:
                         r = self.model(xm.to(memory_format=torch.channels_last))
                     inpainted[..., ys, xs] = r.float()[..., ys, xs]
             err = ((x - inpainted) ** 2).sum(1, keepdim=True) * m
-            out.append(err.squeeze(1).cpu())
-        return torch.cat(out).numpy()
+            return err.squeeze(1).cpu()
+        return Compute.batched_forward(span, len(data), batch).numpy()
 
     @staticmethod
     def image_scores(amaps, valids, k=128):
@@ -77,27 +77,47 @@ class Scoring:
         return s
 
     @staticmethod
-    def score_arrays(amaps, test, scores=None):
-        """Assemble the harness ScoreArrays tuple from anomaly maps + a test split — the shared tail of
-        every method's score_fn (default image score = top-k residual; pass `scores` to override)."""
-        valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
-        masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
-        if scores is None:
-            scores = Scoring.image_scores(amaps, valids)
+    def score_arrays(amaps, test, scores=None, idx=None):
+        """GpuSplit path -> the harness ScoreArrays 6-tuple. `idx` selects a row subset (the triad arm
+        scores only the shared real-eval half); default = the whole split. Default image score = top-k
+        residual over valid px (pass `scores` to override)."""
+        sel = slice(None) if idx is None else torch.as_tensor(idx, device=test.valid.device)
+        valids = test.valid[sel].squeeze(1).cpu().numpy().astype(bool)
+        masks = test.gt[sel].squeeze(1).cpu().numpy().astype(bool)
+        labels, defects = test.df["label"].to_numpy(), np.array(test.df["defect"].to_list())
+        if idx is not None:
+            labels, defects = labels[idx], defects[idx]
+        scores = Scoring.image_scores(amaps, valids) if scores is None else scores
+        return amaps, valids, masks, scores, labels, defects
+
+    @staticmethod
+    def score_arrays_store(amaps, test, dft, scores=None):
+        """Store-dict path -> the same ScoreArrays 6-tuple: valid/gt come from per-sample store dicts (the
+        BTF / PointMAE geometry methods read the raw store, not a GpuSplit); labels from the dataframe."""
+        valids = np.stack([a["valid"].astype(bool) for a in test])
+        masks = np.stack([a["gt"] > 0 for a in test])
+        scores = Scoring.image_scores(amaps, valids) if scores is None else scores
         return (amaps, valids, masks, scores,
-                test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
+                dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
+
+    @staticmethod
+    def logits_to_amap(logits, valid):
+        """Segmentation logits -> a per-pixel anomaly map: sigmoid, gated by the valid mask, object-frame,
+        (N,1,H,W) -> (N,H,W) on cpu. The shared amap tail of the discriminative (DRAEM / triad) scorers;
+        numpy-wanting callers append `.numpy()`."""
+        return (torch.sigmoid(logits.float()) * valid).squeeze(1).cpu()
 
     @torch.no_grad()
     def latents(self, data, batch=64):
         """-> (N,D) encoder latent means (VAE mu) — the input to latent-distance scoring."""
         self.model.eval()
-        out = []
-        for i in range(0, len(data), batch):
-            x = data.x[i:i + batch].to(memory_format=torch.channels_last)
+
+        def span(i0, i1):
+            x = data.x[i0:i1].to(memory_format=torch.channels_last)
             with Compute.autocast(x, amp=self.amp):
                 mu, _ = self.model.encode(x)
-            out.append(mu.float().cpu())
-        return torch.cat(out).numpy()
+            return mu.float().cpu()
+        return Compute.batched_forward(span, len(data), batch).numpy()
 
     @staticmethod
     def mahalanobis(train_lat, test_lat):

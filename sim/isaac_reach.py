@@ -36,7 +36,7 @@ class IsaacReach:
     One sphere is reused across episodes (teleported home on `reset`, not re-spawned). `configure` sets the
     per-episode seed + the `Phys` (mass/gain), so a factory closure yields matched goals across sim/real."""
 
-    def __init__(self, world: Any, sphere: Any, view: Any, physx_rb: Any, task: Any, dt: float):
+    def __init__(self, world: Any, sphere: Any, view: Any, physx_rb: Any, task: Any, dt: float):  # noqa: PLR0913
         self._world = world
         self._sphere = sphere
         self._view = view

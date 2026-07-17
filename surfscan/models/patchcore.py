@@ -83,15 +83,13 @@ class PatchCore:
         Scored via bank_nn_dist (the matmul-offload form) in qchunk-row blocks so the (n*h*w, M) field
         never materializes in full — at high resolution that matrix is what spills VRAM."""
         H, W = x.shape[-2:]
-        out = []
-        for i in range(0, len(x), batch):
-            e, (h, w) = self._embed(x[i:i + batch])                # n,h*w,C
+
+        def span(i0, i1):
+            e, (h, w) = self._embed(x[i0:i1])                      # n,h*w,C
             n = e.shape[0]
             q = e.reshape(-1, e.shape[-1])                          # (n*h*w, C)
-            nn = torch.empty(len(q), device=q.device)
-            for j in range(0, len(q), qchunk):
-                nn[j:j + qchunk] = Coreset.bank_nn_dist(q[j:j + qchunk], self.bank)
-            nn = nn.reshape(n, h, w)
+            nn = Compute.batched_forward(
+                lambda j0, j1: Coreset.bank_nn_dist(q[j0:j1], self.bank), len(q), qchunk).reshape(n, h, w)
             m = F.interpolate(nn[:, None], size=(H, W), mode="bilinear", align_corners=False)[:, 0]
-            out.append(m.cpu())
-        return torch.cat(out).numpy()
+            return m.cpu()
+        return Compute.batched_forward(span, len(x), batch).numpy()

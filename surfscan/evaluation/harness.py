@@ -57,9 +57,8 @@ class Harness:
             for f in ScoreArrays._fields:
                 pool[f].append(getattr(sa, f))
 
-        auroc = float(np.nanmean([r["img_auroc"] for r in rows]))
-        aupro = float(np.nanmean([r["au_pro"] for r in rows]))
-        log.info(f"  {'MEAN':12s}  img_auroc {auroc:.3f}   au_pro {aupro:.3f}")
+        mean = Scores.macro(rows)
+        log.info(f"  {'MEAN':12s}  img_auroc {mean.img_auroc:.3f}   au_pro {mean.au_pro:.3f}")
 
         pooled = ScoreArrays(**{f: np.concatenate(pool[f]) for f in ScoreArrays._fields})
         defect_rows = diagnostics.Diagnostics.by_defect(pooled)
@@ -87,7 +86,7 @@ class Harness:
             calib = metrics.Metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
-        result = {"method": method, "per_category": rows, "mean": Scores(auroc, aupro).as_dict(),
+        result = {"method": method, "per_category": rows, "mean": mean.as_dict(),
                "ci": brackets, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
         invariants.Invariants.check(result)                       # loud at run end if a number is inconsistent
         return result

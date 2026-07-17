@@ -25,5 +25,9 @@ index-strategy = "unsafe-best-match"
 # isaacsim-core pins pre-release deps (e.g. tinyobjloader==2.0.0rc13). Allow them.
 prerelease = "allow"
 
+[dependency-groups]
+dev = ["pytest"]                         # pure twin_geom unit tests; boot smoke is opt-in (SIM_ISAAC_BOOT=1)
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]                       # twin_geom / twin_obj import as top-level modules (script dir)

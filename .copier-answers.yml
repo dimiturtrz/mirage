@@ -8,7 +8,7 @@ coverage_floor: 80
 data_env_var: MIRAGE_DATA
 domain: ml
 jscpd_paths: core surfscan control
-lint_paths: core surfscan control
+lint_paths: core surfscan control sim
 packages: core,surfscan,control
 project_name: mirage
 repo_url: https://github.com/dimiturtrz/mirage

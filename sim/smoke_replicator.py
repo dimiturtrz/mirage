@@ -14,10 +14,16 @@ Decisive doc-canonical run (Isaac Sim 6.0 headless static SDG) with every docume
 Run from sim/:  OMNI_KIT_ACCEPT_EULA=YES uv run python smoke_replicator.py
 """
 import os
+import sys
+from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root -> import core.obs
+from isaacsim import SimulationApp
 
-from isaacsim import SimulationApp  # noqa: E402
+from core.obs import Obs
+
+log = Obs.get()
 
 OUT = os.path.join(os.path.dirname(__file__), "_smoke_out")
 WDIR = os.path.join(OUT, "writer")
@@ -25,14 +31,14 @@ SUBFRAMES = 32
 
 app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",
                      "multi_gpu": False, "active_gpu": 0})
-print("BOOTED", flush=True)
+log.info("BOOTED")
 
-import carb  # noqa: E402
-import omni.replicator.core as rep  # noqa: E402
-import omni.timeline  # noqa: E402
-import omni.usd  # noqa: E402
-import torch  # noqa: E402
-from pxr import Sdf, UsdLux  # noqa: E402
+import carb
+import omni.replicator.core as rep
+import omni.timeline
+import omni.usd
+import torch
+from pxr import Sdf, UsdLux
 
 s = carb.settings.get_settings()
 s.set_bool("/exts/isaacsim.core.throttling/enable_async", False)
@@ -66,7 +72,7 @@ writer.attach([rp])
 timeline = omni.timeline.get_timeline_interface()
 timeline.play()
 
-print("RENDERING...", flush=True)
+log.info("RENDERING...")
 for _ in range(2):                                       # warmup (Windows first-frame skip)
     rep.orchestrator.step(delta_time=0.0, rt_subframes=SUBFRAMES)
 for _ in range(3):                                       # capture
@@ -82,13 +88,13 @@ for n, a in annots.items():
     nz = bool(t.numel()) and bool(t.any())
     ann_ok = ann_ok or nz
     torch.save(t, os.path.join(OUT, f"{n}.pt"))
-    print(f"  annot {n:22s} shape={tuple(t.shape)} nonzero={nz}", flush=True)
+    log.info("  annot %-22s shape=%s nonzero=%s", n, tuple(t.shape), nz)
 
 wfiles = os.listdir(WDIR) if os.path.isdir(WDIR) else []
-print(f"  writer files={len(wfiles)} -> {WDIR}", flush=True)
+log.info("  writer files=%d -> %s", len(wfiles), WDIR)
 for f in sorted(wfiles)[:10]:
-    print(f"    {f}", flush=True)
+    log.info("    %s", f)
 
-print(f"RESULT annot={'PASS' if ann_ok else 'EMPTY'} writer={'PASS' if wfiles else 'EMPTY'}", flush=True)
+log.info("RESULT annot=%s writer=%s", 'PASS' if ann_ok else 'EMPTY', 'PASS' if wfiles else 'EMPTY')
 app.close()
-print("DONE", flush=True)
+log.info("DONE")

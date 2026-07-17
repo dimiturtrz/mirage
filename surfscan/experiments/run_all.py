@@ -7,8 +7,6 @@ Run:  python -m surfscan.run vae [--cats ...] [--epochs 100]
 """
 from __future__ import annotations
 
-import numpy as np
-
 from core.compute import Compute
 from core.data import mvtec
 from core.obs import Obs
@@ -41,8 +39,7 @@ class VaeRun:
             run_id = TrainRun(hp).train(run_name=f"vae_{c}", device=dev)
             rows.append(Evaluate.evaluate(run_id, cats=[c], device=dev)["per_category"][0])
 
-        mean = Scores(float(np.nanmean([r["img_auroc"] for r in rows])),
-                      float(np.nanmean([r["au_pro"] for r in rows])))
+        mean = Scores.macro(rows)
         log.info("\n===== AGGREGATE (per-category models) =====")
         for r in rows:
             log.info(f"  {r['category']:12s}  img_auroc {r['img_auroc']:.3f}   au_pro {r['au_pro']:.3f}")

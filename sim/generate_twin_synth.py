@@ -14,10 +14,16 @@ Run from sim/:  OMNI_KIT_ACCEPT_EULA=YES uv run python generate_twin_synth.py --
 """
 import argparse
 import os
+import sys
+from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root -> import core.obs
+from isaacsim import SimulationApp
 
-from isaacsim import SimulationApp  # noqa: E402
+from core.obs import Obs
+
+log = Obs.get()
 
 AP = argparse.ArgumentParser()
 AP.add_argument("--views", type=int, default=8, help="good views per category")
@@ -31,38 +37,18 @@ SUBFRAMES = 48
 
 app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",
                      "multi_gpu": False, "active_gpu": 0})
-print("BOOTED", flush=True)
+log.info("BOOTED")
 
-import carb  # noqa: E402
-import numpy as np  # noqa: E402
-import omni.replicator.core as rep  # noqa: E402
-import omni.timeline  # noqa: E402
-import omni.usd  # noqa: E402
-import tifffile  # noqa: E402
-from PIL import Image  # noqa: E402
-from pxr import Gf, Sdf, UsdGeom, UsdLux, Vt  # noqa: E402
-
-
-def parse_obj(path):
-    verts, faces = [], []
-    with open(path) as fh:
-        for line in fh:
-            if line.startswith("v "):
-                verts.append([float(x) for x in line.split()[1:4]])
-            elif line.startswith("f "):
-                faces.append([int(t.split("/")[0]) - 1 for t in line.split()[1:4]])
-    return np.array(verts, np.float32), np.array(faces, np.int32)
-
-
-def build_mesh(stage, verts, faces):
-    mesh = UsdGeom.Mesh.Define(stage, "/World/Object")
-    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(verts.astype(np.float32)))
-    mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(faces), 3, np.int32)))
-    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(faces.flatten().astype(np.int32)))
-    mesh.CreateDoubleSidedAttr(True)
-    mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
-    mesh.CreateDisplayColorAttr([Gf.Vec3f(0.8, 0.7, 0.5)])
-    return mesh
+import carb
+import numpy as np
+import omni.replicator.core as rep
+import omni.timeline
+import omni.usd
+import tifffile
+from PIL import Image
+from pxr import Gf, Sdf, UsdGeom, UsdLux, Vt
+from twin_geom import backproject, deform, parse_obj
+from twin_obj import build_mesh
 
 
 def intrinsics(stage, w, h):
@@ -71,16 +57,6 @@ def intrinsics(stage, w, h):
     fx = w * focal / cam.GetHorizontalApertureAttr().Get()
     fy = h * focal / cam.GetVerticalApertureAttr().Get()
     return fx, fy
-
-
-def backproject(depth, fx, fy):
-    """z-depth (perpendicular) -> organized camera-frame xyz [H,W,3]; misses (inf) -> 0."""
-    h, w = depth.shape
-    u, v = np.meshgrid(np.arange(w), np.arange(h))
-    z = np.where(np.isfinite(depth), depth, 0.0).astype(np.float32)
-    x = (u - w / 2.0) / fx * z
-    y = (v - h / 2.0) / fy * z
-    return np.stack([x, y, z], -1).astype(np.float32)
 
 
 def jitter_pose(mesh, rng, cz):
@@ -92,20 +68,6 @@ def jitter_pose(mesh, rng, cz):
                               float(rng.uniform(-0.01, 0.01)),
                               float(rng.uniform(-0.01, 0.01))))
     _ = cz
-
-
-def deform(verts, rng, sign):
-    """Physical defect: Gaussian z-displacement of a local surface patch (dent sign=+1 pushes the
-    surface away from the sensor, bump sign=-1 toward it) — the 3D-mesh analogue of the classical
-    normal-displacement defect, but rendered through the path tracer."""
-    extent = float(np.linalg.norm(verts.max(0) - verts.min(0)))
-    radius = extent * rng.uniform(0.05, 0.12)
-    amp = sign * extent * rng.uniform(0.03, 0.06)
-    c = verts[rng.randint(len(verts))]
-    w = np.exp(-((verts - c) ** 2).sum(1) / (2 * radius ** 2))
-    out = verts.copy()
-    out[:, 2] += amp * w
-    return out, abs(amp)
 
 
 def render_depth_rgb(rgb_a, dep_a):
@@ -149,10 +111,10 @@ for cat in categories():
     dep_a = rep.annotators.get("distance_to_image_plane"); dep_a.attach(rp)
     fx, fy = intrinsics(stage, ARGS.res, ARGS.res)
 
-    def set_points(v):
+    def set_points(v, mesh=mesh):
         mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
 
-    def randomize_scene():
+    def randomize_scene(mesh=mesh, cz=cz, light=light, dome=dome):
         jitter_pose(mesh, rng, cz)
         light.CreateIntensityAttr(float(rng.uniform(2000, 4000)))
         dome.CreateIntensityAttr(float(rng.uniform(600, 1400)))
@@ -189,8 +151,7 @@ for cat in categories():
             Image.fromarray(gt).save(f"{ddir}/gt/{i:03d}.png")
 
     timeline.stop()
-    print(f"CAT {cat:12s} good={ARGS.views} defect={2 * n_def} mean_obj_px={npx // ARGS.views}",
-          flush=True)
+    log.info("CAT %-12s good=%d defect=%d mean_obj_px=%d", cat, ARGS.views, 2 * n_def, npx // ARGS.views)
 
-print("DONE", flush=True)
+log.info("DONE")
 app.close()

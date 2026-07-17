@@ -6,11 +6,24 @@ context on cuda (bf16) and cpu (a no-op), so one code path runs GPU-resident or 
 """
 from __future__ import annotations
 
+from typing import Callable
+
 import torch
+from jaxtyping import Shaped
+from torch import Tensor
 
 
 class Compute:
     """Device policy — decided once at the root (helpers folded in as staticmethods, public names kept)."""
+
+    @staticmethod
+    def batched_forward(fn: Callable[[int, int], Shaped[Tensor, "b ..."]], n: int,
+                        batch: int) -> Shaped[Tensor, "n ..."]:
+        """Run `fn(start, stop)` over contiguous `batch`-sized spans of `n` items and concat the chunks.
+        The per-span op — model forward, autocast, reduction, `.cpu()` — is the caller's `fn`; this owns
+        only the slice loop + final `cat`, the shape every batched scorer/embedder repeats. Callers that
+        want numpy call `.numpy()` on the result; a chunked 1-D fill (nn-dist, cdist) is the same cat."""
+        return torch.cat([fn(i, min(i + batch, n)) for i in range(0, n, batch)])
 
     @staticmethod
     def pick_device(prefer: str = "cuda") -> str:

@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+import numpy as np
+
 
 @dataclass(frozen=True)
 class Scores:
@@ -12,6 +14,13 @@ class Scores:
 
     img_auroc: float
     au_pro: float
+
+    @classmethod
+    def macro(cls, rows: list[dict]) -> Scores:
+        """Macro headline (mean over categories) from per-category rows carrying `img_auroc` / `au_pro`
+        — the nanmean reduction shared by the live harness and the per-category run aggregator."""
+        return cls(float(np.nanmean([r["img_auroc"] for r in rows])),
+                   float(np.nanmean([r["au_pro"] for r in rows])))
 
     def as_dict(self) -> dict[str, float]:
         """Plain-dict form for the result payload + JSON artifact (stays serializable downstream)."""

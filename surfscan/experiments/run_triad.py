@@ -215,11 +215,9 @@ class TriadRun:
         """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
         dev = self.dev
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev)
-        labels = test.df["label"].to_numpy()
-        defects = np.array(test.df["defect"].to_list())
-        _, ei = TriadRun._split_idx(labels)
+        _, ei = TriadRun._split_idx(test.df["label"].to_numpy())
         t = torch.as_tensor(ei, device=dev)
-        x, v, g = test.x[t], test.valid[t], test.gt[t]
+        x, v = test.x[t], test.valid[t]
         model.eval()
 
         def span(i0, i1):
@@ -227,10 +225,7 @@ class TriadRun:
                 logits = model(x[i0:i1].to(memory_format=torch.channels_last))
             return scoring.Scoring.logits_to_amap(logits, v[i0:i1])
         amaps = Compute.batched_forward(span, x.shape[0], batch).numpy()
-        valids = v.squeeze(1).cpu().numpy().astype(bool)
-        masks = g.squeeze(1).cpu().numpy().astype(bool)
-        scores = scoring.Scoring.image_scores(amaps, valids)
-        return amaps, valids, masks, scores, labels[ei], defects[ei]
+        return scoring.Scoring.score_arrays(amaps, test, idx=ei)
 
     @staticmethod
     def args(ap):

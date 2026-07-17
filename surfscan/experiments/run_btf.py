@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import numpy as np
-
 from core.data import store
 from core.data.mvtec import Split
 from surfscan.evaluation import scoring
@@ -37,11 +35,7 @@ class BtfMethod:
     def score(self, state, cat):
         dft, test = store.Store.arrays(cat, Split.TEST, size=self.size)
         amaps = state.score_maps([(a["xyz"], a["valid"]) for a in test])
-        valids = np.stack([a["valid"].astype(bool) for a in test])
-        masks = np.stack([(a["gt"] > 0) for a in test])
-        scores = scoring.Scoring.image_scores(amaps, valids)
-        return (amaps, valids, masks, scores,
-                dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
+        return scoring.Scoring.score_arrays_store(amaps, test, dft)
 
 
 SPEC = MethodCli.method_spec("btf", BtfMethod, BtfCfg)

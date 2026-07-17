@@ -77,15 +77,28 @@ class Scoring:
         return s
 
     @staticmethod
-    def score_arrays(amaps, test, scores=None):
-        """Assemble the harness ScoreArrays tuple from anomaly maps + a test split — the shared tail of
-        every method's score_fn (default image score = top-k residual; pass `scores` to override)."""
-        valids = test.valid.squeeze(1).cpu().numpy().astype(bool)
-        masks = test.gt.squeeze(1).cpu().numpy().astype(bool)
-        if scores is None:
-            scores = Scoring.image_scores(amaps, valids)
+    def score_arrays(amaps, test, scores=None, idx=None):
+        """GpuSplit path -> the harness ScoreArrays 6-tuple. `idx` selects a row subset (the triad arm
+        scores only the shared real-eval half); default = the whole split. Default image score = top-k
+        residual over valid px (pass `scores` to override)."""
+        sel = slice(None) if idx is None else torch.as_tensor(idx, device=test.valid.device)
+        valids = test.valid[sel].squeeze(1).cpu().numpy().astype(bool)
+        masks = test.gt[sel].squeeze(1).cpu().numpy().astype(bool)
+        labels, defects = test.df["label"].to_numpy(), np.array(test.df["defect"].to_list())
+        if idx is not None:
+            labels, defects = labels[idx], defects[idx]
+        scores = Scoring.image_scores(amaps, valids) if scores is None else scores
+        return amaps, valids, masks, scores, labels, defects
+
+    @staticmethod
+    def score_arrays_store(amaps, test, dft, scores=None):
+        """Store-dict path -> the same ScoreArrays 6-tuple: valid/gt come from per-sample store dicts (the
+        BTF / PointMAE geometry methods read the raw store, not a GpuSplit); labels from the dataframe."""
+        valids = np.stack([a["valid"].astype(bool) for a in test])
+        masks = np.stack([a["gt"] > 0 for a in test])
+        scores = Scoring.image_scores(amaps, valids) if scores is None else scores
         return (amaps, valids, masks, scores,
-                test.df["label"].to_numpy(), np.array(test.df["defect"].to_list()))
+                dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
     @staticmethod
     def logits_to_amap(logits, valid):

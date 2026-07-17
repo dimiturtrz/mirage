@@ -19,8 +19,8 @@ Standard sim split: engine renders → adapter ingests → harness scores. One r
 ```bash
 cd sim
 uv sync                                   # builds sim/.venv (py3.12, isaacsim 6.0.1.0 from pypi.nvidia.com)
-OMNI_KIT_ACCEPT_EULA=YES uv run python smoke_init.py   # p3h spike: kit kernel boots on the 5090?
 ```
+Verify the kit kernel boots on the 5090 with the boot smoke (see [Tests](#tests)).
 Requires Windows long-path enabled (`LongPathsEnabled=1`). Blackwell note: use a standard `Camera`,
 not `TiledCamera` (IsaacLab #4951 hangs on sm_120) — TiledCamera only matters for parallel-env RL.
 

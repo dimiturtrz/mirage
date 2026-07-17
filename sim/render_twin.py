@@ -33,7 +33,8 @@ import omni.timeline  # noqa: E402
 import omni.usd  # noqa: E402
 import torch  # noqa: E402
 from pxr import Gf, Sdf, UsdGeom, UsdLux  # noqa: E402
-from twin_obj import build_mesh, parse_obj  # noqa: E402
+from twin_geom import parse_obj  # noqa: E402
+from twin_obj import build_mesh  # noqa: E402
 
 verts, faces = parse_obj(OBJ)
 centroid = verts.mean(0)

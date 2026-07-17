@@ -41,7 +41,8 @@ import omni.usd  # noqa: E402
 import tifffile  # noqa: E402
 from PIL import Image  # noqa: E402
 from pxr import Gf, Sdf, UsdGeom, UsdLux, Vt  # noqa: E402
-from twin_obj import build_mesh, parse_obj  # noqa: E402
+from twin_geom import backproject, deform, parse_obj  # noqa: E402
+from twin_obj import build_mesh  # noqa: E402
 
 
 def intrinsics(stage, w, h):
@@ -50,16 +51,6 @@ def intrinsics(stage, w, h):
     fx = w * focal / cam.GetHorizontalApertureAttr().Get()
     fy = h * focal / cam.GetVerticalApertureAttr().Get()
     return fx, fy
-
-
-def backproject(depth, fx, fy):
-    """z-depth (perpendicular) -> organized camera-frame xyz [H,W,3]; misses (inf) -> 0."""
-    h, w = depth.shape
-    u, v = np.meshgrid(np.arange(w), np.arange(h))
-    z = np.where(np.isfinite(depth), depth, 0.0).astype(np.float32)
-    x = (u - w / 2.0) / fx * z
-    y = (v - h / 2.0) / fy * z
-    return np.stack([x, y, z], -1).astype(np.float32)
 
 
 def jitter_pose(mesh, rng, cz):
@@ -71,20 +62,6 @@ def jitter_pose(mesh, rng, cz):
                               float(rng.uniform(-0.01, 0.01)),
                               float(rng.uniform(-0.01, 0.01))))
     _ = cz
-
-
-def deform(verts, rng, sign):
-    """Physical defect: Gaussian z-displacement of a local surface patch (dent sign=+1 pushes the
-    surface away from the sensor, bump sign=-1 toward it) — the 3D-mesh analogue of the classical
-    normal-displacement defect, but rendered through the path tracer."""
-    extent = float(np.linalg.norm(verts.max(0) - verts.min(0)))
-    radius = extent * rng.uniform(0.05, 0.12)
-    amp = sign * extent * rng.uniform(0.03, 0.06)
-    c = verts[rng.randint(len(verts))]
-    w = np.exp(-((verts - c) ** 2).sum(1) / (2 * radius ** 2))
-    out = verts.copy()
-    out[:, 2] += amp * w
-    return out, abs(amp)
 
 
 def render_depth_rgb(rgb_a, dep_a):

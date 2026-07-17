@@ -1,20 +1,9 @@
-"""Shared twin-OBJ loader for the sim/ Isaac render scripts: parse a df0.1 twin OBJ into (verts, faces)
-and stage the corresponding UsdGeom.Mesh. Imported POST-SimulationApp-boot (the pxr USD runtime only
-resolves once the kit app is up), alongside each script's other omni/pxr imports.
+"""USD staging for the sim/ Isaac render scripts: turn parsed twin (verts, faces) into a UsdGeom.Mesh.
+Imported POST-SimulationApp-boot (the pxr USD runtime only resolves once the kit app is up), alongside
+each script's other omni/pxr imports. The pure OBJ parse + geometry helpers live in twin_geom (pxr-free).
 """
 import numpy as np
 from pxr import Gf, UsdGeom, Vt
-
-
-def parse_obj(path):
-    verts, faces = [], []
-    with open(path) as fh:
-        for line in fh:
-            if line.startswith("v "):
-                verts.append([float(x) for x in line.split()[1:4]])
-            elif line.startswith("f "):
-                faces.append([int(t.split("/")[0]) - 1 for t in line.split()[1:4]])
-    return np.array(verts, np.float32), np.array(faces, np.int32)
 
 
 def build_mesh(stage, verts, faces):

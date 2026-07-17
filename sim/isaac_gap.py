@@ -15,7 +15,6 @@ is an opt-in fidelity check, not the CI-gated multi-seed harness. Run from sim/:
 import argparse
 import os
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"

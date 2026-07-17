@@ -24,6 +24,15 @@ OMNI_KIT_ACCEPT_EULA=YES uv run python smoke_init.py   # p3h spike: kit kernel b
 Requires Windows long-path enabled (`LongPathsEnabled=1`). Blackwell note: use a standard `Camera`,
 not `TiledCamera` (IsaacLab #4951 hangs on sm_120) — TiledCamera only matters for parallel-env RL.
 
+## Tests
+```bash
+uv run pytest tests/unit                               # pure twin_geom helpers — no Isaac boot
+OMNI_KIT_ACCEPT_EULA=YES SIM_ISAAC_BOOT=1 uv run pytest tests/test_boot_smoke.py -s   # opt-in boot smoke
+```
+`twin_geom.py` holds the pxr-free geometry (OBJ parse, depth back-projection, the Gaussian defect) so it
+unit-tests in any numpy env; the Isaac boot + USD `build_mesh` staging are the opt-in smoke, GPU-gated
+behind `SIM_ISAAC_BOOT=1` (kit fastShutdown eats pytest's summary, so it prints a `BOOT_SMOKE_OK` sentinel).
+
 ## Data handoff (perception)
 `generate.py` (this env) writes renders to `<data root>/synth/<category>/...`; the perception env's
 `core/data/synth.py` adapter maps them to the common store schema (same shape as the MVTec adapter),

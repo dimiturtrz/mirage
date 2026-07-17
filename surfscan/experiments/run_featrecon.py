@@ -10,13 +10,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import optim
+from jaxtyping import Float
+from torch import Tensor, optim
 
 from core.compute import Compute
 from core.data.dataset import GpuSplit
 from core.data.mvtec import Split
+from core.method import ScoreArrays
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.feat_recon import FeatAE, FeatExtractor
@@ -42,11 +45,12 @@ class FeatReconMethod:
         return Compute.batched_forward(lambda i0, i1: ext(x[i0:i1]).float(), len(x), batch)
 
     @staticmethod
-    def _score_maps(ext, ae, x, hw, batch=32):
+    def _score_maps(ext, ae, x: Float[Tensor, "n c h w"], hw: tuple[int, int],
+                    batch: int = 32) -> Float[np.ndarray, "n h w"]:
         H, W = hw
         ae.eval()
 
-        def span(i0, i1):
+        def span(i0: int, i1: int) -> Float[Tensor, "b h w"]:
             with torch.no_grad():
                 f = ext(x[i0:i1]).float()
                 err = ((f - ae(f)) ** 2).sum(1, keepdim=True)
@@ -66,7 +70,7 @@ class FeatReconMethod:
 
         return Trainer(ae, opt, self.dev, batch=32).fit(len(tf), self.cfg.epochs, step)
 
-    def score(self, ae, cat):
+    def score(self, ae, cat: str) -> ScoreArrays:
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=["rgb"], device=self.dev)
         H, W = test.x.shape[-2:]
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)

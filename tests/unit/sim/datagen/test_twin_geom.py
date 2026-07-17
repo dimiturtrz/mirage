@@ -1,7 +1,7 @@
 """Unit tests for the pxr-free twin geometry helpers (twin_geom) — OBJ parse, depth back-projection,
 Gaussian-patch defect. No Isaac boot required: they run in any numpy env."""
 import numpy as np
-from twin_geom import backproject, deform, parse_obj
+from sim.datagen.twin_geom import backproject, deform, parse_obj
 
 
 class TestParseObj:

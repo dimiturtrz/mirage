@@ -9,11 +9,21 @@ Two image-level scores from a reconstruction model:
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Callable
+
 import numpy as np
 import torch
+from jaxtyping import Bool, Float, Int
 from sklearn.covariance import LedoitWolf
+from torch import Tensor
 
 from core.compute import Compute
+
+if TYPE_CHECKING:
+    import polars as pl
+
+    from core.data.dataset import GpuSplit
+    from core.method import ScoreArrays
 
 
 class Scoring:
@@ -27,7 +37,7 @@ class Scoring:
         self.amp = amp
 
     @torch.no_grad()
-    def anomaly_maps(self, data, batch=64):
+    def anomaly_maps(self, data: GpuSplit, batch: int = 64) -> Float[np.ndarray, "n h w"]:
         """-> (N,H,W) per-pixel squared-reconstruction-error maps, zeroed outside the object."""
         self.model.eval()
 
@@ -41,7 +51,7 @@ class Scoring:
         return Compute.batched_forward(span, len(data), batch).numpy()
 
     @torch.no_grad()
-    def inpaint_maps(self, data, grid=8, batch=16):
+    def inpaint_maps(self, data: GpuSplit, grid: int = 8, batch: int = 16) -> Float[np.ndarray, "n h w"]:
         """Anomaly maps for the inpainting model: mask each grid cell, fill from the model's
         prediction, assemble an 'inpainted' image; anomaly = (input - inpainted)^2."""
         self.model.eval()
@@ -66,7 +76,8 @@ class Scoring:
         return Compute.batched_forward(span, len(data), batch).numpy()
 
     @staticmethod
-    def image_scores(amaps, valids, k=128):
+    def image_scores(amaps: Float[np.ndarray, "n h w"], valids: Bool[np.ndarray, "n h w"],
+                     k: int = 128) -> Float[np.ndarray, "n"]:
         """Image-level score = mean of the top-k pixel residuals over valid pixels."""
         s = np.zeros(len(amaps), dtype=np.float64)
         for i, (a, v) in enumerate(zip(amaps, valids, strict=True)):
@@ -77,7 +88,9 @@ class Scoring:
         return s
 
     @staticmethod
-    def score_arrays(amaps, test, scores=None, idx=None):
+    def score_arrays(amaps: Float[np.ndarray, "n h w"], test: GpuSplit,
+                     scores: Float[np.ndarray, "n"] | None = None,
+                     idx: Int[np.ndarray, "k"] | None = None) -> ScoreArrays:
         """GpuSplit path -> the harness ScoreArrays 6-tuple. `idx` selects a row subset (the triad arm
         scores only the shared real-eval half); default = the whole split. Default image score = top-k
         residual over valid px (pass `scores` to override)."""
@@ -91,7 +104,8 @@ class Scoring:
         return amaps, valids, masks, scores, labels, defects
 
     @staticmethod
-    def score_arrays_store(amaps, test, dft, scores=None):
+    def score_arrays_store(amaps: Float[np.ndarray, "n h w"], test: list[dict], dft: pl.DataFrame,
+                           scores: Float[np.ndarray, "n"] | None = None) -> ScoreArrays:
         """Store-dict path -> the same ScoreArrays 6-tuple: valid/gt come from per-sample store dicts (the
         BTF / PointMAE geometry methods read the raw store, not a GpuSplit); labels from the dataframe."""
         valids = np.stack([a["valid"].astype(bool) for a in test])
@@ -101,14 +115,31 @@ class Scoring:
                 dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
     @staticmethod
-    def logits_to_amap(logits, valid):
+    def logits_to_amap(logits: Float[Tensor, "n 1 h w"],
+                       valid: Float[Tensor, "n 1 h w"]) -> Float[Tensor, "n h w"]:
         """Segmentation logits -> a per-pixel anomaly map: sigmoid, gated by the valid mask, object-frame,
         (N,1,H,W) -> (N,H,W) on cpu. The shared amap tail of the discriminative (DRAEM / triad) scorers;
         numpy-wanting callers append `.numpy()`."""
         return (torch.sigmoid(logits.float()) * valid).squeeze(1).cpu()
 
+    @staticmethod
     @torch.no_grad()
-    def latents(self, data, batch=64):
+    def score_logits(forward: Callable[[int, int], Float[Tensor, "b 1 h w"]],
+                     valid: Float[Tensor, "n 1 h w"], test: GpuSplit, batch: int,
+                     idx: Int[np.ndarray, "k"] | None = None) -> ScoreArrays:
+        """Discriminative scorer (DRAEM / triad): batched forward -> sigmoid amap tail -> ScoreArrays.
+        `forward(i0, i1)` returns the model's raw segmentation logits for that row-span; every model-specific
+        part (tuple unpack, autocast, channels_last, the triad's eval-half subset) lives in that closure.
+        `valid` is the per-pixel mask aligned to forward's row space (its length is the row count); `idx`
+        subsets the split rows for score_arrays (the triad scores only the shared real-eval half; DRAEM
+        scores the whole split)."""
+        def span(i0, i1):
+            return Scoring.logits_to_amap(forward(i0, i1), valid[i0:i1])
+        amaps = Compute.batched_forward(span, valid.shape[0], batch).numpy()
+        return Scoring.score_arrays(amaps, test, idx=idx)
+
+    @torch.no_grad()
+    def latents(self, data: GpuSplit, batch: int = 64) -> Float[np.ndarray, "n d"]:
         """-> (N,D) encoder latent means (VAE mu) — the input to latent-distance scoring."""
         self.model.eval()
 

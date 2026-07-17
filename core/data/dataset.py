@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 import torch
+from jaxtyping import Float
 
 from core.data import preprocess as pp
 from core.data import store
@@ -39,7 +40,7 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
         return self.x.shape[0]
 
     @staticmethod
-    def _stack_channels(a: dict, channels) -> np.ndarray:
+    def _stack_channels(a: dict, channels) -> Float[np.ndarray, "c h w"]:
         """(H,W,3) channels -> one (C,H,W) float32 array."""
         return np.concatenate([a[c].transpose(2, 0, 1) for c in channels], 0).astype(np.float32)
 

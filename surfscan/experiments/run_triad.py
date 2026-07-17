@@ -25,7 +25,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import optim
+from jaxtyping import Float, Int
+from torch import Tensor, optim
 
 from core.cli_config import CliConfig
 from core.compute import Compute
@@ -33,7 +34,7 @@ from core.data.dataset import GpuSplit
 from core.data.defects import KINDS, Defects
 from core.data.mvtec import Split
 from core.data.store import Source
-from core.method import Method
+from core.method import Method, ScoreArrays
 from core.obs import Obs
 from surfscan.dispatch import Dispatch, Spec
 from surfscan.evaluation import harness, scoring
@@ -135,7 +136,7 @@ class TriadRun:
         return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(f"synth:{cat}")).fit(
             tr_t.shape[0], cfg.epochs, step, after_epoch=(ctrl.end_epoch if ctrl else None), stop=stop)
 
-    def _fit_bce(self, data, tag, rows=None):
+    def _fit_bce(self, data: GpuSplit, tag: str, rows: Int[np.ndarray, "k"] | None = None) -> nn.Module:
         """Shared supervised-BCE seg arm — seed, a fresh model, AdamW, per-batch masked BCE, Trainer.fit.
         The real (scarce-label calib half, `rows`=calib idx) and twin-phys (whole rendered synthetic
         split) arms differ only in which loaded split feeds it + the telemetry `tag`."""
@@ -203,7 +204,7 @@ class TriadRun:
         return TriadRun._adabn(model, test.x[torch.as_tensor(ei, device=dev)])
 
     @torch.no_grad()
-    def score(self, model, cat, batch=BATCH):
+    def score(self, model, cat: str, batch: int = BATCH) -> ScoreArrays:
         """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
         dev = self.dev
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev)
@@ -212,12 +213,10 @@ class TriadRun:
         x, v = test.x[t], test.valid[t]
         model.eval()
 
-        def span(i0, i1):
+        def forward(i0: int, i1: int) -> Float[Tensor, "b 1 h w"]:
             with Compute.autocast(x):
-                logits = model(x[i0:i1].to(memory_format=torch.channels_last))
-            return scoring.Scoring.logits_to_amap(logits, v[i0:i1])
-        amaps = Compute.batched_forward(span, x.shape[0], batch).numpy()
-        return scoring.Scoring.score_arrays(amaps, test, idx=ei)
+                return model(x[i0:i1].to(memory_format=torch.channels_last))
+        return scoring.Scoring.score_logits(forward, v, test, batch, idx=ei)
 
     @staticmethod
     def args(ap):

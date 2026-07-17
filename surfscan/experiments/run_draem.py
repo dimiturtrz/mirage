@@ -13,12 +13,14 @@ from dataclasses import dataclass, field
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import optim
+from jaxtyping import Float
+from torch import Tensor, optim
 
 from core.compute import Compute
 from core.data.dataset import GpuSplit
 from core.data.defects import Defects  # channel-aware coherent defects
 from core.data.mvtec import Split
+from core.method import ScoreArrays
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.draem import Draem, DraemSynth
@@ -61,16 +63,13 @@ class DraemMethod:
 
         return Trainer(model, opt, self.dev, batch=16).fit(len(train), self.cfg.epochs, step)
 
-    def score(self, model, cat):
+    def score(self, model, cat: str) -> ScoreArrays:
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=self.cfg.channels, device=self.dev)
         model.eval()
 
-        def span(i0, i1):
-            _, logits = model(test.x[i0:i1].to(memory_format=torch.channels_last))
-            return scoring.Scoring.logits_to_amap(logits, test.valid[i0:i1])
-        with torch.no_grad():
-            amaps = Compute.batched_forward(span, len(test), 16).numpy()
-        return scoring.Scoring.score_arrays(amaps, test)
+        def forward(i0: int, i1: int) -> Float[Tensor, "b 1 h w"]:
+            return model(test.x[i0:i1].to(memory_format=torch.channels_last))[1]
+        return scoring.Scoring.score_logits(forward, test.valid, test, 16)
 
 
 SPEC = MethodCli.method_spec("draem", DraemMethod, DraemCfg)

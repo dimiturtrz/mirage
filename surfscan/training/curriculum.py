@@ -13,6 +13,7 @@ sample the next batch's kind ∝ softmax(standardized EMA loss). Unseen kinds st
 from __future__ import annotations
 
 import numpy as np
+from jaxtyping import Float
 
 
 class KindCurriculum:
@@ -24,7 +25,7 @@ class KindCurriculum:
         self.loss: dict[str, float | None] = dict.fromkeys(self.kinds)
         self.history: list[dict] = []
 
-    def _weights(self) -> np.ndarray:
+    def _weights(self) -> Float[np.ndarray, "k"]:
         vals = [self.loss[k] for k in self.kinds]
         seen = [v for v in vals if v is not None]
         default = max(seen) if seen else 1.0                  # unseen kinds explore at max loss

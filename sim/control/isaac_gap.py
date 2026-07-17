@@ -8,17 +8,14 @@ the toy finding (a robustness margin, then a cliff) should transfer up the fidel
 policy/spine/metric code.
 
 Reduced counts (fewer demos/episodes/seeds than the point-mass run) keep the GPU rollout minutes-long — this
-is an opt-in fidelity check, not the CI-gated multi-seed harness. Run from sim/:
+is an opt-in fidelity check, not the CI-gated multi-seed harness. Run from the repo root:
 
-    OMNI_KIT_ACCEPT_EULA=YES uv run python isaac_gap.py [--seeds 3] [--episodes 40]
+    OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m sim.control.isaac_gap [--seeds 3] [--episodes 40]
 """
 import argparse
 import os
-import sys
-from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root -> import core / control
 from isaacsim import SimulationApp
 
 from core.obs import Obs
@@ -35,12 +32,12 @@ app = SimulationApp({"headless": True})
 log.info("BOOTED")
 
 import numpy as np
-from isaac_reach import IsaacReach
 
 from control.bc import BCConfig, BCPolicy
 from control.expert import PDExpert
 from control.point_mass import Phys, Task
 from core.rollout import Rollout
+from sim.control.isaac_reach import IsaacReach
 
 _PP = 100.0
 PAYLOADS = (1.2, 1.4, 1.5, 1.6)

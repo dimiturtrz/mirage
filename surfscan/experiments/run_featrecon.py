@@ -14,6 +14,7 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
+from core.compute import Compute
 from core.data.dataset import GpuSplit
 from core.data.mvtec import Split
 from surfscan.evaluation import scoring
@@ -38,20 +39,20 @@ class FeatReconMethod:
     @staticmethod
     @torch.no_grad()
     def _feats(ext, x, batch=32):
-        return torch.cat([ext(x[i:i + batch]).float() for i in range(0, len(x), batch)])
+        return Compute.batched_forward(lambda i0, i1: ext(x[i0:i1]).float(), len(x), batch)
 
     @staticmethod
     def _score_maps(ext, ae, x, hw, batch=32):
         H, W = hw
-        out = []
         ae.eval()
-        for i in range(0, len(x), batch):
+
+        def span(i0, i1):
             with torch.no_grad():
-                f = ext(x[i:i + batch]).float()
+                f = ext(x[i0:i1]).float()
                 err = ((f - ae(f)) ** 2).sum(1, keepdim=True)
             m = F.interpolate(err, size=(H, W), mode="bilinear", align_corners=False)[:, 0]
-            out.append(m.cpu())
-        return torch.cat(out).numpy()
+            return m.cpu()
+        return Compute.batched_forward(span, len(x), batch).numpy()
 
     def fit(self, cat):
         train = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=["rgb"], device=self.dev)

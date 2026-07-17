@@ -95,7 +95,7 @@ class TriadRun:
         model.eval()
         with Compute.autocast(x):
             logits = model(aug.to(memory_format=torch.channels_last))
-        amaps = (torch.sigmoid(logits.float()) * v).squeeze(1).cpu().numpy()
+        amaps = scoring.Scoring.logits_to_amap(logits, v).numpy()
         return Metrics.au_pro(amaps, mask.squeeze(1).cpu().numpy().astype(bool),
                               v.squeeze(1).cpu().numpy().astype(bool))
 
@@ -221,12 +221,12 @@ class TriadRun:
         t = torch.as_tensor(ei, device=dev)
         x, v, g = test.x[t], test.valid[t], test.gt[t]
         model.eval()
-        amaps = []
-        for i in range(0, x.shape[0], batch):
+
+        def span(i0, i1):
             with Compute.autocast(x):
-                logits = model(x[i:i + batch].to(memory_format=torch.channels_last))
-            amaps.append((torch.sigmoid(logits.float()) * v[i:i + batch]).squeeze(1).cpu())
-        amaps = torch.cat(amaps).numpy()
+                logits = model(x[i0:i1].to(memory_format=torch.channels_last))
+            return scoring.Scoring.logits_to_amap(logits, v[i0:i1])
+        amaps = Compute.batched_forward(span, x.shape[0], batch).numpy()
         valids = v.squeeze(1).cpu().numpy().astype(bool)
         masks = g.squeeze(1).cpu().numpy().astype(bool)
         scores = scoring.Scoring.image_scores(amaps, valids)

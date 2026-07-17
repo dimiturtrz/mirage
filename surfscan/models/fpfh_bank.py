@@ -12,6 +12,8 @@ import numpy as np
 import open3d as o3d
 import torch
 
+from core.compute import Compute
+
 
 @dataclass(frozen=True)
 class FpfhCfg:
@@ -81,9 +83,8 @@ class FpfhBank:
     @torch.no_grad()
     def _score_one(self, f, coords, valid, chunk):
         ft = torch.from_numpy(f).to(self.device)
-        d = torch.empty(len(ft), device=self.device)
-        for i in range(0, len(ft), chunk):
-            d[i:i + chunk] = torch.cdist(ft[i:i + chunk], self.bank).min(1).values
+        d = Compute.batched_forward(
+            lambda i0, i1: torch.cdist(ft[i0:i1], self.bank).min(1).values, len(ft), chunk)
         amap = np.zeros(valid.shape, np.float32)
         amap[coords[:, 0], coords[:, 1]] = d.cpu().numpy()
         return amap

@@ -41,28 +41,7 @@ import omni.usd  # noqa: E402
 import tifffile  # noqa: E402
 from PIL import Image  # noqa: E402
 from pxr import Gf, Sdf, UsdGeom, UsdLux, Vt  # noqa: E402
-
-
-def parse_obj(path):
-    verts, faces = [], []
-    with open(path) as fh:
-        for line in fh:
-            if line.startswith("v "):
-                verts.append([float(x) for x in line.split()[1:4]])
-            elif line.startswith("f "):
-                faces.append([int(t.split("/")[0]) - 1 for t in line.split()[1:4]])
-    return np.array(verts, np.float32), np.array(faces, np.int32)
-
-
-def build_mesh(stage, verts, faces):
-    mesh = UsdGeom.Mesh.Define(stage, "/World/Object")
-    mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(verts.astype(np.float32)))
-    mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(faces), 3, np.int32)))
-    mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(faces.flatten().astype(np.int32)))
-    mesh.CreateDoubleSidedAttr(True)
-    mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
-    mesh.CreateDisplayColorAttr([Gf.Vec3f(0.8, 0.7, 0.5)])
-    return mesh
+from twin_obj import build_mesh, parse_obj  # noqa: E402
 
 
 def intrinsics(stage, w, h):

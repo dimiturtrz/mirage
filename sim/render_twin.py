@@ -32,19 +32,8 @@ import omni.replicator.core as rep  # noqa: E402
 import omni.timeline  # noqa: E402
 import omni.usd  # noqa: E402
 import torch  # noqa: E402
-from pxr import Gf, Sdf, UsdGeom, UsdLux, Vt  # noqa: E402
-
-
-def parse_obj(path):
-    verts, faces = [], []
-    with open(path) as fh:
-        for line in fh:
-            if line.startswith("v "):
-                verts.append([float(x) for x in line.split()[1:4]])
-            elif line.startswith("f "):
-                faces.append([int(t.split("/")[0]) - 1 for t in line.split()[1:4]])
-    return np.array(verts, np.float32), np.array(faces, np.int32)
-
+from pxr import Gf, Sdf, UsdGeom, UsdLux  # noqa: E402
+from twin_obj import build_mesh, parse_obj  # noqa: E402
 
 verts, faces = parse_obj(OBJ)
 centroid = verts.mean(0)
@@ -59,13 +48,7 @@ omni.usd.get_context().new_stage()
 stage = omni.usd.get_context().get_stage()
 rep.orchestrator.set_capture_on_play(False)
 
-mesh = UsdGeom.Mesh.Define(stage, "/World/Object")
-mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(verts.astype(np.float32)))
-mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(faces), 3, np.int32)))
-mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(faces.flatten().astype(np.int32)))
-mesh.CreateDoubleSidedAttr(True)                       # single-sided surface -> don't backface-cull
-mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
-mesh.CreateDisplayColorAttr([Gf.Vec3f(0.8, 0.7, 0.5)])
+build_mesh(stage, verts, faces)
 
 light = UsdLux.DistantLight.Define(stage, Sdf.Path("/World/Light"))
 light.CreateIntensityAttr(3000.0)

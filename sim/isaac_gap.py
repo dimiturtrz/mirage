@@ -20,7 +20,7 @@ from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from isaacsim import SimulationApp  # noqa: E402
+from isaacsim import SimulationApp
 
 _ARGS = argparse.ArgumentParser()
 _ARGS.add_argument("--seeds", type=int, default=3)

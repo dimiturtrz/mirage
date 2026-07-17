@@ -12,7 +12,7 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from isaacsim import SimulationApp  # noqa: E402
+from isaacsim import SimulationApp
 
 CAT = argparse.ArgumentParser()
 CAT.add_argument("--cat", default="bagel")

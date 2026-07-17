@@ -17,7 +17,7 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from isaacsim import SimulationApp  # noqa: E402
+from isaacsim import SimulationApp
 
 OUT = os.path.join(os.path.dirname(__file__), "_smoke_out")
 WDIR = os.path.join(OUT, "writer")

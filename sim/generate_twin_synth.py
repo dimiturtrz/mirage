@@ -17,7 +17,7 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from isaacsim import SimulationApp  # noqa: E402
+from isaacsim import SimulationApp
 
 AP = argparse.ArgumentParser()
 AP.add_argument("--views", type=int, default=8, help="good views per category")
@@ -149,10 +149,10 @@ for cat in categories():
     dep_a = rep.annotators.get("distance_to_image_plane"); dep_a.attach(rp)
     fx, fy = intrinsics(stage, ARGS.res, ARGS.res)
 
-    def set_points(v):
+    def set_points(v, mesh=mesh):
         mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
 
-    def randomize_scene():
+    def randomize_scene(mesh=mesh, cz=cz, light=light, dome=dome):
         jitter_pose(mesh, rng, cz)
         light.CreateIntensityAttr(float(rng.uniform(2000, 4000)))
         dome.CreateIntensityAttr(float(rng.uniform(600, 1400)))

@@ -93,4 +93,4 @@ helps exactly the arm whose signal is coarse enough to survive — consistent wi
 (b) closing the render↔Zivid domain gap (sensor-noise modeling / domain adaptation on the twin renders).
 
 See also: `interpretations/sim-to-real/2026-07-08_sim-to-real-triad.md` (Stage-1 classical gap),
-`core/twin/reconstruct.py` (the reconstruction), `sim/generate_twin_synth.py` (the Isaac generator).
+`core/data/dynamic/reconstruct.py` (the reconstruction), `core/data/dynamic/generate_twin_synth.py` (the Isaac generator).

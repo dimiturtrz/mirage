@@ -161,7 +161,7 @@ core/                  the reusable, method-agnostic engine
   config.py            data root from paths.yaml (-> raw/ + processed/ + synth/)
   data/                the data layer — real ingest + synthetic generation, one store
     static/            adapters (mvtec · synth) + preprocess + unified store + GPU-resident dataset
-    dynamic/           generation — classical Defects + the Isaac/Replicator twin engine (twin_geom lib + render entrypoints)
+    dynamic/           generation — classical Defects + the twin pipeline (reconstruct mesh → twin_geom lib → Isaac render)
   method.py            the (fit, score) contract the perception harness scores
   policy.py rollout.py the (train, act) contract + rollout spine the control leg scores
 surfscan/              the perception science layer

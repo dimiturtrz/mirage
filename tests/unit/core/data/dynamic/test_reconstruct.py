@@ -6,7 +6,7 @@ all-invalid -> empty.
 """
 import numpy as np
 
-from core.twin.reconstruct import CategoryReconstructor
+from core.data.dynamic.reconstruct import CategoryReconstructor
 
 
 def test_valid_points_keeps_finite_nonzero():

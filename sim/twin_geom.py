@@ -4,12 +4,14 @@ defect. USD staging (build_mesh) + the render loop stay in the boot-only scripts
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 
 def parse_obj(path):
     verts, faces = [], []
-    with open(path) as fh:
+    with Path(path).open() as fh:
         for line in fh:
             if line.startswith("v "):
                 verts.append([float(x) for x in line.split()[1:4]])

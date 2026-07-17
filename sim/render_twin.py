@@ -9,10 +9,16 @@ Run from sim/:  OMNI_KIT_ACCEPT_EULA=YES uv run python render_twin.py --cat bage
 """
 import argparse
 import os
+import sys
+from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root -> import core.obs
 from isaacsim import SimulationApp
+
+from core.obs import Obs
+
+log = Obs.get()
 
 CAT = argparse.ArgumentParser()
 CAT.add_argument("--cat", default="bagel")
@@ -24,21 +30,21 @@ SUBFRAMES = 48
 
 app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",
                      "multi_gpu": False, "active_gpu": 0})
-print("BOOTED", flush=True)
+log.info("BOOTED")
 
-import carb  # noqa: E402
-import numpy as np  # noqa: E402
-import omni.replicator.core as rep  # noqa: E402
-import omni.timeline  # noqa: E402
-import omni.usd  # noqa: E402
-import torch  # noqa: E402
-from pxr import Gf, Sdf, UsdGeom, UsdLux  # noqa: E402
-from twin_geom import parse_obj  # noqa: E402
-from twin_obj import build_mesh  # noqa: E402
+import carb
+import numpy as np
+import omni.replicator.core as rep
+import omni.timeline
+import omni.usd
+import torch
+from pxr import Gf, Sdf, UsdGeom, UsdLux
+from twin_geom import parse_obj
+from twin_obj import build_mesh
 
 verts, faces = parse_obj(OBJ)
 centroid = verts.mean(0)
-print(f"mesh V={len(verts)} F={len(faces)} centroid={centroid}", flush=True)
+log.info("mesh V=%d F=%d centroid=%s", len(verts), len(faces), centroid)
 
 s = carb.settings.get_settings()
 s.set_bool("/exts/isaacsim.core.throttling/enable_async", False)
@@ -73,7 +79,7 @@ for a in annots.values():
 timeline = omni.timeline.get_timeline_interface()
 timeline.play()
 
-print("RENDERING...", flush=True)
+log.info("RENDERING...")
 for _ in range(3):
     rep.orchestrator.step(delta_time=0.0, rt_subframes=SUBFRAMES)
 rep.orchestrator.wait_until_complete()
@@ -88,8 +94,8 @@ for n, a in annots.items():
     if n == "rgb":
         from PIL import Image
         Image.fromarray(np.asarray(arr)[..., :3]).save(os.path.join(OUT, "rgb.png"))
-    print(f"  {n:20s} shape={tuple(t.shape)} nonzero={bool(t.numel()) and bool(t.any())}", flush=True)
+    log.info("  %-20s shape=%s nonzero=%s", n, tuple(t.shape), bool(t.numel()) and bool(t.any()))
 
-print(f"WROTE -> {OUT}", flush=True)
+log.info("WROTE -> %s", OUT)
 app.close()
-print("DONE", flush=True)
+log.info("DONE")

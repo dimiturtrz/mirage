@@ -3,16 +3,23 @@
 The p3h spike's pass-criterion #1. Run from sim/:
     OMNI_KIT_ACCEPT_EULA=YES uv run python smoke_init.py
 """
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root -> import core.obs
 from isaacsim import SimulationApp
 
-print("booting SimulationApp (headless)...", flush=True)
-app = SimulationApp({"headless": True})
-print("KIT KERNEL OK", flush=True)
+from core.obs import Obs
 
-import omni.usd  # noqa: E402
+log = Obs.get()
+log.info("booting SimulationApp (headless)...")
+app = SimulationApp({"headless": True})
+log.info("KIT KERNEL OK")
+
+import omni.usd
 
 stage = omni.usd.get_context().get_stage()
-print("USD STAGE OK:", stage is not None, flush=True)
+log.info("USD STAGE OK: %s", stage is not None)
 
 app.close()
-print("CLOSED OK", flush=True)
+log.info("CLOSED OK")

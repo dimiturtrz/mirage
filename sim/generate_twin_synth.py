@@ -14,10 +14,16 @@ Run from sim/:  OMNI_KIT_ACCEPT_EULA=YES uv run python generate_twin_synth.py --
 """
 import argparse
 import os
+import sys
+from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root -> import core.obs
 from isaacsim import SimulationApp
+
+from core.obs import Obs
+
+log = Obs.get()
 
 AP = argparse.ArgumentParser()
 AP.add_argument("--views", type=int, default=8, help="good views per category")
@@ -31,18 +37,18 @@ SUBFRAMES = 48
 
 app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",
                      "multi_gpu": False, "active_gpu": 0})
-print("BOOTED", flush=True)
+log.info("BOOTED")
 
-import carb  # noqa: E402
-import numpy as np  # noqa: E402
-import omni.replicator.core as rep  # noqa: E402
-import omni.timeline  # noqa: E402
-import omni.usd  # noqa: E402
-import tifffile  # noqa: E402
-from PIL import Image  # noqa: E402
-from pxr import Gf, Sdf, UsdGeom, UsdLux, Vt  # noqa: E402
-from twin_geom import backproject, deform, parse_obj  # noqa: E402
-from twin_obj import build_mesh  # noqa: E402
+import carb
+import numpy as np
+import omni.replicator.core as rep
+import omni.timeline
+import omni.usd
+import tifffile
+from PIL import Image
+from pxr import Gf, Sdf, UsdGeom, UsdLux, Vt
+from twin_geom import backproject, deform, parse_obj
+from twin_obj import build_mesh
 
 
 def intrinsics(stage, w, h):
@@ -145,8 +151,7 @@ for cat in categories():
             Image.fromarray(gt).save(f"{ddir}/gt/{i:03d}.png")
 
     timeline.stop()
-    print(f"CAT {cat:12s} good={ARGS.views} defect={2 * n_def} mean_obj_px={npx // ARGS.views}",
-          flush=True)
+    log.info("CAT %-12s good=%d defect=%d mean_obj_px=%d", cat, ARGS.views, 2 * n_def, npx // ARGS.views)
 
-print("DONE", flush=True)
+log.info("DONE")
 app.close()

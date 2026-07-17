@@ -15,7 +15,7 @@ SELECT = "F,B,I,T201,FBT,BLE001,S101,S110,C901,PLR0912,PLR0913,PLR0915,PLR2004,P
 LAYERS = ["core", "surfscan", "control"]
 # ruff + jscpd are R1 HYGIENE gates — they may scan WIDER than the R2/R3 arch set LAYERS (a viewer / tests
 # tree worth linting). Default = LAYERS; widen via lint_paths/jscpd_paths in .copier-answers.yml (bd 9mu).
-LINT_LAYERS = ["core", "surfscan", "control"]
+LINT_LAYERS = ["core", "surfscan", "control", "sim"]
 JSCPD_LAYERS = ["core", "surfscan", "control"]
 
 

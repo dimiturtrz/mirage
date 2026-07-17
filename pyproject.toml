@@ -127,6 +127,10 @@ ignore-names = ["X*", "Y*", "B", "C", "H", "W", "F"]
 "tests/**" = ["S101", "PLR2004", "FBT", "SLF001", "N801", "N802", "N803", "N806", "N812", "PLR0913"]
 # >>> LOCAL-SLOT: per-file-ignores — repo-specific file carve-outs (e.g. a best-effort telemetry shell
 # that must never raise). Add lines here; copier update won't overwrite this region.
+# sim/ Isaac scripts: imports MUST follow SimulationApp() boot (kit runtime resolves omni/pxr only then),
+# so E402/PLC0415 are intrinsic; omni/carb APIs take positional bools (FBT003). Same tests carve-out for sim.
+"sim/**" = ["E402", "PLC0415", "FBT003"]
+"sim/tests/**" = ["S101", "PLR2004", "FBT", "SLF001", "N801", "N802", "N803", "N806", "N812", "PLR0913"]
 # <<< LOCAL-SLOT: per-file-ignores
 
 [tool.vulture]
@@ -154,8 +158,8 @@ ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "
                 "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map"]
 # <<< LOCAL-SLOT: vulture-ignore-names
 # >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
-paths = ["core", "surfscan", "control"]
-exclude = ["sim"]
+paths = ["core", "surfscan", "control", "sim"]
+exclude = ["sim/.venv", "sim/tests"]
 # <<< LOCAL-SLOT: vulture-scan
 
 [tool.coverage.run]

@@ -40,7 +40,7 @@ finally:
                     reason="isaacsim not installed (boot smoke only runs in the sim env)")
 def test_isaac_boot_and_build_mesh():
     env = {**os.environ, "OMNI_KIT_ACCEPT_EULA": "YES"}
-    r = subprocess.run([sys.executable, "-c", _BOOT], cwd=_SIM_DIR, env=env,     # cwd on sys.path -> twin_obj
+    r = subprocess.run([sys.executable, "-c", _BOOT], cwd=_SIM_DIR, env=env,  # noqa: S603
                        capture_output=True, text=True, timeout=300)
     assert "BOOT_SMOKE_OK" in r.stdout, (
         f"kit boot / build_mesh failed (rc={r.returncode})\n"

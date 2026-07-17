@@ -41,9 +41,10 @@ features = [
 # core.data.dynamic, the PhysX control env in control.sim — so 'sim' names only this optional dep now.
 # bd 53z proved it co-resolves in THIS env (no nested venv: torch stays cu130, perception deps import,
 # isaacsim boots). `uv sync --extra sim` pulls the ~156 isaacsim/omni packages (from pypi.nvidia.com, see
-# the index below) + tifffile/pillow (the generator's exporters); base perception devs never do. Kept OUT
-# of `all` so CI gate runs don't drag the engine. isaacsim ships cp312 wheels only (hence the 3.12 floor).
-sim = ["isaacsim[all,extscache]==6.0.1.0", "tifffile", "pillow"]
+# the index below); base perception devs never do. Kept OUT of `all` so CI gate runs don't drag the engine.
+# isaacsim ships cp312 wheels only (hence the 3.12 floor). tifffile/pillow are base deps already (the
+# generator's exporters are the same TIFF/PNG the MVTec adapter uses).
+sim = ["isaacsim[all,extscache]==6.0.1.0"]
 # models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
@@ -108,13 +109,11 @@ extend_exclude = ["noxfile.py"]
 DEP002 = ["pytest", "pytest-cov", "sdlc-devtools", "numpy", "jaxtyping", "beartype", "pydantic",
           "tqdm", "timm", "onnxruntime"]
 # `models` = M3DM's PointTransformer, imported from external/M3DM via a sys.path shim (checked out, never
-# vendored/PyPI), so not a declarable dependency — see surfscan/models/pointmae.py. omni/carb = isaacsim
-# runtime submodules the engine imports post-boot (inside methods); they exist only with the `sim` extra
-# installed (isaacsim, their parent, IS declared there), so from the base gate env they read as missing.
-DEP001 = ["models", "omni", "carb"]
-# pxr (USD) resolves transitively in the base env (via the usd stack open3d pulls), but the engine imports it
-# directly (post-boot USD staging) — a direct-use-of-transitive that's honest here: isaacsim owns the USD
-# runtime and we never want pxr as a top-level pin competing with it.
+# vendored/PyPI), so not a declarable dependency — see surfscan/models/pointmae.py. omni/carb/pxr = the USD/
+# isaacsim runtime the engine imports post-boot (inside methods); isaacsim (their parent, declared via the
+# `sim` extra) owns them. In the base CI gate env none are installed -> DEP001 (missing); in an env that
+# transitively has pxr (open3d's usd stack) it reads as DEP003 instead — so pxr is ignored under BOTH rules.
+DEP001 = ["models", "omni", "carb", "pxr"]
 DEP003 = ["pxr"]
 # <<< LOCAL-SLOT: deptry-unused
 

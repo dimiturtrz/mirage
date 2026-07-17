@@ -8,7 +8,7 @@ Run:  python -m surfscan.run vae [--cats ...] [--epochs 100]
 from __future__ import annotations
 
 from core.compute import Compute
-from core.data import mvtec
+from core.data.static import mvtec
 from core.obs import Obs
 from surfscan import tracking
 from surfscan.dispatch import Dispatch, Spec

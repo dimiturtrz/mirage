@@ -20,7 +20,7 @@ perception deps (open3d/timm/onnx/torchvision) import alongside it, and the kit 
 in the same site-packages. isaacsim ships cp312 wheels only (the repo's 3.12 floor) and pulls ~156
 isaacsim/omni packages from `pypi.nvidia.com`, so it sits behind the optional **`sim` extra** — base
 perception devs never install it, and CI gate runs never drag it. The sim-to-real split is a *data contract*
-([`core/data/synth.py`](../synth.py) adapts the engine's output into the common store), not an env boundary:
+([`core/data/static/synth.py`](../static/synth.py) adapts the engine's output into the common store), not an env boundary:
 engine renders → adapter ingests → harness scores.
 
 ## Setup
@@ -37,7 +37,7 @@ OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m core.data.dynamic.render_t
 ```
 The engine writes renders out-of-repo under `<data>/synth/twin/<category>/...` — an rgb png plus an organized
 camera-frame xyz position map (tiff), back-projected from depth (the same shape as the real MVTec scans). The
-[`core/data/synth.py`](../synth.py) adapter maps them to the common store schema (same shape as the MVTec
+[`core/data/static/synth.py`](../static/synth.py) adapter maps them to the common store schema (same shape as the MVTec
 adapter), so synthetic and real are one 2-source cloud the harness scores identically — the sim-to-real gap.
 
 ## Tests

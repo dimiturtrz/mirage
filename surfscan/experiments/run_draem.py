@@ -17,9 +17,9 @@ from jaxtyping import Float
 from torch import Tensor, optim
 
 from core.compute import Compute
-from core.data.dataset import GpuSplit
-from core.data.defects import Defects  # channel-aware coherent defects
-from core.data.mvtec import Split
+from core.data.dynamic.defects import Defects  # channel-aware coherent defects
+from core.data.static.dataset import GpuSplit
+from core.data.static.mvtec import Split
 from core.method import ScoreArrays
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli

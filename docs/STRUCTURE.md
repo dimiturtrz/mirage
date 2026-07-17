@@ -10,7 +10,7 @@ Two packages — a reusable engine and the science on top — plus the sim engin
 ```
 core/                the reusable, method-agnostic ENGINE (perception env — uv .venv, py3.12, torch cu130)
   config.py          one data root from paths.yaml -> raw/ + processed/ + synth/
-  data/              adapters (mvtec · synth) -> unified store; dataset (GPU-resident splits)
+  data/              static/ (adapters mvtec · synth -> unified store; dataset GPU-resident) + dynamic/ (Defects + twin engine)
   method.py          the (fit_fn, score_fn) contract + ScoreArrays the harness scores
 surfscan/            the SCIENCE layer (imports core)
   models/            the three method families: vae · inpaint · draem · feat_recon · patchcore · fpfh_bank
@@ -48,9 +48,9 @@ One-root `paths.yaml` → `<data>/{raw,processed,synth}`. Two adapters emit the 
 (rgb · xyz position-map · gt), so the store/preprocess/harness ingest them identically:
 
 ```
-raw/mvtec…  ──(core/data/mvtec.py)──┐
-                                    ├──► core/data/store ──► dataset (GPU-resident) ──► harness
-synth/…     ──(core/data/synth.py)──┘        ▲
+raw/mvtec…  ──(core/data/static/mvtec.py)──┐
+                                           ├──► core/data/static/store ──► dataset (GPU-resident) ──► harness
+synth/…     ──(core/data/static/synth.py)──┘        ▲
    ▲                                         │
    └── core/data/dynamic engine (Isaac/Replicator) renders the labeled task-graph
 ```

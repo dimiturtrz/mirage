@@ -159,8 +159,9 @@ the PhysX control env under `control/sim/`; both behind the opt-in `sim` extra (
 ```
 core/                  the reusable, method-agnostic engine
   config.py            data root from paths.yaml (-> raw/ + processed/ + synth/)
-  data/                adapters (mvtec · synth) + preprocess + unified store
-    dynamic/           the Isaac/Replicator twin-defect generator (twin_geom lib + boot-driven render entrypoints)
+  data/                the data layer — real ingest + synthetic generation, one store
+    static/            adapters (mvtec · synth) + preprocess + unified store + GPU-resident dataset
+    dynamic/           generation — classical Defects + the Isaac/Replicator twin engine (twin_geom lib + render entrypoints)
   method.py            the (fit, score) contract the perception harness scores
   policy.py rollout.py the (train, act) contract + rollout spine the control leg scores
 surfscan/              the perception science layer
@@ -181,7 +182,7 @@ learning/ research/ tests/ (unit + integration) · pointcloud-viewer/
 ```bash
 uv sync --extra features          # .venv + deps; torch/torchvision cu130 (Blackwell/RTX 5090) auto-resolved
 cp paths.example.yaml paths.yaml          # set `data:` to your data root
-uv run python -m core.data.store        # consolidate raw -> processed (needs the dataset)
+uv run python -m core.data.static.store        # consolidate raw -> processed (needs the dataset)
 
 # the working detector, scored through the eval harness (logs params/metrics to MLflow):
 uv run python -m surfscan.run patchcore   # image-AUROC + AU-PRO + per-defect, all 10 categories

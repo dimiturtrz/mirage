@@ -20,7 +20,7 @@ import tifffile
 from jaxtyping import Float
 
 from core.config import Config
-from core.data.mvtec import Split
+from core.data.static.mvtec import Split
 from core.obs import Obs
 
 

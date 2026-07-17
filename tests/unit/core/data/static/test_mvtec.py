@@ -4,7 +4,7 @@ Files only need to EXIST (samples() globs rgb/*.png, checks gt presence — neve
 tmp_path tree of empty files exercises the full enumeration. Equivalence classes: good (no gt, label 0)
 vs defective (gt present, label 1); missing root -> empty.
 """
-from core.data import mvtec, synth
+from core.data.static import mvtec, synth
 
 
 def _layout(root):

@@ -11,8 +11,8 @@ import polars as pl
 import torch
 from jaxtyping import Float
 
-from core.data import preprocess as pp
-from core.data import store
+from core.data.static import preprocess as pp
+from core.data.static import store
 
 
 class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack_channels is the pure core

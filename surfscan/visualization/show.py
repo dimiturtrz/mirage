@@ -29,10 +29,10 @@ from PIL import Image
 
 from core import config
 from core.compute import Compute
-from core.data import preprocess as pp
-from core.data import store
-from core.data.dataset import GpuSplit
-from core.data.mvtec import Split
+from core.data.static import preprocess as pp
+from core.data.static import store
+from core.data.static.dataset import GpuSplit
+from core.data.static.mvtec import Split
 from core.obs import Obs
 from surfscan.dispatch import Spec
 from surfscan.models.patchcore import FitCfg, PatchCore
@@ -75,7 +75,7 @@ class Show:
         sid = f"{cat}_{split}_{defect}_{idx:03d}"
         path = store.Store.dataset_dir(size=size or pp.SIZE) / "data" / f"{sid}.npz"
         if not path.exists():
-            raise FileNotFoundError(f"{path} not built — run: python -m core.data.store --cats {cat}")
+            raise FileNotFoundError(f"{path} not built — run: python -m core.data.static.store --cats {cat}")
         a = store.Store.load_arrays(path)
         return a["rgb"], a["xyz"], a["gt"], a["valid"]
 

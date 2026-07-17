@@ -22,7 +22,7 @@ from core.compute import Compute
 if TYPE_CHECKING:
     import polars as pl
 
-    from core.data.dataset import GpuSplit
+    from core.data.static.dataset import GpuSplit
     from core.method import ScoreArrays
 
 

@@ -26,12 +26,14 @@ not `TiledCamera` (IsaacLab #4951 hangs on sm_120) — TiledCamera only matters 
 
 ## Tests
 ```bash
-uv run pytest tests/unit                               # pure twin_geom helpers — no Isaac boot
-OMNI_KIT_ACCEPT_EULA=YES SIM_ISAAC_BOOT=1 uv run pytest tests/test_boot_smoke.py -s   # opt-in boot smoke
+OMNI_KIT_ACCEPT_EULA=YES uv run pytest tests           # all: pure twin_geom + the Isaac boot smoke (~GPU)
+uv run pytest tests/unit                               # just the pure twin_geom helpers — no boot
 ```
 `twin_geom.py` holds the pxr-free geometry (OBJ parse, depth back-projection, the Gaussian defect) so it
-unit-tests in any numpy env; the Isaac boot + USD `build_mesh` staging are the opt-in smoke, GPU-gated
-behind `SIM_ISAAC_BOOT=1` (kit fastShutdown eats pytest's summary, so it prints a `BOOT_SMOKE_OK` sentinel).
+unit-tests in any numpy env. The boot smoke (`test_boot_smoke.py`) boots the kit kernel + a USD stage and
+stages a mesh via `build_mesh` — the pxr path the pure tests can't reach. It runs by default in the sim
+env (skips where isaacsim is absent); the boot runs in a subprocess so SimulationApp's fastShutdown
+hard-exit can't kill the pytest session.
 
 ## Data handoff (perception)
 `generate.py` (this env) writes renders to `<data root>/synth/<category>/...`; the perception env's

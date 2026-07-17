@@ -14,7 +14,7 @@ rollout spine, or the metric** — only this new `Env` implementation. The `omni
 to `boot` so this module imports cleanly before the kit app exists; the runner (`isaac_gap.py`) boots the
 `SimulationApp` first, then calls `IsaacReach.boot`.
 
-Not CI-runnable (GPU + a ~30 s kit boot, isolated `sim/.venv`) — an opt-in fidelity check, run manually.
+Not CI-runnable (GPU + a ~30 s kit boot, needs the `sim` extra) — an opt-in fidelity check, run manually.
 """
 from __future__ import annotations
 

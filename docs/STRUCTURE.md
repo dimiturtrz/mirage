@@ -52,11 +52,12 @@ raw/mvtec…  ──(core/data/mvtec.py)──┐
                                     ├──► core/data/store ──► dataset (GPU-resident) ──► harness
 synth/…     ──(core/data/synth.py)──┘        ▲
    ▲                                         │
-   └── sim/ engine (Isaac/Replicator, separate env) renders the labeled task-graph
+   └── core/data/dynamic engine (Isaac/Replicator) renders the labeled task-graph
 ```
 Real vs synthetic scored through one harness **is** the sim-to-real gap — the Stage-1 contribution.
-The `sim/` env is isolated only because Isaac bundles a conflicting runtime; the code + data-contract
-live in-repo (see [`sim/README.md`](../sim/README.md)).
+The engine runs in the **main** env (no nested venv — bd 53z proved co-resolution); isaacsim just sits
+behind the opt-in `sim` extra so gate/CI runs never pull it (see
+[`core/data/dynamic/README.md`](../core/data/dynamic/README.md)).
 
 ## Numbers live in one place
 `docs/RESULTS.json` is the canonical source of published numbers; `evaluation/sync_numbers.py` renders

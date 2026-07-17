@@ -6,7 +6,7 @@ The boot runs in a SUBPROCESS: SimulationApp shuts down with fastShutdown (os._e
 the whole pytest session if booted in-process — the subprocess contains that hard-exit, so this stays a
 normal, default-collected test and pytest reporting survives. ~25s (kit boot).
 
-    OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim pytest tests/integration/sim/test_boot_smoke.py -s
+    OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim pytest tests/integration/core/data/dynamic/test_boot_smoke.py -s
 """
 import importlib.util
 import os
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[5]
 
 _BOOT = """
 import numpy as np
@@ -25,11 +25,11 @@ app = SimulationApp({"headless": True})
 try:
     import omni.usd
 
-    from sim.datagen.twin_obj import build_mesh
+    from core.data.dynamic.twin_obj import TwinObj
     stage = omni.usd.get_context().get_stage()
     assert stage is not None                                       # kit kernel + USD stage up
     verts = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], np.float32)
-    mesh = build_mesh(stage, verts, np.array([[0, 1, 2]], np.int32))
+    mesh = TwinObj.build_mesh(stage, verts, np.array([[0, 1, 2]], np.int32))
     assert len(mesh.GetPointsAttr().Get()) == 3                    # build_mesh staged the points
     print("BOOT_SMOKE_OK", flush=True)
 finally:

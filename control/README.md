@@ -45,9 +45,9 @@ is a clean scalar gain; on a real robot, online ID is much harder — the claim 
 
 ### The fidelity rung — same curve on PhysX (Isaac Sim)
 
-The `Env` seam's payoff: `sim/isaac_reach.py` swaps the numpy point mass for a **PhysX rigid body** (zero
-gravity + linear damping `drag/mass` + a planar force → the *same* equation `acc = (gain·a − drag·v)/mass`,
-a real solver instead of Euler). `sim/isaac_gap.py` reuses `BCPolicy` / `PDExpert` / `Rollout` / the gap
+The `Env` seam's payoff: `control/sim/isaac_reach.py` swaps the numpy point mass for a **PhysX rigid body**
+(zero gravity + linear damping `drag/mass` + a planar force → the *same* equation `acc = (gain·a − drag·v)/mass`,
+a real solver instead of Euler). `control/sim/isaac_gap.py` reuses `BCPolicy` / `PDExpert` / `Rollout` / the gap
 metric **unchanged** — only the env differs — and the finding transfers:
 
 | payload | point-mass gap | PhysX gap |
@@ -78,7 +78,7 @@ contradiction. Opt-in (GPU + Isaac kit boot, not CI-gated). Full method + integr
 
 A **numpy point mass is a deliberate first rung** — fast, deterministic, CI-runnable — a *projection* of the
 sim-to-real mechanism. The `Env` protocol (`reset`/`step`) is the seam, and it is exercised, not just
-claimed: the **PhysX rung** (`sim/isaac_reach.py`) re-measures the same curve at solver fidelity **without
+claimed: the **PhysX rung** (`control/sim/isaac_reach.py`) re-measures the same curve at solver fidelity **without
 touching the policy, spine, or metric**, and the headline transfers (60.0 → 62.5 pp). Both rungs are still
 simplified reach dynamics, not a robot arm with contact/friction/sensing. The shift is chosen (mechanical,
 argued a priori) and swept, not cherry-picked; the ± sd is the seed spread, small next to the transition.
@@ -91,6 +91,6 @@ reported where DR helps *and* where it doesn't.
 python -m control.experiment      # point-mass gap + DR lever; logs to MLflow 'control-policy-gap'
 uv run pytest tests/unit/control -q
 
-# PhysX fidelity rung (opt-in; needs sim/'s isolated Isaac env + a GPU):
-cd sim && OMNI_KIT_ACCEPT_EULA=YES uv run python isaac_gap.py --seeds 3 --episodes 40
+# PhysX fidelity rung (opt-in; needs the `sim` extra + a GPU):
+OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m control.sim.isaac_gap --seeds 3 --episodes 40
 ```

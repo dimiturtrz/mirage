@@ -102,7 +102,7 @@ damping `drag/mass`, so its equation of motion is `dv/dt = (gain·clip(a) − dr
 point-mass dynamics, now integrated by PhysX (substeps + implicit damping) instead of explicit Euler.
 `sim/isaac_gap.py` imports the **same** `BCPolicy`, `PDExpert`, `Rollout`, and gap metric — only the `Env`
 implementation is new. Payload sweep, actuator sag, matched goal seeds all unchanged (3 seeds; opt-in, GPU,
-not CI-gated — it needs a ~30 s Isaac kit boot in `sim/`'s isolated env).
+not CI-gated — it needs a ~30 s Isaac kit boot via the opt-in `sim` extra).
 
 | payload (real) | point-mass gap (Euler) | PhysX gap (Isaac) |
 |---:|---:|---:|
@@ -146,5 +146,5 @@ the exact transition point sharpens with fidelity — which is precisely why the
 python -m control.experiment      # prints the table; logs params+metrics to MLflow 'control-policy-gap'
 
 # PhysX fidelity rung (opt-in; needs sim/'s isolated Isaac env + a GPU)
-cd sim && OMNI_KIT_ACCEPT_EULA=YES uv run python isaac_gap.py --seeds 3 --episodes 40
+OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m control.sim.isaac_gap --seeds 3 --episodes 40
 ```

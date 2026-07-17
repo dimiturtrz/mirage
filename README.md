@@ -153,11 +153,14 @@ scanned with a Zivid structured-light sensor (per-pixel rgb + xyz position map +
 redistributed here.
 
 ## Layout
-`core/` (reusable engine) + `surfscan/` (perception science) + `control/` (control leg) + `sim/` (the synthetic engine, own env):
+`core/` (reusable engine) + `surfscan/` (perception science) + `control/` (control leg). The synthetic-data
+engine lives **by role**, not in a runtime-named bucket — the Isaac twin generator under `core/data/dynamic/`,
+the PhysX control env under `control/sim/`; both behind the opt-in `sim` extra (only the *dependency* is "sim"):
 ```
 core/                  the reusable, method-agnostic engine
   config.py            data root from paths.yaml (-> raw/ + processed/ + synth/)
   data/                adapters (mvtec · synth) + preprocess + unified store
+    dynamic/           the Isaac/Replicator twin-defect generator (twin_geom lib + boot-driven render entrypoints)
   method.py            the (fit, score) contract the perception harness scores
   policy.py rollout.py the (train, act) contract + rollout spine the control leg scores
 surfscan/              the perception science layer
@@ -168,7 +171,7 @@ surfscan/              the perception science layer
   deploy/              profile (footprints) · accelerators (typed loader) · bank · fit (verdict matrix)
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
 control/               the control leg — point_mass env · PD expert · BC policy · policy-gap experiment
-sim/                   synthetic-defect engine — Isaac/Replicator (its own env)
+  sim/                 the PhysX Isaac reach env (isaac_reach) + gap runner (isaac_gap) — fidelity rung
 deploy/            browsable fit explorer (LIVE → dimiturtrz.github.io/mirage) — models_params · accelerators/<type> · fit_matrix + viewer
 docs/                  PLAN.md · RESULTS.md (+ RESULTS.json canonical) · STRUCTURE.md
 learning/ research/ tests/ (unit + integration) · pointcloud-viewer/

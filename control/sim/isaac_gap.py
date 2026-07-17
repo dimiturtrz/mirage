@@ -8,49 +8,38 @@ the toy finding (a robustness margin, then a cliff) should transfer up the fidel
 policy/spine/metric code.
 
 Reduced counts (fewer demos/episodes/seeds than the point-mass run) keep the GPU rollout minutes-long — this
-is an opt-in fidelity check, not the CI-gated multi-seed harness. Run from the repo root:
+is an opt-in fidelity check, not the CI-gated multi-seed harness. The `isaacsim` import is local to `main`
+so the module imports without the `sim` extra; only running boots the kit app. Run from the repo root:
 
-    OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m sim.control.isaac_gap [--seeds 3] [--episodes 40]
+    OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m control.sim.isaac_gap [--seeds 3] [--episodes 40]
 """
+from __future__ import annotations
+
 import argparse
 import os
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-from isaacsim import SimulationApp
-
-from core.obs import Obs
-
-log = Obs.get()
-
-_ARGS = argparse.ArgumentParser()
-_ARGS.add_argument("--seeds", type=int, default=3)
-_ARGS.add_argument("--episodes", type=int, default=40, help="eval + demo episodes per condition")
-_ARGS.add_argument("--epochs", type=int, default=150, help="BC fit epochs")
-ARGS = _ARGS.parse_args()
-
-app = SimulationApp({"headless": True})
-log.info("BOOTED")
 
 import numpy as np
 
 from control.bc import BCConfig, BCPolicy
 from control.expert import PDExpert
 from control.point_mass import Phys, Task
+from control.sim.isaac_reach import IsaacReach
+from core.obs import Obs
 from core.rollout import Rollout
-from sim.control.isaac_reach import IsaacReach
 
+log = Obs.get()
 _PP = 100.0
 PAYLOADS = (1.2, 1.4, 1.5, 1.6)
 ACTUATOR_GAIN = 0.9
-TASK = Task()
-SIM = Phys()
 
 
 class IsaacGap:
     """Drive the shared BC / expert / rollout stack over the reused IsaacReach env and report the gap curve."""
 
-    def __init__(self, reach: IsaacReach):
+    def __init__(self, reach: IsaacReach, task: Task, sim: Phys):
         self._reach = reach
+        self._task = task
+        self._sim = sim
 
     def _factory(self, phys: Phys):
         def make(seed: int) -> IsaacReach:
@@ -59,15 +48,15 @@ class IsaacGap:
 
     def _success(self, policy, state, phys: Phys, episodes: int, seed0: int) -> float:
         make = self._factory(phys)
-        trajs = [Rollout.roll(policy, state, make(seed0 + i), TASK.horizon) for i in range(episodes)]
+        trajs = [Rollout.roll(policy, state, make(seed0 + i), self._task.horizon) for i in range(episodes)]
         return Rollout.success_rate(trajs)
 
     def _one_seed(self, seed: int, episodes: int, epochs: int) -> dict[str, float]:
-        expert = PDExpert(amax=SIM.amax)
-        bc = BCPolicy(self._factory(SIM), expert,
-                      BCConfig(n_demo_episodes=episodes, epochs=epochs, max_steps=TASK.horizon, seed=seed))
+        expert = PDExpert(amax=self._sim.amax)
+        bc = BCPolicy(self._factory(self._sim), expert,
+                      BCConfig(n_demo_episodes=episodes, epochs=epochs, max_steps=self._task.horizon, seed=seed))
         state = bc.train("reach")
-        sim_success = self._success(bc, state, SIM, episodes, seed0=10_000)
+        sim_success = self._success(bc, state, self._sim, episodes, seed0=10_000)
         row = {"bc_sim_success": sim_success}
         for payload in PAYLOADS:
             real = Phys(mass=payload, gain=ACTUATOR_GAIN)
@@ -105,14 +94,27 @@ class IsaacGap:
                      f"    {agg[f'gap_pp_{tag}_mean']:5.1f} ± {agg[f'gap_pp_{tag}_std']:4.1f}")
         log.info("\ncompare to point-mass (numpy Euler): +40% 17.8pp · +50% 60.0pp · +60% 98.0pp")
 
+    @staticmethod
+    def main() -> None:
+        ap = argparse.ArgumentParser()
+        ap.add_argument("--seeds", type=int, default=3)
+        ap.add_argument("--episodes", type=int, default=40, help="eval + demo episodes per condition")
+        ap.add_argument("--epochs", type=int, default=150, help="BC fit epochs")
+        args = ap.parse_args()
 
-def main() -> None:
-    reach = IsaacReach.boot(TASK, phys_dt=SIM.dt)
-    agg = IsaacGap(reach).run(ARGS.seeds, ARGS.episodes, ARGS.epochs)
-    IsaacGap.report(agg, ARGS.seeds)
-    app.close()
-    log.info("DONE")
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        from isaacsim import SimulationApp
+
+        app = SimulationApp({"headless": True})
+        log.info("BOOTED")
+
+        task, sim = Task(), Phys()
+        reach = IsaacReach.boot(task, phys_dt=sim.dt)
+        agg = IsaacGap(reach, task, sim).run(args.seeds, args.episodes, args.epochs)
+        IsaacGap.report(agg, args.seeds)
+        app.close()
+        log.info("DONE")
 
 
 if __name__ == "__main__":
-    main()
+    IsaacGap.main()

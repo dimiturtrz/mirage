@@ -10,15 +10,12 @@ xyz frame matches). Output lands out-of-repo under <data>/synth/twin/<cat>/train
 Part 1 emits GOOD views only (also a generalization check that all 10 reconstructions render).
 Defect views + gt masks follow in part 2.
 
-Run from sim/:  OMNI_KIT_ACCEPT_EULA=YES uv run python generate_twin_synth.py --views 8
+Run from the repo root:  OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m sim.datagen.generate_twin_synth --views 8
 """
 import argparse
 import os
-import sys
-from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root -> import core.obs
 from isaacsim import SimulationApp
 
 from core.obs import Obs
@@ -47,8 +44,9 @@ import omni.usd
 import tifffile
 from PIL import Image
 from pxr import Gf, Sdf, UsdGeom, UsdLux, Vt
-from twin_geom import backproject, deform, parse_obj
-from twin_obj import build_mesh
+
+from sim.datagen.twin_geom import backproject, deform, parse_obj
+from sim.datagen.twin_obj import build_mesh
 
 
 def intrinsics(stage, w, h):

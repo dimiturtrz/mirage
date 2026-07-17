@@ -1,21 +1,22 @@
 """Isaac boot smoke — boots the kit kernel, opens a USD stage, and stages a mesh via build_mesh (the
-pxr path the pure twin_geom tests can't reach). Runs by DEFAULT in the sim env (GPU + isaacsim present);
-skips only where isaacsim isn't installed.
+pxr path the pure twin_geom tests can't reach). Runs by DEFAULT when isaacsim is present (GPU + the `sim`
+extra); skips otherwise, so the base perception suite stays green without the engine installed.
 
 The boot runs in a SUBPROCESS: SimulationApp shuts down with fastShutdown (os._exit), which would kill
 the whole pytest session if booted in-process — the subprocess contains that hard-exit, so this stays a
 normal, default-collected test and pytest reporting survives. ~25s (kit boot).
 
-    cd sim && OMNI_KIT_ACCEPT_EULA=YES uv run pytest tests/test_boot_smoke.py -s
+    OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim pytest tests/integration/sim/test_boot_smoke.py -s
 """
 import importlib.util
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
-_SIM_DIR = os.path.dirname(os.path.dirname(__file__))
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _BOOT = """
 import numpy as np
@@ -24,7 +25,7 @@ app = SimulationApp({"headless": True})
 try:
     import omni.usd
 
-    from twin_obj import build_mesh
+    from sim.datagen.twin_obj import build_mesh
     stage = omni.usd.get_context().get_stage()
     assert stage is not None                                       # kit kernel + USD stage up
     verts = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], np.float32)
@@ -40,7 +41,7 @@ finally:
                     reason="isaacsim not installed (boot smoke only runs in the sim env)")
 def test_isaac_boot_and_build_mesh():
     env = {**os.environ, "OMNI_KIT_ACCEPT_EULA": "YES"}
-    r = subprocess.run([sys.executable, "-c", _BOOT], cwd=_SIM_DIR, env=env,  # noqa: S603
+    r = subprocess.run([sys.executable, "-c", _BOOT], cwd=_REPO_ROOT, env=env,  # noqa: S603
                        capture_output=True, text=True, timeout=300)
     assert "BOOT_SMOKE_OK" in r.stdout, (
         f"kit boot / build_mesh failed (rc={r.returncode})\n"

@@ -5,15 +5,12 @@ frame, reproduces the top-down sensor pose (sensor at z~0 looking +z at the obje
 renders rgb + depth + normals via the working headless Replicator path (timeline.play). This is the
 visual QC of the reconstruction before the full good/defect randomization loop.
 
-Run from sim/:  OMNI_KIT_ACCEPT_EULA=YES uv run python render_twin.py --cat bagel
+Run from the repo root:  OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m sim.datagen.render_twin --cat bagel
 """
 import argparse
 import os
-import sys
-from pathlib import Path
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root -> import core.obs
 from isaacsim import SimulationApp
 
 from core.obs import Obs
@@ -39,8 +36,9 @@ import omni.timeline
 import omni.usd
 import torch
 from pxr import Gf, Sdf, UsdGeom, UsdLux
-from twin_geom import parse_obj
-from twin_obj import build_mesh
+
+from sim.datagen.twin_geom import parse_obj
+from sim.datagen.twin_obj import build_mesh
 
 verts, faces = parse_obj(OBJ)
 centroid = verts.mean(0)

@@ -3,7 +3,7 @@ name = "surfscan"
 version = "0.1.0"
 description = "A physics-based synthetic-data engine for 3D perception: generate defect scenes, detect anomalies, measure the sim-to-real gap honestly. Edge-deployable."
 readme = "README.md"
-requires-python = ">=3.11,<3.13"   # open3d ships cp311/cp312 wheels only (no cp313 yet)
+requires-python = ">=3.12,<3.13"   # isaacsim 6.0 ships cp312 only (the `sim` extra); open3d cp311/cp312, no cp313
 dependencies = [
     "numpy",
     "scipy",
@@ -37,6 +37,11 @@ features = [
     "timm>=1.0.27",
     "torchvision",
 ] # PatchCore feature memory bank (pretrained backbone) — install cu128 build
+# The Isaac Sim engine (sim/) runs in THIS env — no nested venv (bd 53z proved it co-resolves: torch
+# stays cu130, perception deps import, isaacsim boots). Opt-in: `uv sync --extra sim` pulls the ~156
+# isaacsim/omni packages (from pypi.nvidia.com, see the index below); base perception devs never do. Kept
+# OUT of `all` so CI gate runs don't drag the engine. isaacsim ships cp312 wheels only (hence the 3.12 floor).
+sim = ["isaacsim[all,extscache]==6.0.1.0"]
 # models = [...]           # 3D anomaly method libs (M3DM / mmcv / spconv / pointnet2 CUDA ops) are
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
@@ -48,7 +53,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["surfscan*", "core*", "control*"]
+include = ["surfscan*", "core*", "control*", "sim*"]
 
 # torch + torchvision CUDA builds live on the PyTorch index, not PyPI. Pin them there explicitly so uv
 # resolves the cu130 wheels (RTX 5090) instead of CPU. `explicit` = only [tool.uv.sources] packages use it.
@@ -56,6 +61,18 @@ include = ["surfscan*", "core*", "control*"]
 name = "pytorch-cu130"
 url = "https://download.pytorch.org/whl/cu130"
 explicit = true
+
+# NVIDIA's index hosts isaacsim + all its isaacsim-* / omni-* subpackages (the `sim` extra).
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+
+[tool.uv]
+# isaacsim 6.0's deps span both indexes (e.g. isaacsim-core needs mujoco-usd-converter, on pypi.org not
+# the nvidia index) — pick the best version across indexes, not first-only. isaacsim-core also pins
+# pre-release deps (e.g. tinyobjloader==2.0.0rc13); allow them. Both only matter when the sim extra resolves.
+index-strategy = "unsafe-best-match"
+prerelease = "allow"
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu130" }
@@ -70,8 +87,10 @@ addopts = "--import-mode=importlib"
 # transitive (DEP003) imports. noxfile.py imports the `nox` runner (invoked via uvx, deliberately not a
 # project dep) so it's excluded from the scan.
 [tool.deptry]
-# sim/ is a separate Isaac Sim env (isaacsim/omni/pxr/carb live there, never in the project deps) — excluded
-# like the ruff/structure gates do; noxfile imports the nox runner (uvx, deliberately not a project dep).
+# sim/ (the Isaac engine) runs in this env now, but its omni/pxr/carb imports resolve only AFTER the kit
+# runtime boots (SimulationApp) — they're not statically declarable per-module, and isaacsim itself sits
+# behind the optional `sim` extra — so the engine stays deptry-excluded (isaacsim is declared, its runtime
+# submodules can't be); noxfile imports the nox runner (uvx, deliberately not a project dep).
 extend_exclude = ["noxfile.py", "sim"]
 
 # deptry does not scan tests/ (its default exclude), so DEP002 (declared-but-unused) fires for anything
@@ -83,9 +102,11 @@ extend_exclude = ["noxfile.py", "sim"]
 # >>> LOCAL-SLOT: deptry-unused — PRUNE a starter once you wire it (keep pytest/pytest-cov/sdlc-devtools)
 # tqdm (progress bars), timm (alt backbone source — torchvision supplies wide_resnet50_2 today), onnxruntime
 # (ONNX runtime for the deploy parity check, not yet wired — `onnx` itself IS imported in deploy/export.py):
-# declared for real use, not yet imported in core/surfscan, so DEP002 fires until they're wired.
+# declared for real use, not yet imported in core/surfscan, so DEP002 fires until they're wired. isaacsim
+# (the `sim` extra) IS imported — but only in sim/, which is deptry-excluded (post-boot omni/pxr aren't
+# statically declarable), so it reads as unused from the scanned tree.
 DEP002 = ["pytest", "pytest-cov", "sdlc-devtools", "numpy", "jaxtyping", "beartype", "pydantic",
-          "tqdm", "timm", "onnxruntime"]
+          "tqdm", "timm", "onnxruntime", "isaacsim"]
 # `models` = M3DM's PointTransformer, imported from external/M3DM via a sys.path shim (checked out, never
 # vendored/PyPI), so it is not a declarable dependency — see surfscan/models/pointmae.py.
 DEP001 = ["models"]
@@ -94,7 +115,7 @@ DEP001 = ["models"]
 [tool.ruff]
 line-length = 120
 # >>> LOCAL-SLOT: ruff-exclude — edit freely, the template will not overwrite intent here
-extend-exclude = ["sim", "docs", "learning", "research", "interpretations"]   # sim/ has its own isaacsim env; docs/learning/research/interpretations aren't lint targets
+extend-exclude = ["sim", "docs", "learning", "research", "interpretations"]   # sim/ engine boot scripts (E402 intrinsic) — still linted via the enforced explicit-path run (noxfile LINT_LAYERS), only excluded from the advisory whole-tree `.` scan; docs/learning/research/interpretations aren't lint targets
 # <<< LOCAL-SLOT: ruff-exclude
 
 [tool.ruff.lint]
@@ -127,10 +148,10 @@ ignore-names = ["X*", "Y*", "B", "C", "H", "W", "F"]
 "tests/**" = ["S101", "PLR2004", "FBT", "SLF001", "N801", "N802", "N803", "N806", "N812", "PLR0913"]
 # >>> LOCAL-SLOT: per-file-ignores — repo-specific file carve-outs (e.g. a best-effort telemetry shell
 # that must never raise). Add lines here; copier update won't overwrite this region.
-# sim/ Isaac scripts: imports MUST follow SimulationApp() boot (kit runtime resolves omni/pxr only then),
-# so E402/PLC0415 are intrinsic; omni/carb APIs take positional bools (FBT003). Same tests carve-out for sim.
+# sim/ Isaac scripts (datagen/ + control/): imports MUST follow SimulationApp() boot (the kit runtime
+# resolves omni/pxr only then), so E402/PLC0415 are intrinsic; omni/carb APIs take positional bools (FBT003).
+# The sim tests now live under tests/ and inherit the "tests/**" carve-out above.
 "sim/**" = ["E402", "PLC0415", "FBT003"]
-"sim/tests/**" = ["S101", "PLR2004", "FBT", "SLF001", "N801", "N802", "N803", "N806", "N812", "PLR0913"]
 # <<< LOCAL-SLOT: per-file-ignores
 
 [tool.vulture]
@@ -159,7 +180,6 @@ ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "
 # <<< LOCAL-SLOT: vulture-ignore-names
 # >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
 paths = ["core", "surfscan", "control", "sim"]
-exclude = ["sim/.venv", "sim/tests"]
 # <<< LOCAL-SLOT: vulture-scan
 
 [tool.coverage.run]

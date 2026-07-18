@@ -107,7 +107,10 @@ class DiffusionPolicy:
                 x = x + np.sqrt(self._sched.betas[t]) * rng.standard_normal(x.shape).astype(np.float32)
         return x
 
-    def act(self, state: Any, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "act"]:
+    def sample_chunk(self, state: Any, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "k act"]:
+        """The full denoised action chunk — the teacher signal the edge-VLA distillation regresses against."""
         rng = np.random.default_rng(self._cfg.seed)
-        chunk = self._sample(state, obs, rng).reshape(self._cfg.chunk, self._act_dim)
-        return chunk[0]                                             # first action of the sampled chunk
+        return self._sample(state, obs, rng).reshape(self._cfg.chunk, self._act_dim)
+
+    def act(self, state: Any, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "act"]:
+        return self.sample_chunk(state, obs)[0]                    # first action of the sampled chunk

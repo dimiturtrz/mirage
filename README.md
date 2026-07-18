@@ -74,7 +74,8 @@ mean-surface mesh from the 244 real good scans, render it headless through **Isa
 controlled **shape-source** delta (twin_grid − synth: same on-the-fly grid defect, same real eval — only the
 good-scan surface differs), on **geometry** (xyz, the twin's axis), it first came out **negative** (−0.192
 AU-PRO): the reconstructed surface was a worse training substrate than the real scan. The rigorous spine then
-traced *why* and removed it — two levers, each argued a priori (4-cat subset, single seed):
+traced *why* and removed it — two levers, each argued a priori (4-cat subset; the triad is one deterministic
+run, uncertainty from the paired bootstrap over the shared eval half, not seed scatter):
 
 | shape-source (twin_grid − synth), xyz | value |
 |---|---:|
@@ -88,8 +89,8 @@ real-surface advantage; and (2) the **render↔Zivid sensor domain gap** — a [
 model](core/data/dynamic/sensor_noise.py) (dropout at the measured ~11 % rate + grazing 1/cosθ noise, *not* a
 tuned Gaussian) trains the twin on realistic sensor artifacts for a further +0.086. Together they lift the twin
 from −0.224 to **parity** (+0.019). Honestly *parity, not dominance* — the twin now matches classical at the
-source, it does not beat it; the result is the **closure and its mechanism** (single-seed/subset, foam a kept
-outlier — directional pending full-10 + multi-seed). Full verdict →
+source, it does not beat it; the result is the **closure and its mechanism** (subset, foam a kept outlier —
+directional pending full-10 coverage + the paired-bootstrap CI, *not* seeds). Full verdict →
 [`interpretations/twin/2026-07-18_source-verdict.md`](interpretations/twin/2026-07-18_source-verdict.md).
 
 ## The same eval on a second axis — control (a ramp)

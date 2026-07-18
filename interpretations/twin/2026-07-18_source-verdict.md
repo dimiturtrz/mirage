@@ -18,7 +18,9 @@ to a verdict.
 The shape-source delta (twin_grid − synth) is the controlled number throughout: **same** on-the-fly grid
 defect, **same** real eval half, only the good-scan *shape source* differs (reconstructed twin vs real). It
 cancels the defect model and the eval noise, so a move in it is a move in surface realism alone. All runs on a
-**4-category subset** (carrot / potato / foam / dowel), single seed, xyz channel.
+**4-category subset** (carrot / potato / foam / dowel), xyz channel. The triad is **one deterministic run by
+design** — its uncertainty comes from the *paired bootstrap over the shared eval half* (which cancels shared
+image noise), not from seed scatter; seeds are not the noise axis here.
 
 - **jlc.1 — native resolution.** Threaded a `size` knob through the triad and re-consolidated both stores at
   **512²** (real native 800², twin rendered 512² — so 512 gives the twin its full native detail). Matched
@@ -31,7 +33,7 @@ cancels the defect model and the eval noise, so a move in it is a move in surfac
   structured-light triangulation law). Applied post-hoc on the processed twin (normals recomputed from xyz) —
   no Isaac boot. The twin_grid arm then trains on the sensor-modeled twin.
 
-## Result (xyz AU-PRO, 4-cat subset, single seed)
+## Result (xyz AU-PRO, 4-cat subset, one deterministic run)
 
 | arm | 256² clean | 512² clean | 512² + sensor |
 |---|---:|---:|---:|
@@ -63,7 +65,8 @@ computed — the run was stopped once the point was in hand; the clean-512 −0.
 claim the numbers support is: **a physics-based twin, rendered at native resolution with a sensor-realistic
 capture model, matches classical on-the-fly synth as a shape source** — it no longer loses. It does **not**
 beat it. foam is a genuine outlier (twin_grid_sensor 0.014 — a porous surface the single-view reconstruction
-handles badly) and drags the mean; it is kept, not dropped. Single seed, 4 categories — **directional**.
+handles badly) and drags the mean; it is kept, not dropped. 4 categories — **directional pending full-10
+coverage and the paired CI** (not seeds — the triad's uncertainty is the paired bootstrap, not seed scatter).
 
 ## Verdict for the engine
 
@@ -75,9 +78,11 @@ of X and Y*, and here is X and Y removed." That mechanism is the result.
 
 ## Integrity
 
-- **Parity, single-seed, subset.** +0.019 is not a win; the honest headline is the **closure** (−0.224 →
-  ~0) and its mechanism, not the final sign. Full-10-category + multi-seed hardening is filed (jlc follow-up)
-  before this becomes a portfolio headline — earned now that the number has moved, not before.
+- **Parity, subset, CI-not-yet-computed.** +0.019 is not a win; the honest headline is the **closure** (−0.224
+  → ~0) and its mechanism, not the final sign. The right hardening is **full-10-category coverage + the
+  paired-bootstrap shape-source CI** (the +0.019 CI was skipped when the run was stopped) — *not* multi-seed:
+  the triad is deterministic and its uncertainty is the paired bootstrap over the eval half, so seed scatter is
+  the wrong noise axis. Filed as jlc.5, earned now that the number has moved.
 - **The sensor model is derived, not tuned to the result.** Its parameters come from real good-scan residual
   statistics (dropout rate, noise floor, grazing law), fixed a priori — not searched for the biggest
   shape-source gain (house rule: fix needs with data, not by fitting to the eval).

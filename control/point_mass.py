@@ -12,6 +12,7 @@ satisfies `core.rollout.Env` (reset / step -> StepResult), so the rollout spine 
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -44,6 +45,13 @@ class Task:
 
 class PointMassReach:
     """Reach a sampled goal from rest; success = inside `eps` of the goal before the horizon expires."""
+
+    @staticmethod
+    def factory(phys: Phys, task: Task) -> Callable[[int], PointMassReach]:
+        """A `seed -> env` maker binding one Phys/Task — the seedable env constructor the rollout set drives."""
+        def make(seed: int) -> PointMassReach:
+            return PointMassReach(phys, task, seed)
+        return make
 
     def __init__(self, phys: Phys, task: Task, seed: int):
         self._phys = phys

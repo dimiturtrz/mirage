@@ -61,18 +61,40 @@ touch earlier under PhysX (implicit damping is less forgiving than Euler) — th
 contradiction. Opt-in (GPU + Isaac kit boot, not CI-gated). Full method + integrity →
 [`interpretations/control/2026-07-16_policy-gap.md`](../interpretations/control/2026-07-16_policy-gap.md).
 
+### The paradigm axis — reactive vs chunked (BC / ACT / diffusion)
+
+The leg speaks all three imitation paradigms through the one `(train, act)` contract: reactive behavior
+cloning, an **ACT** action-chunking transformer, and a **diffusion policy** (conditional DDPM over action
+chunks). Cloned from the *same* nominal demos and scored by the *same* gap metric at the headline +50% shift
+(single seed):
+
+| policy | sim success | real success | sim-to-real gap |
+|---|---:|---:|---:|
+| behavior cloning | 100.0% | 44.5% | **55.5 pp** |
+| ACT (chunk transformer) | 100.0% | 25.5% | 74.5 pp |
+| diffusion policy | 100.0% | 27.0% | 73.0 pp |
+
+All three learn the task in-domain; the **chunked** paradigms carry a *larger* sim-to-real gap. Action-chunking
+commits to trajectory-shaped intent calibrated to nominal dynamics, where BC's single-step feedback is exactly
+what absorbs the payload shift — the eval discipline names a paradigm tradeoff that the 100% in-domain success
+completely hides. A single-seed signal (directional; multi-seed hardening filed). Method + mechanism →
+[`interpretations/control/2026-07-18_paradigm-gap.md`](../interpretations/control/2026-07-18_paradigm-gap.md).
+
 ## Method — point-mass reach (the fast rung)
 
 - **Task** (`point_mass.py`) — a planar point mass reaches a goal from rest; obs `[goal-pos, vel]`, action a
   clipped acceleration; success = inside `eps` before the horizon. Newtonian step; **sim vs real differ only
   in `Phys`** (payload mass, actuator gain) — the whole sim-to-real story in two mechanical numbers.
 - **Expert** (`expert.py`) — an analytic PD controller, the behavior-cloning demonstrator (a `ControlPolicy`).
-- **Policy** (`bc.py`) — a torch MLP behavior-cloned on demos (a `ControlPolicy`; torch stays inside the impl,
-  the `core` contract is numpy).
+- **Policy family** — three `ControlPolicy` impls cloned from shared demos (`demos.py`): `bc.py` (reactive
+  MLP), `act.py` (ACT action-chunking transformer), `diffusion_policy.py` (conditional DDPM over action chunks,
+  pure schedule in `diffusion_schedule.py`). torch stays inside each impl; the `core` contract is numpy.
 - **Adaptive** (`adaptive.py`) — the `ProprioEnv` obs-wrapper (`[last_action, Δv]`) + `AdaptiveExpert`, an
   online system-ID PD controller; the demonstrator for the adaptive arm (observable-only, no privileged `Phys`).
 - **Experiment** (`experiment.py`) — train once, roll matched sim/real, sweep payload → the gap curve, over
   N BC seeds, for three arms (nominal / DR / adaptive), logged to MLflow (`control-policy-gap`).
+- **Paradigm compare** (`policy_compare.py`) — clone bc / act / diffusion on the same demos, roll matched
+  sim/real at the headline shift → the per-paradigm gap, logged to MLflow (`control-policy-gap`).
 
 ## Integrity
 
@@ -88,7 +110,8 @@ reported where DR helps *and* where it doesn't.
 ## Run
 
 ```bash
-python -m control.experiment      # point-mass gap + DR lever; logs to MLflow 'control-policy-gap'
+python -m control.experiment      # point-mass gap + DR/adaptive levers; logs to MLflow 'control-policy-gap'
+python -m control.policy_compare  # bc/act/diffusion paradigm gap on the shared spine
 uv run pytest tests/unit/control -q
 
 # PhysX fidelity rung (opt-in; needs the `sim` extra + a GPU):

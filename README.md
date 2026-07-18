@@ -171,7 +171,7 @@ surfscan/              the perception science layer
   evaluation/          harness (spine) · metrics · scoring · diagnostics · sync_numbers
   deploy/              profile (footprints) · accelerators (typed loader) · bank · fit (verdict matrix)
   visualization/       show.py (3D viewer) + export_web.py (web-viewer data)
-control/               the control leg — point_mass env · PD expert · BC policy · policy-gap experiment
+control/               the control leg — point_mass env · PD/adaptive experts · bc · act · diffusion policies · policy-gap experiments
   sim/                 the PhysX Isaac reach env (isaac_reach) + gap runner (isaac_gap) — fidelity rung
 deploy/            browsable fit explorer (LIVE → dimiturtrz.github.io/mirage) — models_params · accelerators/<type> · fit_matrix + viewer
 docs/                  PLAN.md · RESULTS.md (+ RESULTS.json canonical) · STRUCTURE.md

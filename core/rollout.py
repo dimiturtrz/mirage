@@ -10,12 +10,21 @@ later by Isaac Lab / MuJoCo (bead hxq.3) without touching this file.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, NamedTuple, Protocol, runtime_checkable
 
 import numpy as np
 from jaxtyping import Shaped
 
 from core.policy import ControlPolicy, Trajectory
+
+
+class EvalPlan(NamedTuple):
+    """How many seed-matched episodes to roll, from which seed, over how long a horizon — the eval/collection
+    spec the rollout set and the demo collector share (matched seeds isolate the shift from goal luck)."""
+    episodes: int
+    seed0: int
+    max_steps: int
 
 
 class StepResult(NamedTuple):
@@ -63,6 +72,14 @@ class Rollout:
             dones=np.asarray(done_log, dtype=bool),
             success=np.asarray(ok_log, dtype=bool),
         )
+
+    @staticmethod
+    def rollset(policy: ControlPolicy, state: Any, make_env: Callable[[int], Env],
+                plan: EvalPlan) -> list[Trajectory]:
+        """Roll `plan.episodes` seed-matched episodes (`plan.seed0 + i`) of a trained policy — the eval set the
+        metrics reduce. Matched seeds across a sim set and a real set isolate the dynamics shift from goal luck."""
+        return [Rollout.roll(policy, state, make_env(plan.seed0 + i), plan.max_steps)
+                for i in range(plan.episodes)]
 
     @staticmethod
     def success_rate(trajs: list[Trajectory]) -> float:

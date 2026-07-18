@@ -24,20 +24,24 @@ real transformer / iterative-denoiser graph to distill+quantize — an MLP has n
   conditioned on the observation; sampled fresh each step, first action executed (diffusion policy's own
   deployment mode). The forward/reverse coefficient math is the pure, unit-tested `DiffusionSchedule`.
 - **Eval.** Each policy is rolled over 200 matched-seed episodes in nominal sim and in the **headline +50%
-  payload / −10% actuator** real (the shift the BC gap curve identifies as the cliff). **Single seed** — this
-  is a quick cross-paradigm signal, not a hardened number (house rule: quick-signal first; the multi-seed
-  hardening lives in `experiment.py` for the BC curve and is added per-paradigm only once a number is worth it).
+  payload / −10% actuator** real (the shift the BC gap curve identifies as the cliff). The gap carries a **95%
+  paired-bootstrap CI over the matched episodes**, computed through the promoted `core.metrics.boot_delta_ci` —
+  the *same* primitive that brackets the perception AU-PRO gap (eval-spine promotion, xut.1). This brackets
+  eval-episode noise; it is a **single training seed** (net init), so the init-variance hardening is separate
+  (house rule: quick-signal first; the multi-seed init hardening is filed, 7wz).
 
 ## Result (single seed, +50% payload)
 
-| policy | sim success | real success | sim-to-real gap |
+| policy | sim success | real success | sim-to-real gap [95% paired-boot CI] |
 |---|---:|---:|---:|
-| behavior cloning | 100.0% | 44.5% | **55.5 pp** |
-| ACT (chunk transformer) | 100.0% | 25.5% | 74.5 pp |
-| diffusion policy | 100.0% | 27.0% | 73.0 pp |
+| behavior cloning | 100.0% | 44.5% | **55.5 pp** [48.5, 63.0] |
+| ACT (chunk transformer) | 100.0% | 25.5% | 74.5 pp [68.0, 80.5] |
+| diffusion policy | 100.0% | 27.0% | 73.0 pp [67.0, 79.5] |
 
 BC's single-seed +50% real (44.5%) sits inside the 5-seed gap study's 40.0 ± 4.8% — the paradigms are
-compared against a consistent baseline.
+compared against a consistent baseline. **The reactive CI [48.5, 63.0] does not overlap either chunked CI
+([68.0, 80.5], [67.0, 79.5])**, so over the 200 matched eval episodes the chunked-carries-more-gap ordering is
+a real separation, not episode noise.
 
 ## Interpretation — chunking buys temporal consistency, and pays for it in sim-to-real robustness
 
@@ -61,9 +65,10 @@ identical; the gap metric separates them and names the cost of chunking under sh
 
 ## Integrity
 
-- **Single seed — directional, not hardened.** This is a quick cross-paradigm signal. The gap *ordering*
-  (chunked > reactive) is mechanistically argued, but the exact pp values are one-seed; multi-seed hardening
-  is deferred (bead filed) and only warranted now that a number has separated.
+- **CI-separated over episodes, single training seed.** The paired-bootstrap CIs (via `core.metrics`) show the
+  chunked>reactive ordering is a real separation over the 200 matched eval episodes — more than directional. But
+  that CI brackets *eval-episode* noise, not *net-init* noise: this is one training seed, so the init-variance
+  hardening (multi-seed, matching `experiment.py`) is the remaining rigor and is filed (7wz).
 - **The toy task does not flatter chunking.** Point-mass reach is unimodal and low-dimensional — it exercises
   none of what ACT/diffusion were built for (multimodal human demos, high-dim visuomotor input). So this is
   *not* evidence that chunking is a worse paradigm in general; it is evidence that on a reactive control task

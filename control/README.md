@@ -68,16 +68,20 @@ cloning, an **ACT** action-chunking transformer, and a **diffusion policy** (con
 chunks). Cloned from the *same* nominal demos and scored by the *same* gap metric at the headline +50% shift
 (single seed):
 
-| policy | sim success | real success | sim-to-real gap |
+| policy | sim success | real success | sim-to-real gap [95% CI] |
 |---|---:|---:|---:|
-| behavior cloning | 100.0% | 44.5% | **55.5 pp** |
-| ACT (chunk transformer) | 100.0% | 25.5% | 74.5 pp |
-| diffusion policy | 100.0% | 27.0% | 73.0 pp |
+| behavior cloning | 100.0% | 44.5% | **55.5 pp** [48.5, 63.0] |
+| ACT (chunk transformer) | 100.0% | 25.5% | 74.5 pp [68.0, 80.5] |
+| diffusion policy | 100.0% | 27.0% | 73.0 pp [67.0, 79.5] |
 
 All three learn the task in-domain; the **chunked** paradigms carry a *larger* sim-to-real gap. Action-chunking
 commits to trajectory-shaped intent calibrated to nominal dynamics, where BC's single-step feedback is exactly
 what absorbs the payload shift — the eval discipline names a paradigm tradeoff that the 100% in-domain success
-completely hides. A single-seed signal (directional; multi-seed hardening filed). Method + mechanism →
+completely hides. The gap is bracketed by a **paired bootstrap over the matched episodes through the shared
+`core.metrics` substrate** — the *same* primitive that brackets the perception AU-PRO gap (promoted into `core`
+so both legs score through one honest-uncertainty story). The reactive and chunked CIs do not overlap, so the
+ordering is a real separation over the 200 eval episodes, not scatter — over a single training seed still
+(multi-seed init hardening filed). Method + mechanism →
 [`interpretations/control/2026-07-18_paradigm-gap.md`](../interpretations/control/2026-07-18_paradigm-gap.md).
 
 ## Method — point-mass reach (the fast rung)

@@ -13,14 +13,17 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import mlflow
+import numpy as np
+from jaxtyping import Float
 
 from control.act import ACTConfig, ACTPolicy
 from control.bc import BCConfig, BCPolicy
 from control.diffusion_policy import DiffusionConfig, DiffusionPolicy
 from control.expert import PDExpert
 from control.point_mass import Phys, PointMassReach, Task
+from core.metrics import Metrics
 from core.obs import Obs
-from core.rollout import EvalPlan, Rollout
+from core.rollout import EvalPlan, Rollout, Trajectory
 
 log = Obs.get()
 _PP = 100.0
@@ -51,12 +54,19 @@ class PolicyCompare:
                 "diffusion": DiffusionPolicy(train_make, expert, cfg.diffusion)}
 
     @staticmethod
+    def _flags(trajs: list[Trajectory]) -> Float[np.ndarray, "e"]:
+        return np.array([t.success.any() for t in trajs], dtype=float)   # per-episode success (matched seeds)
+
+    @staticmethod
     def _gap(cfg: CompareConfig, policy: Any) -> dict[str, float]:
         state = policy.train("reach")
         plan = EvalPlan(cfg.episodes, cfg.eval_seed, cfg.task.horizon)
-        sim = Rollout.success_rate(Rollout.rollset(policy, state, PointMassReach.factory(cfg.sim, cfg.task), plan))
-        real = Rollout.success_rate(Rollout.rollset(policy, state, PointMassReach.factory(cfg.real, cfg.task), plan))
-        return {"sim_success": sim, "real_success": real, "gap_pp": _PP * (sim - real)}
+        sim_t = Rollout.rollset(policy, state, PointMassReach.factory(cfg.sim, cfg.task), plan)
+        real_t = Rollout.rollset(policy, state, PointMassReach.factory(cfg.real, cfg.task), plan)
+        sim, real = Rollout.success_rate(sim_t), Rollout.success_rate(real_t)
+        gap, lo, hi = Metrics.boot_delta_ci(np.mean, [PolicyCompare._flags(real_t)], [PolicyCompare._flags(sim_t)])
+        return {"sim_success": sim, "real_success": real,
+                "gap_pp": _PP * gap, "gap_lo_pp": _PP * lo, "gap_hi_pp": _PP * hi}
 
     @staticmethod
     def run(cfg: CompareConfig) -> dict[str, dict[str, float]]:
@@ -75,10 +85,11 @@ class PolicyCompare:
             for name, row in results.items():
                 mlflow.log_metrics({f"{name}__{k}": v for k, v in row.items()})
         log.info("=== paradigm compare — same nominal demos, +50%% payload / -10%% gain, single seed ===")
-        log.info("  policy      sim success   real success   sim-to-real gap")
+        log.info("  policy      sim success   real success   sim-to-real gap [95%% paired-boot CI]")
         for name, row in results.items():
-            log.info("  %-10s   %6.1f%%       %6.1f%%        %5.1f pp", name,
-                     _PP * row["sim_success"], _PP * row["real_success"], row["gap_pp"])
+            log.info("  %-10s   %6.1f%%       %6.1f%%        %5.1f pp  [%.1f, %.1f]", name,
+                     _PP * row["sim_success"], _PP * row["real_success"],
+                     row["gap_pp"], row["gap_lo_pp"], row["gap_hi_pp"])
 
     @staticmethod
     def main() -> None:

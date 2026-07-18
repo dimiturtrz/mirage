@@ -6,8 +6,8 @@ and `reconciles` are the guards for exactly that; the rest guard brackets + ECE 
 import numpy as np
 import pytest
 
+from core.invariants import Invariants
 from core.method import ScoreArrays
-from surfscan.evaluation.invariants import Invariants
 
 
 def _clean():

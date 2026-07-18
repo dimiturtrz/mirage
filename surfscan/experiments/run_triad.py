@@ -58,6 +58,8 @@ class TriadCfg:
     arms: list[str] = field(default_factory=lambda: ["real", "synth", "synth_da"])
     channels: list[str] = field(default_factory=lambda: ["rgb"])
     curriculum: bool = False
+    size: int | None = None      # train/eval grid; None -> the store default (256²). >256 = the native-res probe.
+    twin_sensor: bool = False    # twin arms train on the Zivid-sensor-modeled twin store (jlc.2) vs the clean twin
 
 
 class TriadRun:
@@ -110,7 +112,7 @@ class TriadRun:
         rng = np.random.RandomState(cfg.seed)
         torch.manual_seed(cfg.seed)
         good = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=ch, device=dev,
-                                   source=source)
+                                   size=cfg.size, source=source)
         perm = np.random.RandomState(cfg.seed).permutation(good.x.shape[0])
         nval = max(BATCH, good.x.shape[0] // VAL_FRAC)
         val_t = torch.as_tensor(perm[:nval], device=dev)
@@ -159,7 +161,7 @@ class TriadRun:
         *scarce-label* ceiling (only ~half of an already-small defect set), not an oracle; that's the
         measured supervised bar for this detector, and why the unsupervised memory bank can beat it."""
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels),
-                                   device=self.dev)
+                                   device=self.dev, size=self.cfg.size)
         ci, _ = TriadRun._split_idx(test.df["label"].to_numpy())
         return self._fit_bce(test, f"real:{cat}", rows=ci)
 
@@ -168,7 +170,7 @@ class TriadRun:
         synthetic, so no eval leakage). The full physics-twin arm: shape AND defect come from the
         Isaac render, scored on the shared real eval half."""
         twin = GpuSplit.load_split(split=Split.TEST, label=1, cats=[cat], channels=tuple(self.cfg.channels),
-                                   device=self.dev, source=Source.twin())
+                                   device=self.dev, size=self.cfg.size, source=Source.twin())
         return self._fit_bce(twin, f"twin_phys:{cat}")
 
     @staticmethod
@@ -192,14 +194,17 @@ class TriadRun:
 
     def fit_twin_grid(self, cat):
         """twin good scans + the same on-the-fly grid defect as classical — isolates the SHAPE source
-        (reconstructed twin vs real scan) against the classical synth arm."""
-        return self.fit_synth(cat, source=Source.twin())
+        (reconstructed twin vs real scan) against the classical synth arm. `twin_sensor` swaps the clean
+        twin store for the Zivid-sensor-modeled one (jlc.2)."""
+        src = Source.twin_sensor() if self.cfg.twin_sensor else Source.twin()
+        return self.fit_synth(cat, source=src)
 
     def fit_synth_da(self, cat):
         """synth-trained, then AdaBN-adapted to the real eval images (unlabeled). The closure arm."""
         dev = self.dev
         model = self.fit_synth(cat)
-        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev)
+        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev,
+                                   size=self.cfg.size)
         _, ei = TriadRun._split_idx(test.df["label"].to_numpy())
         return TriadRun._adabn(model, test.x[torch.as_tensor(ei, device=dev)])
 
@@ -207,7 +212,8 @@ class TriadRun:
     def score(self, model, cat: str, batch: int = BATCH) -> ScoreArrays:
         """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
         dev = self.dev
-        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev)
+        test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev,
+                                   size=self.cfg.size)
         _, ei = TriadRun._split_idx(test.df["label"].to_numpy())
         t = torch.as_tensor(ei, device=dev)
         x, v = test.x[t], test.valid[t]

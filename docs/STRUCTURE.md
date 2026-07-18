@@ -8,18 +8,21 @@ source behind the same adapter boundary.
 ## Layout
 Two packages — a reusable engine and the science on top — plus the sim engine in its own env:
 ```
-core/                the reusable, method-agnostic ENGINE (perception env — uv .venv, py3.12, torch cu130)
+core/                the reusable, method-agnostic ENGINE + shared eval substrate (uv .venv, py3.12, torch cu130)
   config.py          one data root from paths.yaml -> raw/ + processed/ + synth/
   data/              static/ (adapters mvtec · synth -> unified store; dataset GPU-resident) + dynamic/ (Defects + twin engine)
-  method.py          the (fit_fn, score_fn) contract + ScoreArrays the harness scores
-surfscan/            the SCIENCE layer (imports core)
+  method.py policy.py  the perception (fit, score)->ScoreArrays + control (train, act)->Trajectory contracts
+  metrics.py invariants.py  the shared calibration / sim-to-real / bootstrap substrate BOTH legs score through
+  rollout.py         the control rollout spine (policy -> Trajectory -> gap)
+surfscan/            the perception SCIENCE layer (imports core)
   models/            the three method families: vae · inpaint · draem · feat_recon · patchcore · fpfh_bank
   training/          train spine (registry-dispatched) + hparams + losses
   experiments/       run_* — per-method drivers that feed the harness (the AU-PRO board)
-  evaluation/        the spine: harness · metrics · scoring · diagnostics · sync_numbers
+  evaluation/        the perception spine: harness · scoring · diagnostics · sync_numbers
+  deploy/            the edge fit substrate: profile · bank · accelerators · fit (verdict matrix)
   tracking.py        MLflow wrapper
   visualization/     3D viewer + web-viewer export
-sim/                 the synthetic-defect ENGINE (its OWN env — Isaac/Replicator, py3.11/3.12)
+control/             the control/VLA SCIENCE leg (imports core, sibling to surfscan): point_mass · experts · bc/act/diffusion · sim/ (PhysX rung)
 docs/                PLAN · RESULTS.md (+ RESULTS.json canonical numbers) · STRUCTURE (this)
 tests/               unit (equivalence-class) + integration (module-pair)
 ```

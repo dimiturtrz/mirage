@@ -61,18 +61,67 @@ touch earlier under PhysX (implicit damping is less forgiving than Euler) — th
 contradiction. Opt-in (GPU + Isaac kit boot, not CI-gated). Full method + integrity →
 [`interpretations/control/2026-07-16_policy-gap.md`](../interpretations/control/2026-07-16_policy-gap.md).
 
+### The paradigm axis — reactive vs chunked (BC / ACT / diffusion)
+
+The leg speaks all three imitation paradigms through the one `(train, act)` contract: reactive behavior
+cloning, an **ACT** action-chunking transformer, and a **diffusion policy** (conditional DDPM over action
+chunks). Cloned from the *same* nominal demos and scored by the *same* gap metric at the headline +50% shift
+(single seed):
+
+| policy | sim success | real success | sim-to-real gap [95% CI] |
+|---|---:|---:|---:|
+| behavior cloning | 100.0% | 44.5% | **55.5 pp** [48.5, 63.0] |
+| ACT (chunk transformer) | 100.0% | 25.5% | 74.5 pp [68.0, 80.5] |
+| diffusion policy | 100.0% | 27.0% | 73.0 pp [67.0, 79.5] |
+
+All three learn the task in-domain; the **chunked** paradigms carry a *larger* sim-to-real gap. Action-chunking
+commits to trajectory-shaped intent calibrated to nominal dynamics, where BC's single-step feedback is exactly
+what absorbs the payload shift — the eval discipline names a paradigm tradeoff that the 100% in-domain success
+completely hides. The gap is bracketed by a **paired bootstrap over the matched episodes through the shared
+`core.metrics` substrate** — the *same* primitive that brackets the perception AU-PRO gap (promoted into `core`
+so both legs score through one honest-uncertainty story). The reactive and chunked CIs do not overlap, so the
+ordering is a real separation over the 200 eval episodes, not scatter — over a single training seed still
+(multi-seed init hardening filed). Method + mechanism →
+[`interpretations/control/2026-07-18_paradigm-gap.md`](../interpretations/control/2026-07-18_paradigm-gap.md).
+
+### Edge-VLA — distill the heaviest graph to the edge, quantize, measure the cost
+
+The differentiator: a policy that runs real-time on-device, demonstrable **sim-in-the-loop without hardware**.
+The diffusion policy is the worst-case edge graph — 50 denoising steps (50 network evals) per action. Distill
+it into a **1-step** student (an MLP regressing the teacher's sampled chunk) and **int8-quantize**:
+
+| policy | steps | params (k) | size (kB) | op-class | sim | real | gap (pp) |
+|---|---:|---:|---:|---|---:|---:|---:|
+| diffusion (teacher) | 50 | 37.9 | 151.1 | iterative_dense | 100.0% | 27.0% | 73.0 |
+| distilled (fp32) | 1 | 19.2 | 77.8 | dense | 100.0% | 23.0% | 77.0 |
+| distilled (int8) | 1 | 19.2 | 24.2 | dense | 100.0% | 22.5% | 77.5 |
+
+**Distillation cuts inference 50× (50 evals → 1) and halves the graph for +4 pp of gap; int8 shrinks it 3.2×
+(78 → 24 kB) nearly free (+0.5 pp).** The product is a **24 kB single-pass dense-op-class policy** — edge-fit.
+The op-class verdict repeats the deploy explorer's finding: the iterative diffusion teacher pays latency × 50
+(edge-prohibitive at 30 fps), ACT's **attention** doesn't compile to a fixed NPU (the same wall the Point-MAE
+detector hit), and the **distilled+quantized dense student ships on any accelerator, fixed NPUs included**. So:
+distill an attention/iterative policy to a dense single-pass student, quantize, deploy. Projection (params /
+size / steps), not measured FPS — the hardware bench is the deploy leg (bead 0sq). Method + verdict →
+[`interpretations/control/2026-07-18_edge-vla.md`](../interpretations/control/2026-07-18_edge-vla.md).
+
 ## Method — point-mass reach (the fast rung)
 
 - **Task** (`point_mass.py`) — a planar point mass reaches a goal from rest; obs `[goal-pos, vel]`, action a
   clipped acceleration; success = inside `eps` before the horizon. Newtonian step; **sim vs real differ only
   in `Phys`** (payload mass, actuator gain) — the whole sim-to-real story in two mechanical numbers.
 - **Expert** (`expert.py`) — an analytic PD controller, the behavior-cloning demonstrator (a `ControlPolicy`).
-- **Policy** (`bc.py`) — a torch MLP behavior-cloned on demos (a `ControlPolicy`; torch stays inside the impl,
-  the `core` contract is numpy).
+- **Policy family** — three `ControlPolicy` impls cloned from shared demos (`demos.py`): `bc.py` (reactive
+  MLP), `act.py` (ACT action-chunking transformer), `diffusion_policy.py` (conditional DDPM over action chunks,
+  pure schedule in `diffusion_schedule.py`). torch stays inside each impl; the `core` contract is numpy.
 - **Adaptive** (`adaptive.py`) — the `ProprioEnv` obs-wrapper (`[last_action, Δv]`) + `AdaptiveExpert`, an
   online system-ID PD controller; the demonstrator for the adaptive arm (observable-only, no privileged `Phys`).
 - **Experiment** (`experiment.py`) — train once, roll matched sim/real, sweep payload → the gap curve, over
   N BC seeds, for three arms (nominal / DR / adaptive), logged to MLflow (`control-policy-gap`).
+- **Paradigm compare** (`policy_compare.py`) — clone bc / act / diffusion on the same demos, roll matched
+  sim/real at the headline shift → the per-paradigm gap, logged to MLflow (`control-policy-gap`).
+- **Edge-VLA** (`edge.py`) — distill the diffusion policy (50-step) into a 1-step `DistilledPolicy`,
+  int8-quantize it, and report footprint (params/size/steps) vs task success + the op-class edge verdict.
 
 ## Integrity
 
@@ -88,7 +137,9 @@ reported where DR helps *and* where it doesn't.
 ## Run
 
 ```bash
-python -m control.experiment      # point-mass gap + DR lever; logs to MLflow 'control-policy-gap'
+python -m control.experiment      # point-mass gap + DR/adaptive levers; logs to MLflow 'control-policy-gap'
+python -m control.policy_compare  # bc/act/diffusion paradigm gap on the shared spine
+python -m control.edge            # edge-VLA: distill (50-step -> 1) + int8 quantize, footprint vs quality
 uv run pytest tests/unit/control -q
 
 # PhysX fidelity rung (opt-in; needs the `sim` extra + a GPU):

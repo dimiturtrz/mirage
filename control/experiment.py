@@ -21,18 +21,10 @@ from control.bc import BCConfig, BCPolicy
 from control.expert import PDExpert
 from control.point_mass import Phys, PointMassReach, Task
 from core.obs import Obs
-from core.rollout import Rollout, Trajectory
+from core.rollout import EvalPlan, Rollout, Trajectory
 
 log = Obs.get()
 _PP = 100.0  # fraction -> percentage points
-
-
-@dataclass(frozen=True)
-class EvalPlan:
-    """How many matched episodes to evaluate, from which seed, over how long a horizon."""
-    episodes: int
-    seed0: int
-    max_steps: int
 
 
 @dataclass(frozen=True)
@@ -78,9 +70,7 @@ class Experiment:
 
     @staticmethod
     def _factory(phys: Phys, task: Task) -> Callable[[int], PointMassReach]:
-        def make(seed: int) -> PointMassReach:
-            return PointMassReach(phys, task, seed)
-        return make
+        return PointMassReach.factory(phys, task)
 
     @staticmethod
     def _wrap_factory(make: Callable[[int], Any], wrap: Callable[[Any], Any]) -> Callable[[int], Any]:
@@ -103,11 +93,6 @@ class Experiment:
         return make
 
     @staticmethod
-    def _rollset(policy: Any, state: Any, make_env: Callable[[int], Any], plan: EvalPlan) -> list[Trajectory]:
-        return [Rollout.roll(policy, state, make_env(plan.seed0 + i), plan.max_steps)
-                for i in range(plan.episodes)]
-
-    @staticmethod
     def _steps_to_goal(trajs: list[Trajectory]) -> float:
         reached = [int(np.argmax(t.dones)) + 1 for t in trajs if t.dones.any()]   # first terminal step
         return float(np.mean(reached)) if reached else math.nan
@@ -121,7 +106,7 @@ class Experiment:
                       payload: float) -> tuple[float, float, float]:
         real_phys = Phys(mass=payload, gain=cfg.actuator_gain)
         make = Experiment._wrap_factory(Experiment._factory(real_phys, cfg.task), trained.wrap)
-        return Experiment._summary(Experiment._rollset(trained.policy, trained.state, make, plan))
+        return Experiment._summary(Rollout.rollset(trained.policy, trained.state, make, plan))
 
     @staticmethod
     def _compute(cfg: ExperimentConfig, arm: Arm) -> dict[str, float]:
@@ -133,9 +118,9 @@ class Experiment:
         trained = Trained(bc, bc.train("reach"), arm.wrap)
 
         sim_success, sim_return, sim_steps = Experiment._summary(
-            Experiment._rollset(trained.policy, trained.state, sim_make, plan))
+            Rollout.rollset(trained.policy, trained.state, sim_make, plan))
         expert_sim = Rollout.success_rate(
-            Experiment._rollset(arm.expert, arm.expert.train("reach"), sim_make, plan))
+            Rollout.rollset(arm.expert, arm.expert.train("reach"), sim_make, plan))
 
         metrics = {"bc_sim_success": sim_success, "bc_sim_return": sim_return, "bc_sim_steps": sim_steps,
                    "expert_sim_success": expert_sim}

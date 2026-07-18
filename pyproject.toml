@@ -208,7 +208,9 @@ omit = ["surfscan/experiments/*", "surfscan/visualization/*",
         "surfscan/report.py", "surfscan/run.py", "surfscan/viz.py",  # entry-point SPEC/registry shells
         "core/data/dynamic/twin_obj.py", "core/data/dynamic/generate_twin_synth.py",
         "core/data/dynamic/render_twin.py",  # USD-staging + Replicator boot render shells (pure geom in twin_geom, tested)
-        "control/sim/*"]  # Isaac PhysX reach env + gap runner (GPU kit boot; pure gap logic in core.rollout, tested)
+        "control/sim/*",  # Isaac PhysX reach env + gap runner (GPU kit boot; pure gap logic in core.rollout, tested)
+        "control/act.py", "control/diffusion_policy.py",  # torch chunk-transformer / DDPM shells (pure cores in demos.py + diffusion_schedule.py, tested)
+        "control/policy_compare.py", "control/edge.py"]  # paradigm-compare + edge-VLA distill/quantize CLI runners (roll the tested spine; no in-file logic)
 # <<< LOCAL-SLOT: coverage-scan
 
 [tool.coverage.report]

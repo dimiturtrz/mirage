@@ -5,7 +5,7 @@ perfect/reversed/single-class. No dataset needed.
 """
 import numpy as np
 
-from surfscan.evaluation.metrics import BootCfg, Metrics
+from core.metrics import BootCfg, Metrics
 
 
 def _sep_scores(n, rng, gap=0.0):

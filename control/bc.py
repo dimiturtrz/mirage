@@ -17,7 +17,8 @@ import torch
 from jaxtyping import Float
 from torch import Tensor, nn
 
-from core.rollout import Rollout
+from control.demos import Demos
+from core.rollout import EvalPlan
 
 
 @dataclass(frozen=True)
@@ -55,14 +56,8 @@ class BCPolicy:
         self._cfg = cfg
 
     def _collect(self, task: str) -> tuple[Float[np.ndarray, "n 4"], Float[np.ndarray, "n 2"]]:
-        obs_all, act_all = [], []
-        expert_state = self._expert.train(task)
-        for i in range(self._cfg.n_demo_episodes):
-            env = self._make_sim(self._cfg.seed + i)
-            traj = Rollout.roll(self._expert, expert_state, env, self._cfg.max_steps)
-            obs_all.append(traj.obs)
-            act_all.append(traj.actions)
-        return np.concatenate(obs_all), np.concatenate(act_all)
+        plan = EvalPlan(self._cfg.n_demo_episodes, self._cfg.seed, self._cfg.max_steps)
+        return Demos.flat(Demos.rollouts(self._expert, task, self._make_sim, plan))
 
     def train(self, task: str) -> Any:
         torch.manual_seed(self._cfg.seed)

@@ -1,6 +1,6 @@
 # The control leg — a sim-to-real policy gap: the cliff, two levers (DR vs adaptive), and a PhysX rung
 
-**Date:** 2026-07-16 · **Epic:** hxq · **Code:** `control/` + `sim/isaac_reach.py` · **Run:** `python -m control.experiment` (point mass — nominal/DR/adaptive) · `sim/ … isaac_gap.py` (PhysX rung)
+**Date:** 2026-07-16 · **Epic:** hxq · **Code:** `control/` + `control/sim/isaac_reach.py` · **Run:** `python -m control.experiment` (point mass — nominal/DR/adaptive) · `control.sim.isaac_gap` (PhysX rung)
 
 ## Question
 
@@ -96,11 +96,11 @@ The next section swaps the *engine* under that same seam.
 ## The fidelity rung — re-measured on PhysX (Isaac Sim)
 
 The `Env` seam's claim is that swapping the sim engine re-measures this curve **without touching the policy,
-the spine, or the metric**. Tested: `sim/isaac_reach.py` is a rigid-body reach env (`core.rollout.Env`) —
+the spine, or the metric**. Tested: `control/sim/isaac_reach.py` is a rigid-body reach env (`core.rollout.Env`) —
 a dynamic sphere in a zero-gravity PhysX scene, actuated by a planar force `gain·clip(a)` with linear
 damping `drag/mass`, so its equation of motion is `dv/dt = (gain·clip(a) − drag·v)/mass`: the *identical*
 point-mass dynamics, now integrated by PhysX (substeps + implicit damping) instead of explicit Euler.
-`sim/isaac_gap.py` imports the **same** `BCPolicy`, `PDExpert`, `Rollout`, and gap metric — only the `Env`
+`control/sim/isaac_gap.py` imports the **same** `BCPolicy`, `PDExpert`, `Rollout`, and gap metric — only the `Env`
 implementation is new. Payload sweep, actuator sag, matched goal seeds all unchanged (3 seeds; opt-in, GPU,
 not CI-gated — it needs a ~30 s Isaac kit boot via the opt-in `sim` extra).
 
@@ -123,7 +123,7 @@ the exact transition point sharpens with fidelity — which is precisely why the
 
 - **Toy anchor, validated up one rung.** The numpy point mass is a deliberate first rung — fast,
   deterministic, CI-runnable — a *projection* of the sim-to-real mechanism. It is no longer the only
-  measurement: the PhysX rung above it (Isaac Sim, `sim/isaac_gap.py`) re-measures the same curve and the
+  measurement: the PhysX rung above it (Isaac Sim, `control/sim/isaac_gap.py`) re-measures the same curve and the
   headline transfers (60.0 → 62.5 pp @ +50%). Both are still simplified reach dynamics, not a real robot
   arm with contact/friction/sensing — the honest ceiling is "the mechanism holds across two solvers", not
   "this is a robotics result".
@@ -145,6 +145,6 @@ the exact transition point sharpens with fidelity — which is precisely why the
 # point-mass gap + DR lever (fast, CI-gated env)
 python -m control.experiment      # prints the table; logs params+metrics to MLflow 'control-policy-gap'
 
-# PhysX fidelity rung (opt-in; needs sim/'s isolated Isaac env + a GPU)
+# PhysX fidelity rung (opt-in; needs the `sim` extra + a GPU)
 OMNI_KIT_ACCEPT_EULA=YES uv run --extra sim python -m control.sim.isaac_gap --seeds 3 --episodes 40
 ```

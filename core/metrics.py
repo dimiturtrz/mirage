@@ -1,8 +1,16 @@
-"""The anomaly-detection metrics — image AUROC + pixel AU-PRO.
+"""The shared metric / calibration / sim-to-real substrate — one home in `core`, scored by both legs.
+
+Perception scores a `ScoreArrays` here (image AUROC + pixel AU-PRO + calibration ECE); control scores a
+`Trajectory`'s per-episode success through the *same* paired bootstrap (`boot_delta_ci`) that brackets the
+perception sim-to-real gap. The primitives are pure numpy/sklearn/skimage — no leg-specific type crosses this
+boundary — so `core` stays the independent kernel and the two legs share one honest uncertainty story instead
+of each rolling its own.
 
 AU-PRO (Per-Region Overlap) is *the* MVTec localization metric: average per-defect-region
 overlap (TPR) integrated against the global false-positive rate up to a cap (0.3), normalized.
-NOT pixel-AUROC — defects are tiny, so pixel-AUROC flatters. Image AUROC is detection.
+NOT pixel-AUROC — defects are tiny, so pixel-AUROC flatters. Image AUROC is detection. The bootstrap CIs
+(`boot_ci` / `boot_delta_ci` / the macro variants) resample the evaluation set — a test-set N, not a retrain —
+so one run yields `point [lo, hi]`; the paired delta cancels shared noise to answer "does B differ from A?".
 """
 from __future__ import annotations
 

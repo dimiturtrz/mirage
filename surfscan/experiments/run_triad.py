@@ -34,12 +34,12 @@ from core.data.dynamic.defects import KINDS, Defects
 from core.data.static.dataset import GpuSplit
 from core.data.static.mvtec import Split
 from core.data.static.store import Source
+from core.invariants import Invariants
 from core.method import Method, ScoreArrays
+from core.metrics import Metrics
 from core.obs import Obs
 from surfscan.dispatch import Dispatch, Spec
 from surfscan.evaluation import harness, scoring
-from surfscan.evaluation.invariants import Invariants
-from surfscan.evaluation.metrics import Metrics
 from surfscan.models.draem import UNet
 from surfscan.training import curriculum as curric
 from surfscan.training.trainer import EarlyStop, Telemetry, Trainer

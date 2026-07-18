@@ -8,7 +8,7 @@ axis together — end to end, no dataset or GPU needed.
 import numpy as np
 
 from core.method import ScoreArrays
-from surfscan.evaluation.metrics import BootCfg, Metrics
+from core.metrics import BootCfg, Metrics
 
 
 def _score_arrays(n=40, h=48, w=48, kind="good"):

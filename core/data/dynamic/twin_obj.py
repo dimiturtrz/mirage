@@ -18,7 +18,7 @@ class TwinObj:
     @staticmethod
     def attr_float(attr: Usd.Attribute) -> float:
         # the pxr .pyi is Boost.Python-generated with every method typed `-> None`; Get returns the authored value
-        return attr.Get()  # pyrefly: ignore[bad-return]
+        return attr.Get()
 
     @staticmethod
     def build_mesh(

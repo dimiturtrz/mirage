@@ -203,7 +203,7 @@ class TwinSynth:
         from isaacsim import SimulationApp
 
         # isaacsim seeds `SimulationApp = None` before a conditional import; the sim extra binds the class
-        app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",  # pyrefly: ignore[not-callable]
+        app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",
                              "multi_gpu": False, "active_gpu": 0})
         log.info("BOOTED")
         TwinSynth(args.views, args.res, args.cats).run()

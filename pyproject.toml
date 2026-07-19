@@ -185,6 +185,17 @@ search-path = ["."]
 #   models.models                 M3DM upstream, checked out under external/ (not a package on the path)
 #   onnx, torchvision             the `export` / `features` extras — CI syncs only dev+devtools, so a gate
 #                                 run never has them (they ARE present in a dev env; see ci.yml install step)
+# The Isaac/USD stack is forced to Any whether or not it is installed. Without this the gate is
+# ENV-DEPENDENT: CI syncs dev+devtools only (no pxr/isaacsim -> ignore-missing-imports -> Any -> clean),
+# while an engine dev with `--extra sim` gets the real Boost.Python stubs, which declare every method
+# `-> None`, so suppressions needed locally read as unused-ignore in CI and vice versa. Pinning both
+# environments to Any makes one verdict for one commit.
+replace-imports-with-any = [
+    "pxr", "pxr.*",
+    "omni", "omni.*",
+    "carb", "carb.*",
+    "isaacsim", "isaacsim.*",
+]
 ignore-missing-imports = [
     "pxr", "pxr.*",
     "omni", "omni.*",

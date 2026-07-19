@@ -10,8 +10,9 @@ achievable ceiling. Run: `python -m control.experiment`. Metrics + params are lo
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from typing import Any, Callable
+from typing import Generic
 
 import mlflow
 import numpy as np
@@ -21,7 +22,8 @@ from control.bc import BCConfig, BCPolicy
 from control.expert import PDExpert
 from control.point_mass import Phys, PointMassReach, Task
 from core.obs import Obs
-from core.rollout import EvalPlan, Rollout, Trajectory
+from core.policy import ControlPolicy, StateT
+from core.rollout import Env, EvalPlan, Rollout, Trajectory
 
 log = Obs.get()
 _PP = 100.0  # fraction -> percentage points
@@ -45,24 +47,24 @@ class ExperimentConfig:
 
 
 @dataclass(frozen=True)
-class Arm:
+class Arm(Generic[StateT]):
     """One training regime to measure the gap under: a demonstrator, an env wrapper (identity or the
     proprioceptive augmentation), and the demo-collection dynamics. The three arms — nominal (PD, blind,
     nominal demos), dr (PD, blind, randomized demos), adaptive (online system-ID, proprioceptive obs,
     randomized demos) — differ only in these three fields; everything downstream is shared."""
     name: str
-    expert: Any
-    wrap: Callable[[Any], Any]
+    expert: ControlPolicy[StateT]
+    wrap: Callable[[Env], Env]
     train_make: Callable[[int], PointMassReach]
 
 
 @dataclass(frozen=True)
-class Trained:
+class Trained(Generic[StateT]):
     """A trained policy ready to roll — the fit `policy`, its `state`, and the env `wrap` its observation
     space was built for (identity or proprioceptive). Travels as one handle so eval helpers stay small."""
-    policy: Any
-    state: Any
-    wrap: Callable[[Any], Any]
+    policy: ControlPolicy[StateT]
+    state: StateT
+    wrap: Callable[[Env], Env]
 
 
 class Experiment:
@@ -73,8 +75,8 @@ class Experiment:
         return PointMassReach.factory(phys, task)
 
     @staticmethod
-    def _wrap_factory(make: Callable[[int], Any], wrap: Callable[[Any], Any]) -> Callable[[int], Any]:
-        def wrapped(seed: int) -> Any:
+    def _wrap_factory(make: Callable[[int], Env], wrap: Callable[[Env], Env]) -> Callable[[int], Env]:
+        def wrapped(seed: int) -> Env:
             return wrap(make(seed))
         return wrapped
 
@@ -102,14 +104,14 @@ class Experiment:
         return Rollout.success_rate(trajs), Rollout.mean_return(trajs), Experiment._steps_to_goal(trajs)
 
     @staticmethod
-    def _real_summary(cfg: ExperimentConfig, trained: Trained, plan: EvalPlan,
+    def _real_summary(cfg: ExperimentConfig, trained: Trained[StateT], plan: EvalPlan,
                       payload: float) -> tuple[float, float, float]:
         real_phys = Phys(mass=payload, gain=cfg.actuator_gain)
         make = Experiment._wrap_factory(Experiment._factory(real_phys, cfg.task), trained.wrap)
         return Experiment._summary(Rollout.rollset(trained.policy, trained.state, make, plan))
 
     @staticmethod
-    def _compute(cfg: ExperimentConfig, arm: Arm) -> dict[str, float]:
+    def _compute(cfg: ExperimentConfig, arm: Arm[StateT]) -> dict[str, float]:
         sim_make = Experiment._wrap_factory(Experiment._factory(cfg.sim, cfg.task), arm.wrap)  # nominal eval sim
         train_make = Experiment._wrap_factory(arm.train_make, arm.wrap)
         plan = EvalPlan(cfg.eval_episodes, cfg.eval_seed, cfg.task.horizon)
@@ -143,25 +145,26 @@ class Experiment:
         return agg
 
     @staticmethod
-    def _compute_multiseed(cfg: ExperimentConfig, make_arm: Callable[[ExperimentConfig], Arm]) -> dict[str, float]:
+    def _compute_multiseed(cfg: ExperimentConfig,
+                           make_arm: Callable[[ExperimentConfig], Arm[StateT]]) -> dict[str, float]:
         seeded = [replace(cfg, bc=replace(cfg.bc, seed=s)) for s in range(cfg.n_seeds)]
         return Experiment._aggregate([Experiment._compute(c, make_arm(c)) for c in seeded])
 
     @staticmethod
-    def _identity(env: Any) -> Any:
+    def _identity(env: Env) -> Env:
         return env
 
     @staticmethod
-    def _nominal_arm(cfg: ExperimentConfig) -> Arm:
+    def _nominal_arm(cfg: ExperimentConfig) -> Arm[None]:
         return Arm("nominal", PDExpert(amax=cfg.sim.amax), Experiment._identity,
                    Experiment._factory(cfg.sim, cfg.task))
 
     @staticmethod
-    def _dr_arm(cfg: ExperimentConfig) -> Arm:
+    def _dr_arm(cfg: ExperimentConfig) -> Arm[None]:
         return Arm("dr", PDExpert(amax=cfg.sim.amax), Experiment._identity, Experiment._dr_factory(cfg))
 
     @staticmethod
-    def _adaptive_arm(cfg: ExperimentConfig) -> Arm:
+    def _adaptive_arm(cfg: ExperimentConfig) -> Arm[None]:
         return Arm("adaptive", AdaptiveExpert(dt=cfg.sim.dt, amax=cfg.sim.amax), ProprioEnv,
                    Experiment._dr_factory(cfg))
 

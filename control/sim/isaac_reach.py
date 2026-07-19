@@ -18,12 +18,19 @@ Not CI-runnable (GPU + a ~30 s kit boot, needs the `sim` extra) — an opt-in fi
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from jaxtyping import Float
 
+from control.point_mass import Phys, Task
 from core.rollout import StepResult
+
+if TYPE_CHECKING:
+    from isaacsim.core.api import World
+    from isaacsim.core.api.objects import DynamicSphere
+    from isaacsim.core.prims import RigidPrim
+    from pxr import PhysxSchema
 
 _DIM = 2                 # planar reach (x, y); z is held constant by zero gravity + planar forcing
 _Z = 0.5                 # float height above the origin (no ground contact; gravity is off anyway)
@@ -36,7 +43,8 @@ class IsaacReach:
     One sphere is reused across episodes (teleported home on `reset`, not re-spawned). `configure` sets the
     per-episode seed + the `Phys` (mass/gain), so a factory closure yields matched goals across sim/real."""
 
-    def __init__(self, world: Any, sphere: Any, view: Any, physx_rb: Any, task: Any, dt: float):  # noqa: PLR0913
+    def __init__(self, world: World, sphere: DynamicSphere, view: RigidPrim,  # noqa: PLR0913
+                 physx_rb: PhysxSchema.PhysxRigidBodyAPI, task: Task, dt: float):
         self._world = world
         self._sphere = sphere
         self._view = view
@@ -52,7 +60,7 @@ class IsaacReach:
         self._t = 0
 
     @classmethod
-    def boot(cls, task: Any, phys_dt: float) -> IsaacReach:
+    def boot(cls, task: Task, phys_dt: float) -> IsaacReach:
         """Build the world + sphere AFTER the SimulationApp is up (local kit imports). Zero gravity so the
         body stays planar and the only forces are the actuator's."""
         from isaacsim.core.api import World
@@ -71,7 +79,7 @@ class IsaacReach:
         physx_rb.CreateAngularDampingAttr(0.0)
         return cls(world, sphere, view, physx_rb, task, phys_dt)
 
-    def configure(self, seed: int, phys: Any) -> IsaacReach:
+    def configure(self, seed: int, phys: Phys) -> IsaacReach:
         """Point the reused env at one episode's seed + physics (payload mass, actuator gain)."""
         self._rng = np.random.default_rng(seed)
         self._mass, self._gain, self._drag, self._amax = phys.mass, phys.gain, phys.drag, phys.amax

@@ -6,8 +6,9 @@ local-surface descriptors to normal. See learning/2026-06-25_fpfh-and-neighborho
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TypeAlias
 
 import numpy as np
 import open3d as o3d
@@ -16,6 +17,8 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from core.compute import Compute
+
+CloudSamples: TypeAlias = Sequence[tuple[Float[np.ndarray, "h w 3"], Bool[np.ndarray, "h w"]]]
 
 
 @dataclass(frozen=True)
@@ -61,7 +64,7 @@ class FpfhBank:
 
     @staticmethod
     def _fpfh_batch(
-        samples: Any, cfg: FpfhCfg | None = None,
+        samples: CloudSamples, cfg: FpfhCfg | None = None,
     ) -> list[tuple[Float[np.ndarray, "n 33"], Int[np.ndarray, "n 2"]]]:
         """fpfh_for_sample over samples. Serial by measurement: open3d's normals/FPFH hold the GIL, so a
         ThreadPool gave 1.0x (no speedup, benchmarked on real data); a ProcessPool's Windows-spawn +
@@ -77,7 +80,7 @@ class FpfhBank:
         self.seed = seed
         self.bank: Tensor | None = None
 
-    def fit(self, samples: Any) -> FpfhBank:               # samples: list of (xyz, valid)
+    def fit(self, samples: CloudSamples) -> FpfhBank:
         rng = np.random.RandomState(self.seed)
         feats = []
         for f, _ in FpfhBank._fpfh_batch(samples):
@@ -108,7 +111,7 @@ class FpfhBank:
         f, coords = FpfhBank.fpfh_for_sample(xyz, valid)
         return self._score_one(f, coords, valid, chunk)
 
-    def score_maps(self, samples: Any, chunk: int = 4096) -> Float[np.ndarray, "n h w"]:
+    def score_maps(self, samples: CloudSamples, chunk: int = 4096) -> Float[np.ndarray, "n h w"]:
         """Batch score -> (N,H,W): FPFH per sample (see _fpfh_batch), then GPU nearest-bank distance.
         Identical to np.stack([score_map(x, v) for x, v in samples]) — a convenience, not a speedup."""
         return np.stack([self._score_one(f, coords, valid, chunk)

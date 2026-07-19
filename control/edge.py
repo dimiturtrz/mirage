@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import argparse
 import io
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, override
+from typing import ClassVar, Generic, override
 
 import mlflow
 import numpy as np
@@ -30,11 +31,12 @@ from jaxtyping import Float
 from torch import Tensor, nn
 
 from control.demos import Demos
-from control.diffusion_policy import DiffusionConfig, DiffusionPolicy
+from control.diffusion_policy import DiffusionConfig, DiffusionPolicy, EpsMLP
 from control.expert import PDExpert
 from control.point_mass import Phys, PointMassReach, Task
 from core.obs import Obs
-from core.rollout import EvalPlan, Rollout
+from core.policy import ControlPolicy, StateT
+from core.rollout import Env, EvalPlan, Rollout
 
 log = Obs.get()
 _PP = 100.0
@@ -75,10 +77,14 @@ class OneStepNet(nn.Module):
         return self.net(obs)
 
 
-class DistilledPolicy:
-    """A 1-step student regressing the diffusion teacher's sampled action chunk (50 denoise steps → 1 pass)."""
+class DistilledPolicy(Generic[StateT]):
+    """A 1-step student regressing the diffusion teacher's sampled action chunk (50 denoise steps → 1 pass).
 
-    def __init__(self, teacher: DiffusionPolicy, teacher_state: Any, expert: Any, make_sim: Any, cfg: EdgeConfig):
+    Generic in the demonstrator's state type (`StateT`, shared with the teacher it distils); its own state is
+    the fitted `OneStepNet` — or that net after int8 quantization, hence `act` reads any `nn.Module`."""
+
+    def __init__(self, teacher: DiffusionPolicy[StateT], teacher_state: EpsMLP, expert: ControlPolicy[StateT],
+                 make_sim: Callable[[int], Env], cfg: EdgeConfig):
         self._teacher = teacher
         self._teacher_state = teacher_state
         self._expert = expert
@@ -86,7 +92,7 @@ class DistilledPolicy:
         self._cfg = cfg
         self._act_dim = 0
 
-    def train(self, task: str) -> Any:
+    def train(self, task: str) -> OneStepNet:
         torch.manual_seed(self._cfg.seed)
         rng = np.random.default_rng(self._cfg.seed)
         plan = EvalPlan(self._cfg.teacher.n_demo_episodes, self._cfg.seed, self._cfg.teacher.max_steps)
@@ -107,7 +113,7 @@ class DistilledPolicy:
             opt.step()
         return net
 
-    def act(self, state: Any, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "act"]:
+    def act(self, state: nn.Module, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "act"]:
         net = state
         with torch.no_grad():
             chunk = net(torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0))
@@ -139,14 +145,15 @@ class EdgeVLA:
         return torch.ao.quantization.quantize_dynamic(net, {nn.Linear}, dtype=torch.qint8)
 
     @staticmethod
-    def _quality(policy: Any, state: Any, cfg: EdgeConfig) -> tuple[float, float, float]:
+    def _quality(policy: ControlPolicy[nn.Module], state: nn.Module, cfg: EdgeConfig) -> tuple[float, float, float]:
         plan = EvalPlan(cfg.episodes, cfg.eval_seed, cfg.task.horizon)
         sim = Rollout.success_rate(Rollout.rollset(policy, state, PointMassReach.factory(cfg.sim, cfg.task), plan))
         real = Rollout.success_rate(Rollout.rollset(policy, state, PointMassReach.factory(cfg.real, cfg.task), plan))
         return sim, real, sim - real
 
     @staticmethod
-    def _build(cfg: EdgeConfig) -> tuple[DiffusionPolicy, Any, DistilledPolicy, Any, Any]:
+    def _build(cfg: EdgeConfig) -> tuple[DiffusionPolicy[None], EpsMLP, DistilledPolicy[None], OneStepNet,
+                                         nn.Module]:
         make_sim = PointMassReach.factory(cfg.sim, cfg.task)
         expert = PDExpert(amax=cfg.sim.amax)
         teacher = DiffusionPolicy(make_sim, expert, cfg.teacher)
@@ -161,9 +168,10 @@ class EdgeVLA:
         teacher, teacher_state, student, student_state, qnet = EdgeVLA._build(cfg)
         # (policy, roll_state, param_net, size_net): int8 counts params off the fp32 net — quantization changes
         # precision, not count, and a quantized module packs weights into buffers so .parameters() reads empty.
-        specs = {"diffusion_teacher": (teacher, teacher_state, teacher_state, teacher_state),
-                 "distilled_fp32": (student, student_state, student_state, student_state),
-                 "distilled_int8": (student, qnet, student_state, qnet)}
+        specs: dict[str, tuple[ControlPolicy[nn.Module], nn.Module, nn.Module, nn.Module]] = {
+            "diffusion_teacher": (teacher, teacher_state, teacher_state, teacher_state),
+            "distilled_fp32": (student, student_state, student_state, student_state),
+            "distilled_int8": (student, qnet, student_state, qnet)}
         rows: dict[str, dict[str, float]] = {}
         for name, (policy, roll_state, param_net, size_net) in specs.items():
             sim, real, gap = EdgeVLA._quality(policy, roll_state, cfg)

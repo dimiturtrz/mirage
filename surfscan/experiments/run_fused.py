@@ -35,7 +35,7 @@ class FusedCfg:
 class FusedMethod:
     run_name = "fused_rgb_fpfh"
 
-    def __init__(self, cfg: FusedCfg, dev: torch.device) -> None:
+    def __init__(self, cfg: FusedCfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
 

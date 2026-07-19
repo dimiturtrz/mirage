@@ -36,7 +36,7 @@ class DraemCfg:
 
 
 class DraemMethod:
-    def __init__(self, cfg: DraemCfg, dev: torch.device) -> None:
+    def __init__(self, cfg: DraemCfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
 

@@ -10,19 +10,20 @@ reach expert is the near-zero settle action). Pure numpy over `core.rollout` Tra
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
 
 import numpy as np
 from jaxtyping import Float
 
-from core.rollout import EvalPlan, Rollout, Trajectory
+from core.policy import ControlPolicy, StateT
+from core.rollout import Env, EvalPlan, Rollout, Trajectory
 
 
 class Demos:
     """Collect an expert's rollouts once, expose them as flat BC pairs or as action-chunk targets."""
 
     @staticmethod
-    def rollouts(expert: Any, task: str, make_env: Callable[[int], Any], plan: EvalPlan) -> list[Trajectory]:
+    def rollouts(expert: ControlPolicy[StateT], task: str, make_env: Callable[[int], Env],
+                 plan: EvalPlan) -> list[Trajectory]:
         state = expert.train(task)
         return Rollout.rollset(expert, state, make_env, plan)
 

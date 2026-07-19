@@ -11,17 +11,18 @@ Browse with `mlflow ui`.
 """
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import cast
 
 import numpy as np
 
 from core import invariants, metrics
 from core.data.static import mvtec
-from core.method import AnomalyMethod, FitFn, Method, ScoreArrays, ScoreFn  # the (fit_fn, score_fn) contract
+from core.method import AnomalyMethod, FitFn, Method, ScoreArrays, ScoreFn, StateT  # the (fit_fn, score_fn) contract
 from core.obs import Obs, Progress
 from surfscan import tracking
 from surfscan.evaluation import diagnostics, predictions
-from surfscan.evaluation.result_types import RunParams, Scores
+from surfscan.evaluation.result_types import Bracket, CategoryRow, DefectRow, EvalResult, RunParams, Scores
 
 log = Obs.get()
 
@@ -31,8 +32,8 @@ class Harness:
 
     @staticmethod
     def aggregate(
-        method: str, fit_fn: FitFn, score_fn: ScoreFn, cats: list[str]
-    ) -> dict[str, Any]:
+        method: str, fit_fn: FitFn[StateT], score_fn: ScoreFn[StateT], cats: list[str]
+    ) -> EvalResult:
         """Run the method over categories (per-category fit+score, ETA-logged), then compute the metrics."""
         prog = Progress(len(cats), tag=method)
         by_cat = []
@@ -42,18 +43,18 @@ class Harness:
         return Harness.compute(method, by_cat, cats)
 
     @staticmethod
-    def from_artifact(npz: dict[str, Any]) -> dict[str, Any]:
+    def from_artifact(npz: Mapping[str, np.ndarray]) -> EvalResult:
         """Recompute the full result OFFLINE from persisted per-image predictions (Predictions.pack npz) —
         no fit/score, no GPU. A new bootstrap / macro fix / ECE variant becomes a re-`compute`, not a re-run."""
         cats, by_cat = predictions.Predictions.unpack(npz)
         return Harness.compute(f"recompute[{len(cats)}cat]", by_cat, cats)
 
     @staticmethod
-    def compute(method: str, by_cat: list[ScoreArrays], cats: list[str]) -> dict[str, Any]:
+    def compute(method: str, by_cat: list[ScoreArrays], cats: list[str]) -> EvalResult:
         """The pure metric/CI core over per-category ScoreArrays — shared by live eval (`aggregate`) and
         offline recompute (`from_artifact`). Every headline number is a function of these arrays alone."""
-        rows: list[dict[str, Any]] = []
-        pool: dict[str, list[Any]] = {f: [] for f in ScoreArrays._fields}
+        rows: list[CategoryRow] = []
+        pool: dict[str, list[np.ndarray]] = {f: [] for f in ScoreArrays._fields}
         for c, sa in zip(cats, by_cat, strict=True):
             rows.append({"category": c, "n": len(sa.scores),
                          "img_auroc": metrics.Metrics.image_auroc(sa.scores, sa.labels),
@@ -66,7 +67,7 @@ class Harness:
         log.info(f"  {'MEAN':12s}  img_auroc {mean.img_auroc:.3f}   au_pro {mean.au_pro:.3f}")
 
         pooled = ScoreArrays(**{f: np.concatenate(pool[f]) for f in ScoreArrays._fields})
-        defect_rows = diagnostics.Diagnostics.by_defect(pooled)
+        defect_rows = cast("list[DefectRow]", diagnostics.Diagnostics.by_defect(pooled))
         log.info("  --- per defect type ---")
         for d in defect_rows:
             log.info(f"  {d['defect']:14s}  img_auroc {d['img_auroc']:.3f}   au_pro {d['au_pro']:.3f}  (n={d['n']})")
@@ -76,8 +77,9 @@ class Harness:
         auroc_cat = [(sa.scores, sa.labels) for sa in by_cat]
         pro_cat = [(sa.amaps, sa.masks, sa.valids) for sa in by_cat]
         with Progress.stage("bootstrap CI"):                   # the au_pro bootstrap is the usual slow stage
-            brackets = {"img_auroc": metrics.Metrics.boot_macro_ci(metrics.Metrics.image_auroc, auroc_cat),
-                        "au_pro": metrics.Metrics.boot_macro_ci(metrics.Metrics.au_pro, pro_cat)}
+            brackets: dict[str, Bracket] = {
+                "img_auroc": metrics.Metrics.boot_macro_ci(metrics.Metrics.image_auroc, auroc_cat),
+                "au_pro": metrics.Metrics.boot_macro_ci(metrics.Metrics.au_pro, pro_cat)}
         log.info(f"  img_auroc {brackets['img_auroc'][0]:.3f} "
                  f"[{brackets['img_auroc'][1]:.3f}, {brackets['img_auroc'][2]:.3f}]   "
                  f"au_pro {brackets['au_pro'][0]:.3f} "
@@ -91,13 +93,13 @@ class Harness:
             calib = metrics.Metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
-        result = {"method": method, "per_category": rows, "mean": mean.as_dict(),
+        result: EvalResult = {"method": method, "per_category": rows, "mean": mean.as_dict(),
                "ci": brackets, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
         invariants.Invariants.check(result)                       # loud at run end if a number is inconsistent
         return result
 
     @staticmethod
-    def log(result: dict[str, Any]) -> None:  # pragma: no cover  mlflow IO; aggregate is the pure core
+    def log(result: EvalResult) -> None:  # pragma: no cover  mlflow IO; aggregate is the pure core
         rows = result["per_category"]
         tracking.Tracker.metrics(Scores(**result["mean"]).tracker_means())
         brackets = result.get("ci", {})
@@ -110,19 +112,20 @@ class Harness:
         tracking.Tracker.per_group("img_auroc", {row["category"]: row["img_auroc"] for row in rows})
         tracking.Tracker.per_group("au_pro_defect",
                                    {row["defect"]: row["au_pro"] for row in result["per_defect"]})
-        tracking.Tracker.artifact_json("aggregate.json",
-                                       {key: value for key, value in result.items() if key != "by_cat"})
+        tracking.Tracker.artifact_json(                     # every EvalResult key but `by_cat` is JSON-native
+            "aggregate.json",
+            cast("dict[str, tracking.JsonValue]", {key: value for key, value in result.items() if key != "by_cat"}))
         cats = [row["category"] for row in rows]                # persist per-image predictions -> offline recompute
         tracking.Tracker.artifact_npz("predictions.npz", predictions.Predictions.pack(result["by_cat"], cats))
 
     @staticmethod
     def run(
         method: str,
-        method_obj: AnomalyMethod | Method,
+        method_obj: AnomalyMethod[StateT] | Method[StateT],
         cats: list[str] | None = None,
         run_id: str | None = None,
-        params: dict[str, str] | None = None,
-    ) -> dict[str, Any]:  # pragma: no cover  mlflow wrapper
+        params: Mapping[str, tracking.ParamTree] | None = None,
+    ) -> EvalResult:  # pragma: no cover  mlflow wrapper
         cats = cats or mvtec.Mvtec().categories()
         result = Harness.aggregate(method, method_obj.fit, method_obj.score, cats)
         if run_id:                                       # log into an existing run (e.g. the train run)

@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import argparse
 import math
-from typing import Any
+from typing import TYPE_CHECKING, cast
 
 from core.obs import Obs
 from surfscan.dispatch import Spec
 from surfscan.evaluation.results import ROOT, Results  # DRY: reuse the mlflow lookup
+
+if TYPE_CHECKING:
+    from surfscan.evaluation.results import RunRow  # …and its row type (typing-only alias)
 
 log = Obs.get()
 
@@ -22,9 +25,10 @@ class ModelCard:
     """Auto-generate docs/MODEL_CARD.md from an MLflow run — so the card always matches the shipped model."""
 
     @staticmethod
-    def _render(run_name: str, row: dict[str, Any]) -> str:
+    def _render(run_name: str, row: RunRow) -> str:
         params = {key[len("params."):]: value for key, value in row.items() if key.startswith("params.")}
-        au_pro, img_auroc = row.get("metrics.au_pro_mean"), row.get("metrics.img_auroc_mean")
+        au_pro = cast("float | None", row.get("metrics.au_pro_mean"))
+        img_auroc = cast("float | None", row.get("metrics.img_auroc_mean"))
         categories = sorted({key.split("/")[1] for key in row if key.startswith("metrics.au_pro/")})
 
         out = [
@@ -41,7 +45,8 @@ class ModelCard:
         if categories:
             out += ["## Per category", "| category | img-AUROC | AU-PRO |", "|---|---|---|"]
             for category in categories:
-                cat_au, cat_img = row.get(f"metrics.au_pro/{category}"), row.get(f"metrics.img_auroc/{category}")
+                cat_au = cast("float", row.get(f"metrics.au_pro/{category}"))
+                cat_img = cast("float", row.get(f"metrics.img_auroc/{category}"))
                 out.append(f"| {category} | {cat_img:.3f} | {cat_au:.3f} |")
             out.append("")
         if params:

@@ -35,7 +35,7 @@ class PointMAECfg:
 class PointMAEMethod:
     run_name = "pointmae_geom"
 
-    def __init__(self, cfg: PointMAECfg, dev: torch.device) -> None:
+    def __init__(self, cfg: PointMAECfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
         self.size = cfg.size or 256

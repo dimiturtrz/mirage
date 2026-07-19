@@ -9,7 +9,7 @@ Two image-level scores from a reconstruction model:
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import torch
@@ -104,7 +104,7 @@ class Scoring:
         return ScoreArrays(amaps, valids, masks, scores, labels, defects)
 
     @staticmethod
-    def score_arrays_store(amaps: Float[np.ndarray, "n h w"], test: list[dict[str, Any]], dft: pl.DataFrame,
+    def score_arrays_store(amaps: Float[np.ndarray, "n h w"], test: list[dict[str, np.ndarray]], dft: pl.DataFrame,
                            scores: Float[np.ndarray, "n"] | None = None) -> ScoreArrays:
         """Store-dict path -> the same ScoreArrays 6-tuple: valid/gt come from per-sample store dicts (the
         BTF / PointMAE geometry methods read the raw store, not a GpuSplit); labels from the dataframe."""

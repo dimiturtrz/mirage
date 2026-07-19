@@ -11,12 +11,12 @@ later by Isaac Lab / MuJoCo (bead hxq.3) without touching this file.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, NamedTuple, Protocol, runtime_checkable
+from typing import NamedTuple, Protocol, runtime_checkable
 
 import numpy as np
 from jaxtyping import Shaped
 
-from core.policy import ControlPolicy, Trajectory
+from core.policy import ControlPolicy, StateT, Trajectory
 
 
 class EvalPlan(NamedTuple):
@@ -49,12 +49,12 @@ class Rollout:
     """Drive a policy through an env into a Trajectory, then reduce trajectories to the policy gap."""
 
     @staticmethod
-    def roll(policy: ControlPolicy, state: Any, env: Env, max_steps: int) -> Trajectory:
+    def roll(policy: ControlPolicy[StateT], state: StateT, env: Env, max_steps: int) -> Trajectory:
         """Roll a policy already trained to `state` (call `policy.train(task)` once, then roll many episodes —
         the control analog of fit-once-score-many; training inside the loop would re-fit per episode)."""
         obs = env.reset()
-        obs_log: list[Any] = []
-        act_log: list[Any] = []
+        obs_log: list[Shaped[np.ndarray, "*obs"]] = []
+        act_log: list[Shaped[np.ndarray, "*act"]] = []
         rew_log: list[float] = []
         done_log: list[bool] = []
         ok_log: list[bool] = []
@@ -78,7 +78,7 @@ class Rollout:
         )
 
     @staticmethod
-    def rollset(policy: ControlPolicy, state: Any, make_env: Callable[[int], Env],
+    def rollset(policy: ControlPolicy[StateT], state: StateT, make_env: Callable[[int], Env],
                 plan: EvalPlan) -> list[Trajectory]:
         """Roll `plan.episodes` seed-matched episodes (`plan.seed0 + i`) of a trained policy — the eval set the
         metrics reduce. Matched seeds across a sim set and a real set isolate the dynamics shift from goal luck."""

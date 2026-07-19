@@ -25,7 +25,7 @@ import io
 import json
 import re
 from pathlib import Path
-from typing import Any, override
+from typing import override
 
 import torch
 from jaxtyping import Float
@@ -33,7 +33,7 @@ from torch import Tensor, nn
 
 from core.obs import Obs
 from surfscan.deploy import DEPLOY_DIR
-from surfscan.deploy.schema import OpSupport
+from surfscan.deploy.schema import CompileDoc, CompiledOp, CompileResult, GraphOps, OpSupport
 from surfscan.dispatch import Spec
 
 log = Obs.get()
@@ -94,9 +94,9 @@ class CompileProbe:
     )
 
     @staticmethod
-    def build(outdir: Path) -> list[dict[str, Any]]:
+    def build(outdir: Path) -> list[GraphOps]:
         outdir.mkdir(parents=True, exist_ok=True)
-        rows: list[dict[str, Any]] = []
+        rows: list[GraphOps] = []
         for name, op_class, make in CompileProbe.GRAPHS:
             mod, x = make()
             buf = io.BytesIO()
@@ -111,13 +111,13 @@ class CompileProbe:
         return rows
 
     @staticmethod
-    def parse_rknn(text: str) -> dict[str, list[dict[str, Any]]]:
+    def parse_rknn(text: str) -> dict[str, list[CompiledOp]]:
         """rknn-toolkit2 build log: one op table per graph (a header row then `ID Op Dtype (NPU|CPU) ...` rows).
         A successful build prints no filename, so tables are split on the header and named in build order."""
         header = re.compile(r"\bID\b.*\bOpType\b.*\bTarget\b")
         row = re.compile(r"\b\d+\s+(\w+)\s+(?:FLOAT16|INT64|INT8|BOOL|FLOAT)\s+(NPU|CPU)\b")
         names = [g[0] for g in CompileProbe.GRAPHS]
-        tables: list[list[dict[str, Any]]] = []
+        tables: list[list[CompiledOp]] = []
         in_table = False
         for line in text.splitlines():
             if header.search(line):
@@ -133,9 +133,9 @@ class CompileProbe:
         return {names[i]: t for i, t in enumerate(tables) if i < len(names)}
 
     @staticmethod
-    def parse_edgetpu(text: str) -> dict[str, list[dict[str, Any]]]:
+    def parse_edgetpu(text: str) -> dict[str, list[CompiledOp]]:
         """edgetpu_compiler op log: per graph an `OPERATOR count Status` table; 'Mapped to Edge TPU' = native."""
-        blocks: dict[str, list[dict[str, Any]]] = {}
+        blocks: dict[str, list[CompiledOp]] = {}
         cur: str | None = None
         for line in text.splitlines():
             head = re.match(r"=+\s*(\w+)\s*=+", line)
@@ -150,7 +150,7 @@ class CompileProbe:
         return {k: v for k, v in blocks.items() if v}
 
     @staticmethod
-    def _verdict(per_op: list[dict[str, Any]]) -> str:
+    def _verdict(per_op: list[CompiledOp]) -> str:
         native = {"NPU", "EDGETPU"}
         host = [o["op"] for o in per_op if o["on"] not in native]
         if not per_op:
@@ -164,10 +164,10 @@ class CompileProbe:
         return f"host_fragmented({','.join(sorted(set(host)))[:60]})"
 
     @staticmethod
-    def assemble(rknn_text: str, edgetpu_text: str) -> dict[str, Any]:
+    def assemble(rknn_text: str, edgetpu_text: str) -> CompileDoc:
         rk, et = CompileProbe.parse_rknn(rknn_text), CompileProbe.parse_edgetpu(edgetpu_text)
         graphs = {name: op_class for name, op_class, _ in CompileProbe.GRAPHS}
-        results = []
+        results: list[CompileResult] = []
         for name, op_class in graphs.items():
             if name in rk:
                 results.append({"graph": name, "represents": op_class, "target": "rknn_rk3588",

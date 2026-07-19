@@ -221,11 +221,14 @@ ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer"
 #   furthest_point_sample, gather_operation, pointnet2_utils   pointnet2 C-ext shim attrs, dynamic import
 #   AnomalyMethod           Protocol, satisfied structurally (duck-typed) — never referenced as a class
 #   score_map               method dispatched through the (fit, score) method contract, not by name
+#   DataclassInstance       _typeshed protocol used ONLY as a string TypeVar bound (cli_config.py:29),
+#                           which vulture's static name-match cannot follow into
 # NOT silenced: metrics.boot_ci / boot_delta_ci — tested but no prod caller (genuine, tracked separately).
 #   control-leg contract types (ControlPolicy/Policy/Trajectory) are NOT listed — they are consumed by
 #   the rollout spine (core/rollout.py), so real use clears them; abstract-stub params are `_`-prefixed.
 ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "fig", "C",
-                "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map"]
+                "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map",
+                "DataclassInstance"]
 # <<< LOCAL-SLOT: vulture-ignore-names
 # >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
 paths = ["core", "surfscan", "control"]

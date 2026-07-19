@@ -11,7 +11,6 @@ Run:  python -m surfscan.report evaluate --run-id <mlflow-run-id> [--cats bagel]
 from __future__ import annotations
 
 import argparse
-from typing import Any
 
 import torch
 from torch import nn
@@ -23,6 +22,7 @@ from core.method import Method, ScoreArrays
 from surfscan import tracking
 from surfscan.dispatch import Spec
 from surfscan.evaluation import harness, scoring
+from surfscan.evaluation.result_types import EvalResult
 from surfscan.training.hparams import HParams
 
 
@@ -32,7 +32,7 @@ class Evaluate:
     @staticmethod
     def evaluate(
         run_id: str, cats: list[str] | None = None, device: str | torch.device = "cuda", image_score: str = "residual"
-    ) -> dict[str, Any]:
+    ) -> EvalResult:
         hp = HParams(**tracking.Tracker.load_config(run_id))
         dev = device
         model = tracking.Tracker.load_model(run_id).to(dev)            # the built model + weights, from MLflow

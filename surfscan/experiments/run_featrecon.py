@@ -35,7 +35,7 @@ class FeatReconCfg:
 class FeatReconMethod:
     run_name = "feat_recon"
 
-    def __init__(self, cfg: FeatReconCfg, dev: torch.device) -> None:
+    def __init__(self, cfg: FeatReconCfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
         self.ext = FeatExtractor(device=dev)

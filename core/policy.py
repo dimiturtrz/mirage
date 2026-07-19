@@ -22,7 +22,7 @@ Pure typing + numpy: no torch/sim/surfscan import — `core` stays the independe
 """
 from __future__ import annotations
 
-from typing import Any, NamedTuple, Protocol, runtime_checkable
+from typing import NamedTuple, Protocol, TypeVar, runtime_checkable
 
 import numpy as np
 from jaxtyping import Shaped
@@ -37,14 +37,20 @@ class Trajectory(NamedTuple):
     success: np.ndarray  # (T,)      bool task-success flag (sticky once true) -> success rate
 
 
+# The trained state is opaque TO THE HARNESS but concrete to each policy (BC network weights, a PD
+# gain set, a distilled VLA). That is a type PARAMETER, not `Any`: StateT ties a policy's train return
+# to the state its own act consumes, so rolling policy A's state through policy B is a type error.
+StateT = TypeVar("StateT")
+
+
 @runtime_checkable
-class ControlPolicy(Protocol):
+class ControlPolicy(Protocol[StateT]):
     """The minimal contract the rollout harness speaks to — a configured policy object. Deliberately just
     `train`/`act`: everything else (env construction, a Trainer, the mlflow `run_name`) is composed by
     HAS-A, never bolted on as protocol hooks. The per-paradigm policy classes (PDExpert, BCPolicy,
     distilled-VLA, …) satisfy it, so the harness reads `.train`/`.act` without caring which — the exact
     shape `AnomalyMethod` has on the perception side."""
 
-    def train(self, _task: str) -> Any: ...
+    def train(self, task: str, /) -> StateT: ...
 
-    def act(self, _state: Any, _obs: Shaped[np.ndarray, "*obs"]) -> Shaped[np.ndarray, "*act"]: ...
+    def act(self, state: StateT, obs: Shaped[np.ndarray, "*obs"], /) -> Shaped[np.ndarray, "*act"]: ...

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TypedDict
 
 import numpy as np
 import torch
@@ -51,6 +51,14 @@ log = Obs.get()
 BATCH = 16
 VAL_FRAC = 5             # 1/VAL_FRAC of the good scans held out for the synth val signal
 PATIENCE = 8             # epochs of no val-au_pro improvement before stopping (best weights restored)
+
+
+class ArmResult(TypedDict):
+    """The slice of a `Harness.run` result the triad's gap math reads — the macro point metrics and the
+    per-category ScoreArrays the paired bootstrap resamples."""
+
+    mean: dict[str, float]
+    by_cat: list[ScoreArrays]
 
 
 @dataclass(frozen=True)
@@ -244,7 +252,7 @@ class TriadRun:
 
         fits = {"real": run.fit_real, "synth": run.fit_synth, "synth_da": run.fit_synth_da,
                 "twin_grid": run.fit_twin_grid, "twin_phys": run.fit_twin_phys}
-        res = {}
+        res: dict[str, ArmResult] = {}
         for arm in cfg.arms:
             tag = f"triad_{arm}" + ("_curric" if cfg.curriculum and arm != "real" else "")
             log.info(f"\n===== {tag} (seed {cfg.seed}) =====")
@@ -255,7 +263,7 @@ class TriadRun:
 
     @staticmethod
     def _pro_delta_ci(
-        res_a: dict[str, Any], res_b: dict[str, Any]
+        res_a: ArmResult, res_b: ArmResult
     ) -> tuple[float, float, float]:
         """Paired MACRO bootstrap CI for au_pro(B) − au_pro(A) — mean-of-categories, matching the headline
         arm numbers. Arms score the same deterministic eval half per category in the same order, so the
@@ -265,7 +273,7 @@ class TriadRun:
         return Metrics.boot_macro_delta_ci(Metrics.au_pro, pc_a, pc_b)
 
     @staticmethod
-    def _report_gap(res: dict[str, Any]) -> None:
+    def _report_gap(res: dict[str, ArmResult]) -> None:
         """The headline: sim-to-real GAP and DA CLOSURE, each as a point with a PAIRED bootstrap CI —
         one deterministic run, uncertainty from the shared eval set (no seed scatter)."""
         if "real" not in res or "synth" not in res:
@@ -293,7 +301,7 @@ class TriadRun:
 
     @staticmethod
     def _delta_or_point(
-        res_a: dict[str, Any], res_b: dict[str, Any], point: float
+        res_a: ArmResult, res_b: ArmResult, point: float
     ) -> tuple[float, str]:
         """(delta, ci-suffix) for a twin-arm bootstrap CI — a per-arm CI is optional decoration on the
         headline POINT gap, so a degenerate bootstrap draw (mismatched paired resample / empty interval)

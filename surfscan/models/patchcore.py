@@ -12,10 +12,11 @@ No training — just feature extraction + kNN. Run on the rgb channel (image-lik
 """
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Callable, TypeAlias
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 from jaxtyping import Float
@@ -23,6 +24,8 @@ from torch import Tensor
 
 from core.compute import Compute
 from surfscan.models.coreset import Coreset, FitCfg
+
+ForwardHook: TypeAlias = Callable[[nn.Module, tuple[Tensor, ...], Tensor], None]
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
@@ -50,8 +53,8 @@ class PatchCore:
         self.mean, self.std = _MEAN.to(device), _STD.to(device)
         self.bank: Tensor | None = None
 
-    def _save(self, name: str) -> Callable[[Any, Any, Tensor], None]:
-        def hook(_m: Any, _i: Any, out: Tensor) -> None:
+    def _save(self, name: str) -> ForwardHook:
+        def hook(_m: nn.Module, _i: tuple[Tensor, ...], out: Tensor) -> None:
             self._feats[name] = out
         return hook
 

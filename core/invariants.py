@@ -8,10 +8,11 @@ Loud by default (WARNING per violation); `strict=True` raises for tests / CI.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import TypedDict
 
 import numpy as np
 
+from core.method import ScoreArrays
 from core.obs import Obs
 
 log = Obs.get()
@@ -19,11 +20,23 @@ log = Obs.get()
 _TOL = 1e-6
 
 
+class ResultView(TypedDict):
+    """The slice of the eval result payload these checks read — declared here so `core` stays an
+    independent kernel (it must not import `surfscan`, where the full `EvalResult` lives). Structural
+    TypedDict compatibility makes `EvalResult` an accepted argument: it carries these keys with these
+    types, plus the reporting-only ones (`method`, `per_category`, `per_defect`) invariants ignore."""
+
+    mean: dict[str, float]
+    ci: dict[str, tuple[float, float, float]]
+    ece: float | None
+    by_cat: list[ScoreArrays]
+
+
 class Invariants:
     """Assert a run's reported numbers are internally consistent (the guardrail against silent-wrong)."""
 
     @staticmethod
-    def check(result: Any, *, strict: bool = False) -> list[str]:
+    def check(result: ResultView, *, strict: bool = False) -> list[str]:
         """-> list of violation messages (empty = clean). Logs each loudly; raises if `strict`."""
         violations = (Invariants._brackets(result) + Invariants._ci_matches_mean(result)
                       + Invariants._ece_bounded(result))
@@ -34,11 +47,11 @@ class Invariants:
         return violations
 
     @staticmethod
-    def _finite(*values: Any) -> bool:
+    def _finite(*values: float) -> bool:
         return all(not np.isnan(value) for value in values)   # skip undefined (NaN) metrics
 
     @staticmethod
-    def _brackets(result: Any) -> list[str]:
+    def _brackets(result: ResultView) -> list[str]:
         """Every bootstrap bracket must contain its own point estimate."""
         out: list[str] = []
         for metric, (point, low, high) in result.get("ci", {}).items():
@@ -47,7 +60,7 @@ class Invariants:
         return out
 
     @staticmethod
-    def _ci_matches_mean(result: Any) -> list[str]:
+    def _ci_matches_mean(result: ResultView) -> list[str]:
         """The CI point and the reported mean are the SAME statistic (macro) — they must agree. This is
         the check that catches a pooled-vs-macro mix-up (the historical bug)."""
         out: list[str] = []
@@ -58,7 +71,7 @@ class Invariants:
         return out
 
     @staticmethod
-    def _ece_bounded(result: Any) -> list[str]:
+    def _ece_bounded(result: ResultView) -> list[str]:
         """ECE is only meaningful for probability maps; if it was computed, the amaps must lie in [0,1]."""
         if result.get("ece") is None or not result.get("by_cat"):
             return []
@@ -68,7 +81,7 @@ class Invariants:
         return []
 
     @staticmethod
-    def reconciles(delta: Any, point_a: Any, point_b: Any, label: str = "delta") -> bool:
+    def reconciles(delta: float, point_a: float, point_b: float, label: str = "delta") -> bool:
         """A paired delta must equal point_b − point_a (same macro statistic). Loud + returns ok/bad —
         the triad's guard: gap == real_mean − synth_mean, so a micro/macro slip fails immediately."""
         ok = Invariants._finite(delta, point_a, point_b) and abs(delta - (point_b - point_a)) <= _TOL

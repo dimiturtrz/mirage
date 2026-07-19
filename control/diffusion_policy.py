@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, override
+from typing import Generic, override
 
 import numpy as np
 import torch
@@ -26,7 +26,8 @@ from torch import Tensor, nn
 
 from control.demos import Demos
 from control.diffusion_schedule import DiffusionSchedule
-from core.rollout import EvalPlan
+from core.policy import ControlPolicy, StateT
+from core.rollout import Env, EvalPlan
 
 
 @dataclass(frozen=True)
@@ -64,17 +65,20 @@ class EpsMLP(nn.Module):
         return self.net(torch.cat([obs, x_t, t_norm], dim=1))
 
 
-class DiffusionPolicy:
-    """Fit a conditional ε-network on expert chunks; sample a chunk by reverse diffusion, execute action 0."""
+class DiffusionPolicy(Generic[StateT]):
+    """Fit a conditional ε-network on expert chunks; sample a chunk by reverse diffusion, execute action 0.
 
-    def __init__(self, sim_env_factory: Callable[[int], Any], expert: Any, cfg: DiffusionConfig):
+    Generic in the demonstrator's state type (`StateT`); its own state is the fitted `EpsMLP`."""
+
+    def __init__(self, sim_env_factory: Callable[[int], Env], expert: ControlPolicy[StateT],
+                 cfg: DiffusionConfig):
         self._make_sim = sim_env_factory
         self._expert = expert
         self._cfg = cfg
         self._sched = DiffusionSchedule(cfg.steps)
         self._act_dim = 0
 
-    def train(self, task: str) -> Any:
+    def train(self, task: str) -> EpsMLP:
         torch.manual_seed(self._cfg.seed)
         plan = EvalPlan(self._cfg.n_demo_episodes, self._cfg.seed, self._cfg.max_steps)
         obs, chunks = Demos.chunks(Demos.rollouts(self._expert, task, self._make_sim, plan), self._cfg.chunk)
@@ -96,7 +100,8 @@ class DiffusionPolicy:
             opt.step()
         return net
 
-    def _sample(self, net: Any, obs: Float[np.ndarray, "obs"], rng: np.random.Generator) -> Float[np.ndarray, "flat"]:
+    def _sample(self, net: nn.Module, obs: Float[np.ndarray, "obs"],
+                rng: np.random.Generator) -> Float[np.ndarray, "flat"]:
         ob = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
         x = rng.standard_normal(self._cfg.chunk * self._act_dim).astype(np.float32)
         for t in reversed(range(self._cfg.steps)):
@@ -108,10 +113,10 @@ class DiffusionPolicy:
                 x = x + np.sqrt(self._sched.betas[t]) * rng.standard_normal(x.shape).astype(np.float32)
         return x
 
-    def sample_chunk(self, state: Any, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "k act"]:
+    def sample_chunk(self, state: nn.Module, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "k act"]:
         """The full denoised action chunk — the teacher signal the edge-VLA distillation regresses against."""
         rng = np.random.default_rng(self._cfg.seed)
         return self._sample(state, obs, rng).reshape(self._cfg.chunk, self._act_dim)
 
-    def act(self, state: Any, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "act"]:
-        return self.sample_chunk(state, obs)[0]                    # first action of the sampled chunk
+    def act(self, state: nn.Module, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "act"]:
+        return self.sample_chunk(state, obs)[0]                      # first action of the sampled chunk

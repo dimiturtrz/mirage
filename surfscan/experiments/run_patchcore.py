@@ -32,7 +32,7 @@ class PatchCoreCfg:
 class PatchCoreMethod:
     """rgb patch-feature memory bank; nearest-neighbour distance to the normal bank = the anomaly map."""
 
-    def __init__(self, cfg: PatchCoreCfg, dev: torch.device) -> None:
+    def __init__(self, cfg: PatchCoreCfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
 

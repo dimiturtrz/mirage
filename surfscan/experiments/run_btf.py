@@ -27,7 +27,7 @@ class BtfCfg:
 class BtfMethod:
     run_name = "btf_fpfh"
 
-    def __init__(self, cfg: BtfCfg, dev: torch.device) -> None:
+    def __init__(self, cfg: BtfCfg, dev: str | torch.device) -> None:
         self.dev = dev
         self.size = cfg.size or 256
 

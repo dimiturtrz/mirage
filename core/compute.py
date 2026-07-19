@@ -33,7 +33,7 @@ class Compute:
         return prefer if prefer == "cpu" else "cpu"
 
     @staticmethod
-    def autocast(x_or_dev: Shaped[Tensor, "..."] | str, *, amp: bool = True,
+    def autocast(x_or_dev: Shaped[Tensor, "*shape"] | str, *, amp: bool = True,
                  dtype: torch.dtype = torch.bfloat16):
         """bf16 autocast on cuda; a no-op elsewhere. Accepts a tensor or a device string."""
         dev = x_or_dev.device.type if isinstance(x_or_dev, torch.Tensor) else str(x_or_dev)

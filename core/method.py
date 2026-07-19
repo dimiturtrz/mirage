@@ -12,7 +12,7 @@ reads them by name, not by fragile tuple position.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, NamedTuple, Protocol, runtime_checkable
+from typing import Callable, Generic, NamedTuple, Protocol, TypeAlias, TypeVar, runtime_checkable
 
 import numpy as np
 
@@ -27,19 +27,25 @@ class ScoreArrays(NamedTuple):
     defects: np.ndarray  # (N,)       defect-type string (for per-defect diagnostics)
 
 
-FitFn = Callable[[str], Any]                 # fit(category) -> state
-ScoreFn = Callable[[Any, str], ScoreArrays]  # score(state, category) -> ScoreArrays
+# The detector state is opaque TO THE HARNESS but concrete to each method (a PatchCore bank, an
+# nn.Module, a (PatchCore, FpfhBank) pair). That is a type PARAMETER, not `Any`: StateT ties a method's
+# fit return to the state its own score consumes, so a mismatched pair is a type error rather than
+# silently accepted.
+StateT = TypeVar("StateT")
+
+FitFn: TypeAlias = Callable[[str], StateT]                 # fit(category) -> state
+ScoreFn: TypeAlias = Callable[[StateT, str], ScoreArrays]  # score(state, category) -> ScoreArrays
 
 
-class Method(NamedTuple):
+class Method(NamedTuple, Generic[StateT]):
     """The (fit, score) pair the harness scores — the closure form of `AnomalyMethod` (for ad-hoc
     or orchestrated methods that don't warrant a class; e.g. the triad's per-arm methods)."""
-    fit: FitFn
-    score: ScoreFn
+    fit: FitFn[StateT]
+    score: ScoreFn[StateT]
 
 
 @runtime_checkable
-class AnomalyMethod(Protocol):
+class AnomalyMethod(Protocol[StateT]):
     """The minimal contract the harness scores — a configured detector object. Deliberately just
     `fit`/`score`: everything else (data loading, a Trainer, the mlflow `run_name`) is composed by
     HAS-A, never bolted on as protocol hooks. Both the `Method` closure-pair and the per-paradigm
@@ -47,6 +53,6 @@ class AnomalyMethod(Protocol):
     without caring which. `run_name` (below) is read via getattr when present, defaulting to the
     subcommand name."""
 
-    def fit(self, cat: str) -> Any: ...
+    def fit(self, cat: str, /) -> StateT: ...
 
-    def score(self, state: Any, cat: str) -> ScoreArrays: ...
+    def score(self, state: StateT, cat: str, /) -> ScoreArrays: ...

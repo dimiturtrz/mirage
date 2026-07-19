@@ -8,6 +8,7 @@ Run:  python -m surfscan.run vae [--cats ...] [--epochs 100]
 from __future__ import annotations
 
 from argparse import ArgumentParser, Namespace
+from typing import cast
 
 from core.compute import Compute
 from core.data.static import mvtec
@@ -50,8 +51,8 @@ class VaeRun:
         with tracking.Tracker.run("surfscan", "vae_all", params=RunParams("vae_per_category", cats).as_dict()):
             tracking.Tracker.metrics(mean.tracker_means())
             tracking.Tracker.per_group("au_pro", {r["category"]: r["au_pro"] for r in rows})
-            tracking.Tracker.artifact_json("aggregate.json",
-                                   {"per_category": rows, "mean": mean.as_dict()})
+            tracking.Tracker.artifact_json("aggregate.json", cast(
+                "tracking.JsonValue", {"per_category": rows, "mean": mean.as_dict()}))
 
 
 SPEC = Spec("vae", VaeRun.args, VaeRun.run)

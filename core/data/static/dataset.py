@@ -24,8 +24,8 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
     def __init__(
         self,
         df: pl.DataFrame,
-        channels: tuple[str, ...] = ("xyz",),
-        device: str = "cuda",
+        channels: Sequence[str] = ("xyz",),
+        device: str | torch.device = "cuda",
         dtype: torch.dtype = torch.float32,
     ):
         self.df = df
@@ -62,10 +62,10 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
     @staticmethod
     def load_split(  # noqa: PLR0913  # pragma: no cover
         split: str | None = None,
-        label: str | None = None,
-        cats: list[str] | None = None,
-        channels: tuple[str, ...] = ("xyz",),
-        device: str = "cuda",
+        label: int | None = None,
+        cats: Sequence[str] | None = None,
+        channels: Sequence[str] = ("xyz",),
+        device: str | torch.device = "cuda",
         size: int | None = None,
         source: store.Source | None = None,
     ) -> "GpuSplit":

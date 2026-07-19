@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import argparse
 import os
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import tifffile
@@ -26,6 +26,10 @@ from PIL import Image
 from core.data.dynamic.twin_geom import TwinGeom
 from core.data.dynamic.twin_obj import TwinObj
 from core.obs import Obs
+
+if TYPE_CHECKING:
+    from omni.replicator.core import Annotator
+    from pxr import Usd, UsdGeom, UsdLux
 
 log = Obs.get()
 _TWIN_DIR = "D:/data/3d/twin"
@@ -70,19 +74,19 @@ class TwinSynth:
         s.set_int("/omni/replicator/RTSubframes", _SUBFRAMES)
         timeline = omni.timeline.get_timeline_interface()
 
-        def intrinsics(stage: "pxr.Usd.Stage", w: int, h: int):
+        def intrinsics(stage: Usd.Stage, w: int, h: int):
             cam = UsdGeom.Camera(stage.GetPrimAtPath("/World/Camera"))
             focal = cam.GetFocalLengthAttr().Get()
             return (w * focal / cam.GetHorizontalApertureAttr().Get(),
                     h * focal / cam.GetVerticalApertureAttr().Get())
 
-        def jitter_pose(mesh: "pxr.UsdGeom.Mesh"):
+        def jitter_pose(mesh: UsdGeom.Mesh):
             api = UsdGeom.XformCommonAPI(mesh.GetPrim())
             api.SetRotate(Gf.Vec3f(float(rng.uniform(-_TILT, _TILT)), float(rng.uniform(-_TILT, _TILT)),
                                    float(rng.uniform(0, _SPIN))))
             api.SetTranslate(Gf.Vec3d(*(float(rng.uniform(-_TRANS, _TRANS)) for _ in range(3))))
 
-        def render(rgb_a: "omni.replicator.core.Annotator", dep_a: "omni.replicator.core.Annotator"):
+        def render(rgb_a: Annotator, dep_a: Annotator):
             for _ in range(_RENDER_STEPS):
                 rep.orchestrator.step(delta_time=0.0, rt_subframes=_SUBFRAMES)
             return np.asarray(rgb_a.get_data())[..., :3], np.asarray(dep_a.get_data())
@@ -107,13 +111,13 @@ class TwinSynth:
             dep_a = rep.annotators.get("distance_to_image_plane"); dep_a.attach(rp)
             fx, fy = intrinsics(stage, self._res, self._res)
 
-            def set_points(v: np.ndarray, mesh: "pxr.UsdGeom.Mesh" = mesh):
+            def set_points(v: np.ndarray, mesh: UsdGeom.Mesh = mesh):
                 mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
 
             def randomize(
-                mesh: "pxr.UsdGeom.Mesh" = mesh,
-                light: "pxr.UsdLux.DistantLight" = light,
-                dome: "pxr.UsdLux.DomeLight" = dome,
+                mesh: UsdGeom.Mesh = mesh,
+                light: UsdLux.DistantLight = light,
+                dome: UsdLux.DomeLight = dome,
             ):
                 jitter_pose(mesh)
                 light.CreateIntensityAttr(float(rng.uniform(*_LIGHT)))
@@ -132,10 +136,9 @@ class TwinSynth:
         vc: Float[np.ndarray, "v 3"],
         set_points: Callable[[np.ndarray], None],
         randomize: Callable[[], None],
-        render: Callable[["omni.replicator.core.Annotator", "omni.replicator.core.Annotator"],
-                         tuple[np.ndarray, np.ndarray]],
-        rgb_a: "omni.replicator.core.Annotator",
-        dep_a: "omni.replicator.core.Annotator",
+        render: Callable[[Annotator, Annotator], tuple[np.ndarray, np.ndarray]],
+        rgb_a: Annotator,
+        dep_a: Annotator,
         fx: float,
         fy: float,
     ) -> int:
@@ -158,10 +161,9 @@ class TwinSynth:
         vc: Float[np.ndarray, "v 3"],
         set_points: Callable[[np.ndarray], None],
         randomize: Callable[[], None],
-        render: Callable[["omni.replicator.core.Annotator", "omni.replicator.core.Annotator"],
-                         tuple[np.ndarray, np.ndarray]],
-        rgb_a: "omni.replicator.core.Annotator",
-        dep_a: "omni.replicator.core.Annotator",
+        render: Callable[[Annotator, Annotator], tuple[np.ndarray, np.ndarray]],
+        rgb_a: Annotator,
+        dep_a: Annotator,
         fx: float,
         fy: float,
     ) -> int:

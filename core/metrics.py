@@ -15,12 +15,16 @@ so one run yields `point [lo, hi]`; the paired delta cancels shared noise to ans
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from typing import Any
 from dataclasses import dataclass
 
 import numpy as np
-from jaxtyping import Bool, Float, Int
+from jaxtyping import Bool, Float, Int, Shaped
 from skimage.measure import label
 from sklearn.metrics import roc_auc_score
+
+MetricValue = float | np.floating[Any]
+MetricFn = Callable[..., MetricValue]
 
 
 @dataclass(frozen=True)
@@ -30,9 +34,9 @@ class BootCfg:
 
     n_boot: int = 1000
     alpha: float = 0.05
-    rng: object = None
+    rng: np.random.Generator | None = None
 
-    def gen(self):
+    def gen(self) -> np.random.Generator:
         return np.random.default_rng(0) if self.rng is None else self.rng
 
 
@@ -50,14 +54,14 @@ class Metrics:
 
     @staticmethod
     def _resample(
-        arrays: Sequence[object], idx: Int[np.ndarray, "n"]
-    ) -> list[np.ndarray]:
+        arrays: Sequence[Shaped[np.ndarray, "n *rest"]], idx: Int[np.ndarray, "n"]
+    ) -> list[Shaped[np.ndarray, "n *rest"]]:
         """Index the first axis (= image) of every metric-input array by one bootstrap draw."""
         return [np.asarray(a)[idx] for a in arrays]
 
     @staticmethod
     def _interval(
-        point: float, samples: Sequence[object], alpha: float
+        point: float, samples: Sequence[MetricValue], alpha: float
     ) -> tuple[float, float, float]:
         """(point, lo, hi) — percentile interval over the finite bootstrap samples (NaNs dropped)."""
         s = np.asarray(samples, dtype=np.float64)
@@ -69,7 +73,7 @@ class Metrics:
 
     @staticmethod
     def boot_ci(
-        metric_fn: Callable[..., object], *arrays: object, cfg: BootCfg = _DEFAULT_BOOT
+        metric_fn: MetricFn, *arrays: Shaped[np.ndarray, "n *rest"], cfg: BootCfg = _DEFAULT_BOOT
     ) -> tuple[float, float, float]:
         """(point, lo, hi) for `metric_fn(*arrays)` — percentile bootstrap over the test images.
 
@@ -84,9 +88,9 @@ class Metrics:
 
     @staticmethod
     def boot_delta_ci(
-        metric_fn: Callable[..., object],
-        arrays_a: Sequence[object],
-        arrays_b: Sequence[object],
+        metric_fn: MetricFn,
+        arrays_a: Sequence[Shaped[np.ndarray, "n *rest"]],
+        arrays_b: Sequence[Shaped[np.ndarray, "n *rest"]],
         cfg: BootCfg = _DEFAULT_BOOT,
     ) -> tuple[float, float, float]:
         """(delta, lo, hi) for metric(B) − metric(A), PAIRED bootstrap. Same resampled image indices
@@ -107,26 +111,30 @@ class Metrics:
     # bootstrap resamples images WITHIN each category and averages per draw (stratified). ---
 
     @staticmethod
-    def _nanmean(values: Sequence[object]) -> float:
+    def _nanmean(values: Sequence[MetricValue]) -> float:
         """Mean over finite values -> NaN if none are finite (no 'empty slice' warning for a dead draw)."""
         finite = [value for value in values if not np.isnan(value)]
         return float(np.mean(finite)) if finite else float("nan")
 
     @staticmethod
-    def _macro_point(metric_fn: Callable[..., object], per_cat: Sequence[object]) -> float:
+    def _macro_point(metric_fn: MetricFn, per_cat: Sequence[Sequence[Shaped[np.ndarray, "n *rest"]]]) -> float:
         """mean-of-categories of `metric_fn` over each category's full arg-tuple (NaN categories dropped)."""
         return Metrics._nanmean([metric_fn(*args) for args in per_cat])
 
     @staticmethod
     def _macro_draw(
-        metric_fn: Callable[..., object], per_cat: Sequence[object], idxs: Sequence[object]
+        metric_fn: MetricFn,
+        per_cat: Sequence[Sequence[Shaped[np.ndarray, "n *rest"]]],
+        idxs: Sequence[Int[np.ndarray, "n"]],
     ) -> float:
         """One stratified draw: resample within each category by its index array, then mean-of-categories."""
         return Metrics._nanmean([metric_fn(*Metrics._resample(a, ix)) for a, ix in zip(per_cat, idxs, strict=True)])
 
     @staticmethod
     def boot_macro_ci(
-        metric_fn: Callable[..., object], per_cat: Sequence[object], cfg: BootCfg = _DEFAULT_BOOT
+        metric_fn: MetricFn,
+        per_cat: Sequence[Sequence[Shaped[np.ndarray, "n *rest"]]],
+        cfg: BootCfg = _DEFAULT_BOOT,
     ) -> tuple[float, float, float]:
         """(point, lo, hi) for the mean-of-categories metric — stratified bootstrap (resample images within
         each category, average). `per_cat` = one metric arg-tuple per category. The CI for a macro number."""
@@ -139,9 +147,9 @@ class Metrics:
 
     @staticmethod
     def boot_macro_delta_ci(
-        metric_fn: Callable[..., object],
-        per_cat_a: Sequence[object],
-        per_cat_b: Sequence[object],
+        metric_fn: MetricFn,
+        per_cat_a: Sequence[Sequence[Shaped[np.ndarray, "n *rest"]]],
+        per_cat_b: Sequence[Sequence[Shaped[np.ndarray, "n *rest"]]],
         cfg: BootCfg = _DEFAULT_BOOT,
     ) -> tuple[float, float, float]:
         """(delta, lo, hi) for macro-metric(B) − macro-metric(A), PAIRED + stratified. Same within-category
@@ -158,7 +166,7 @@ class Metrics:
 
     @staticmethod
     def image_auroc(
-        scores: Float[np.ndarray, "..."], labels: Float[np.ndarray, "..."]
+        scores: Float[np.ndarray, "n"], labels: Int[np.ndarray, "n"]
     ) -> float:
         labels = np.asarray(labels)
         if labels.min() == labels.max():          # one class only -> undefined

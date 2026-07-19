@@ -7,6 +7,8 @@ Run:  python -m surfscan.run vae [--cats ...] [--epochs 100]
 """
 from __future__ import annotations
 
+from argparse import ArgumentParser, Namespace
+
 from core.compute import Compute
 from core.data.static import mvtec
 from core.obs import Obs
@@ -24,12 +26,12 @@ class VaeRun:
     """Per-category VAE train+eval over all categories -> aggregate mean. Logs to MLflow."""
 
     @staticmethod
-    def args(ap):
+    def args(ap: ArgumentParser) -> None:
         Dispatch.add_cats(ap)
         ap.add_argument("--epochs", type=int, default=100)
 
     @staticmethod
-    def run(args):
+    def run(args: Namespace) -> None:
         dev = Compute.pick_device()
         cats = args.cats or mvtec.Mvtec().categories()
         rows = []

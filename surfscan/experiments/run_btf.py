@@ -9,8 +9,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import torch
+
 from core.data.static import store
 from core.data.static.mvtec import Split
+from core.method import ScoreArrays
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.fpfh_bank import FpfhBank
@@ -24,15 +27,15 @@ class BtfCfg:
 class BtfMethod:
     run_name = "btf_fpfh"
 
-    def __init__(self, cfg: BtfCfg, dev):
+    def __init__(self, cfg: BtfCfg, dev: torch.device) -> None:
         self.dev = dev
         self.size = cfg.size or 256
 
-    def fit(self, cat):
+    def fit(self, cat: str) -> FpfhBank:
         _, train = store.Store.arrays(cat, Split.TRAIN, 0, self.size)
         return FpfhBank(device=self.dev).fit([(a["xyz"], a["valid"]) for a in train])
 
-    def score(self, state, cat):
+    def score(self, state: FpfhBank, cat: str) -> ScoreArrays:
         dft, test = store.Store.arrays(cat, Split.TEST, size=self.size)
         amaps = state.score_maps([(a["xyz"], a["valid"]) for a in test])
         return scoring.Scoring.score_arrays_store(amaps, test, dft)

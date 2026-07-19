@@ -179,7 +179,17 @@ search-path = ["."]
 # pyrefly's front-end models only partially; if one surfaces a type error, add its module here or suppress
 # at the line with `# pyrefly: ignore[<code>]`.
 # >>> LOCAL-SLOT: pyrefly-ignore-imports — this repo's untyped-dependency modules (treated as Any)
-ignore-missing-imports = []
+# The Isaac Sim / USD engine stack is the OPTIONAL `sim` extra — base perception devs (and CI) never
+# install it, so these never resolve in a gate run. Ships no py.typed either way.
+#   pxr, omni*, carb, isaacsim*   the engine dependency (uv sync --extra sim)
+#   models.models                 M3DM upstream, checked out under external/ (not a package on the path)
+ignore-missing-imports = [
+    "pxr", "pxr.*",
+    "omni", "omni.*",
+    "carb", "carb.*",
+    "isaacsim", "isaacsim.*",
+    "models.models",
+]
 # <<< LOCAL-SLOT: pyrefly-ignore-imports
 
 # Tests inject unannotated fixture params (pytest fills them) — mirror the ruff `tests/**` carve-out so the

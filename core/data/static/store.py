@@ -177,7 +177,7 @@ class Store:
     def arrays(
         cat: str,
         split: str,
-        label: str | None = None,
+        label: int | None = None,
         size: int | None = None,
     ) -> tuple[pl.DataFrame, list[dict[str, np.ndarray]]]:  # pragma: no cover
         """(df, [array-dict per sample]) for one category/split — the raw processed arrays

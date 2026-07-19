@@ -10,8 +10,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import torch
+
 from core.data.static.dataset import GpuSplit
 from core.data.static.mvtec import Split
+from core.method import ScoreArrays
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.patchcore import FitCfg, PatchCore
@@ -29,7 +32,7 @@ class PatchCoreCfg:
 class PatchCoreMethod:
     """rgb patch-feature memory bank; nearest-neighbour distance to the normal bank = the anomaly map."""
 
-    def __init__(self, cfg: PatchCoreCfg, dev):
+    def __init__(self, cfg: PatchCoreCfg, dev: torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
 
@@ -37,13 +40,13 @@ class PatchCoreMethod:
     def run_name(self) -> str:
         return f"patchcore_rgb_{self.cfg.coreset_method}"
 
-    def fit(self, cat):
+    def fit(self, cat: str) -> PatchCore:
         train = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=["rgb"],
                                     device=self.dev, size=self.cfg.size)
         return PatchCore(device=self.dev, amp=self.cfg.amp).fit(
             train.x, FitCfg(coreset=self.cfg.coreset, method=self.cfg.coreset_method, seed=self.cfg.seed))
 
-    def score(self, state, cat):
+    def score(self, state: PatchCore, cat: str) -> ScoreArrays:
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=["rgb"], device=self.dev, size=self.cfg.size)
         return scoring.Scoring.score_arrays(state.score_maps(test.x), test)
 

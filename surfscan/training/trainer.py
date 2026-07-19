@@ -86,7 +86,7 @@ class EarlyStop:
 
 
 class Trainer:
-    def __init__(self, model: nn.Module, opt: optim.Optimizer, device: str, *,
+    def __init__(self, model: nn.Module, opt: optim.Optimizer, device: str | torch.device, *,
                  batch: int = 16, telem: Telemetry | None = None):
         self.model = model
         self.opt = opt

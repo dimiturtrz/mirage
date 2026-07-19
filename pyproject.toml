@@ -241,8 +241,11 @@ ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer"
 #                           Python name-match can see them. Verified present in the emitted JSON.
 # NOT silenced (genuine findings, tracked as beads — silencing them would destroy the signal):
 #   metrics.boot_ci / boot_delta_ci      tested, no prod caller (bd 6n3)
-#   DiffusionSchedule.q_sample           tested, no prod caller — DiffusionPolicy does the forward
-#                                        diffusion inline in torch (diffusion_policy.py:91-92) instead
+#   DiffusionSchedule.q_sample           no prod caller BY DESIGN (bd ccq): it is the numpy ORACLE the
+#                                        batched torch forward step is cross-checked against, since only
+#                                        the tensor path runs in production. Kept independent of the
+#                                        precomputed coefficients on purpose — sharing them makes the
+#                                        cross-check tautological (verified by mutation).
 #   control-leg contract types (ControlPolicy/Policy/Trajectory) are NOT listed — they are consumed by
 #   the rollout spine (core/rollout.py), so real use clears them; abstract-stub params are `_`-prefixed.
 ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "fig", "C",

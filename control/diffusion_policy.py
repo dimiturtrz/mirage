@@ -88,8 +88,8 @@ class DiffusionPolicy(Generic[StateT]):
         opt = torch.optim.Adam(net.parameters(), lr=self._cfg.lr)
         ob = torch.as_tensor(obs, dtype=torch.float32)
         y0 = torch.as_tensor(flat, dtype=torch.float32)
-        sqrt_ab = torch.as_tensor(np.sqrt(self._sched.alphas_cumprod), dtype=torch.float32)
-        sqrt_1mab = torch.as_tensor(np.sqrt(1.0 - self._sched.alphas_cumprod), dtype=torch.float32)
+        sqrt_ab = torch.as_tensor(self._sched.sqrt_alphas_cumprod, dtype=torch.float32)
+        sqrt_1mab = torch.as_tensor(self._sched.sqrt_one_minus_alphas_cumprod, dtype=torch.float32)
         for _ in range(self._cfg.epochs):
             t = torch.randint(0, self._cfg.steps, (y0.shape[0],))
             noise = torch.randn_like(y0)

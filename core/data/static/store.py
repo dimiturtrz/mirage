@@ -25,6 +25,8 @@ from core.data.static import mvtec
 from core.data.static import preprocess as pp
 from core.obs import Obs
 
+type PLType = type[pl.Int64] | type[pl.Float64] | type[pl.Boolean] | type[pl.Utf8]
+
 log = Obs.get()
 
 
@@ -60,29 +62,50 @@ class Store:
     """Consolidate raw MVTec 3D-AD into processed/mvtec3d/<paramkey>/ — the unified store."""
 
     @staticmethod
-    def param_key(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD) -> str:
+    def param_key(
+        size: int = pp.SIZE,
+        nb: int = pp.SO_NB,
+        std: float = pp.SO_STD,
+    ) -> str:
         return f"s{size}_so{nb}-{str(std).replace('.', 'p')}"
 
     @staticmethod
-    def dataset_dir(size=pp.SIZE, nb=pp.SO_NB, std=pp.SO_STD, source=None) -> Path:
+    def dataset_dir(
+        size: int = pp.SIZE,
+        nb: int = pp.SO_NB,
+        std: float = pp.SO_STD,
+        source: Source | None = None,
+    ) -> Path:
         src = source or Source.real()
         return config.Config.processed_dir() / src.name / Store.param_key(size, nb, std)
 
     @staticmethod
-    def _row(s: mvtec.Sample, arr: dict, file: str) -> dict:
+    def _row(
+        s: mvtec.Sample,
+        arr: dict[str, np.ndarray],
+        file: str,
+    ) -> dict[str, str | int | float | bool]:
         valid, gt = arr["valid"], arr["gt"]
         return {
-            "sample_id": s.sample_id, "category": s.category, "split": s.split,
-            "defect": s.defect, "label": s.label, "has_gt": s.gt_path is not None, "file": file,
-            "raw_rgb": str(s.rgb_path), "raw_xyz": str(s.xyz_path),
+            "sample_id": s.sample_id,
+            "category": s.category,
+            "split": s.split,
+            "defect": s.defect,
+            "label": s.label,
+            "has_gt": s.gt_path is not None,
+            "file": file,
+            "raw_rgb": str(s.rgb_path),
+            "raw_xyz": str(s.xyz_path),
             "raw_gt": str(s.gt_path) if s.gt_path is not None else "",
-            "H": int(valid.shape[0]), "W": int(valid.shape[1]),
-            "n_valid": int(valid.sum()), "defect_frac": float((gt > 0).mean()),
+            "H": int(valid.shape[0]),
+            "W": int(valid.shape[1]),
+            "n_valid": int(valid.sum()),
+            "defect_frac": float((gt > 0).mean()),
         }
 
     @staticmethod
-    def _schema():
-        def dt(k):
+    def _schema() -> dict[str, PLType]:
+        def dt(k: str) -> PLType:
             if k in ("label", "H", "W", "n_valid"):
                 return pl.Int64
             if k == "defect_frac":
@@ -93,7 +116,14 @@ class Store:
         return {k: dt(k) for k in META_FIELDS}
 
     @staticmethod
-    def build(p=None, cats=None, workers=None, source=None, *, rebuild=False) -> Path:  # pragma: no cover  disk write
+    def build(
+        p: pp.PP | None = None,
+        cats: list[str] | None = None,
+        workers: int | None = None,
+        source: Source | None = None,
+        *,
+        rebuild: bool = False,
+    ) -> Path:  # pragma: no cover  disk write
         """Consolidate into processed/<source>/<paramkey>/. Process-if-missing; (re)writes meta.csv."""
         p = p or pp.PP()
         src = source or Source.real()
@@ -106,7 +136,7 @@ class Store:
         def _one(s: mvtec.Sample):
             rgb, xyz, gt = mvtec.Mvtec.load_raw(s)
             arr = pp.Preprocess.preprocess(rgb, xyz, gt, p)
-            np.savez_compressed(data_dir / f"{s.sample_id}.npz", **arr)
+            np.savez_compressed(data_dir / f"{s.sample_id}.npz", **arr)  # pyrefly: ignore[bad-argument-type]  **arrays lands in **kwds; the stub matches it against allow_pickle
 
         if todo:
             workers = workers or max(1, (os.cpu_count() or 4) - 2)
@@ -122,7 +152,11 @@ class Store:
         return out
 
     @staticmethod
-    def load(size=pp.SIZE, cats=None, source=None) -> pl.DataFrame:  # pragma: no cover
+    def load(
+        size: int | None = pp.SIZE,
+        cats: list[str] | None = None,
+        source: Source | None = None,
+    ) -> pl.DataFrame:  # pragma: no cover
         """Ensure consolidated, return one polars frame (the cloud) with an absolute `path` column."""
         if size is None:                                    # callers may pass size=None -> use the default store
             size = pp.SIZE
@@ -134,16 +168,23 @@ class Store:
         return df.with_columns((pl.lit(str(out / "data")) + "/" + pl.col("file")).alias("path"))
 
     @staticmethod
-    def load_arrays(path) -> dict:  # pragma: no cover  np.load from disk
+    def load_arrays(path: str | Path) -> dict[str, np.ndarray]:  # pragma: no cover  np.load from disk
         """Load one consolidated sample npz -> {xyz, rgb, valid, gt}."""
         z = np.load(path)
         return {k: z[k] for k in z.files}
 
     @staticmethod
-    def arrays(cat, split, label=None, size=None):  # pragma: no cover  Store.load + load_arrays from disk
+    def arrays(
+        cat: str,
+        split: str,
+        label: int | None = None,
+        size: int | None = None,
+    ) -> tuple[pl.DataFrame, list[dict[str, np.ndarray]]]:  # pragma: no cover
         """(df, [array-dict per sample]) for one category/split — the raw processed arrays
         (xyz/rgb/valid/gt). Used by the geometry methods that work on point clouds, not the GPU grid."""
-        df = Store.load(size=size).filter(pl.col("category") == cat).filter(pl.col("split") == split)
+        df = Store.load(size=size).filter(pl.col("category") == cat).filter(
+            pl.col("split") == split
+        )
         if label is not None:
             df = df.filter(pl.col("label") == label)
         return df, [Store.load_arrays(p) for p in df["path"].to_list()]

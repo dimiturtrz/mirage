@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from core.method import ScoreArrays
 from core.obs import Obs
 
 log = Obs.get()
@@ -21,10 +22,13 @@ class Invariants:
     """Assert a run's reported numbers are internally consistent (the guardrail against silent-wrong)."""
 
     @staticmethod
-    def check(result, *, strict=False):
-        """-> list of violation messages (empty = clean). Logs each loudly; raises if `strict`."""
-        violations = (Invariants._brackets(result) + Invariants._ci_matches_mean(result)
-                      + Invariants._ece_bounded(result))
+    def check(mean: dict[str, float], ci: dict[str, tuple[float, float, float]], ece: float | None,
+              by_cat: list[ScoreArrays], *, strict: bool = False) -> list[str]:
+        """-> list of violation messages (empty = clean). Logs each loudly; raises if `strict`. Takes the
+        NUMBERS rather than the eval payload object, so `core` stays an independent kernel (the payload
+        type lives beside its producer in `surfscan`, which `core` must not import)."""
+        violations = (Invariants._brackets(ci) + Invariants._ci_matches_mean(mean, ci)
+                      + Invariants._ece_bounded(ece, by_cat))
         for msg in violations:
             log.warning(f"INVARIANT VIOLATION: {msg}")
         if strict and violations:
@@ -32,41 +36,40 @@ class Invariants:
         return violations
 
     @staticmethod
-    def _finite(*values):
+    def _finite(*values: float) -> bool:
         return all(not np.isnan(value) for value in values)   # skip undefined (NaN) metrics
 
     @staticmethod
-    def _brackets(result):
+    def _brackets(ci: dict[str, tuple[float, float, float]]) -> list[str]:
         """Every bootstrap bracket must contain its own point estimate."""
-        out = []
-        for metric, (point, low, high) in result.get("ci", {}).items():
+        out: list[str] = []
+        for metric, (point, low, high) in ci.items():
             if Invariants._finite(point, low, high) and not low <= point <= high:
                 out.append(f"{metric} bracket [{low:.4f}, {high:.4f}] excludes point {point:.4f}")
         return out
 
     @staticmethod
-    def _ci_matches_mean(result):
+    def _ci_matches_mean(mean: dict[str, float], ci: dict[str, tuple[float, float, float]]) -> list[str]:
         """The CI point and the reported mean are the SAME statistic (macro) — they must agree. This is
         the check that catches a pooled-vs-macro mix-up (the historical bug)."""
-        out = []
-        mean = result.get("mean", {})
-        for metric, (point, _low, _high) in result.get("ci", {}).items():
+        out: list[str] = []
+        for metric, (point, _low, _high) in ci.items():
             if metric in mean and Invariants._finite(point, mean[metric]) and abs(point - mean[metric]) > _TOL:
                 out.append(f"{metric} ci-point {point:.4f} != reported mean {mean[metric]:.4f} (aggregate mismatch)")
         return out
 
     @staticmethod
-    def _ece_bounded(result):
+    def _ece_bounded(ece: float | None, by_cat: list[ScoreArrays]) -> list[str]:
         """ECE is only meaningful for probability maps; if it was computed, the amaps must lie in [0,1]."""
-        if result.get("ece") is None or not result.get("by_cat"):
+        if ece is None or not by_cat:
             return []
-        amaps = np.concatenate([np.asarray(sa.amaps).ravel() for sa in result["by_cat"]])
+        amaps = np.concatenate([np.asarray(sa.amaps).ravel() for sa in by_cat])
         if amaps.size and (np.nanmin(amaps) < 0.0 or np.nanmax(amaps) > 1.0):
             return [f"ECE computed but amaps out of [0,1] ({np.nanmin(amaps):.3f}..{np.nanmax(amaps):.3f})"]
         return []
 
     @staticmethod
-    def reconciles(delta, point_a, point_b, label="delta"):
+    def reconciles(delta: float, point_a: float, point_b: float, label: str = "delta") -> bool:
         """A paired delta must equal point_b − point_a (same macro statistic). Loud + returns ok/bad —
         the triad's guard: gap == real_mean − synth_mean, so a micro/macro slip fails immediately."""
         ok = Invariants._finite(delta, point_a, point_b) and abs(delta - (point_b - point_a)) <= _TOL

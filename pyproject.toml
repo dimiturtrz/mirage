@@ -31,7 +31,7 @@ dev = ["pytest", "pytest-cov"]
 # update is a one-line `devtools_ref` bump on `copier update`, no source diff in your PRs. Imports as
 # `devtools` (`python -m devtools.graph …`); grimp/networkx arrive transitively. ast-grep/jscpd configs are
 # located from the install via `python -m devtools.config`. Pin lives in .copier-answers.yml (devtools_ref).
-devtools = ["sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.14.0#subdirectory=sdlc-devtools"]
+devtools = ["sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.15.0#subdirectory=sdlc-devtools"]
 export = ["onnxruntime", "onnx"]   # ONNX export + op-inventory / parity check (train-vs-deploy skew, carried from acoustic)
 features = [
     "timm>=1.0.27",
@@ -49,7 +49,7 @@ sim = ["isaacsim[all,extscache]==6.0.1.0"]
 #                          # version-fragile and pin torch+cuda tightly — pinned here ONLY once a
 #                          # method is chosen, installed into THIS isolated env (never the shared one).
 all = ["pytest", "pytest-cov", "onnxruntime", "onnx", "timm>=1.0.27", "torchvision",
-       "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.14.0#subdirectory=sdlc-devtools"]  # dev+devtools+export+features
+       "sdlc-devtools @ git+https://github.com/dimiturtrz/sdlc-scaffold.git@v1.15.0#subdirectory=sdlc-devtools"]  # dev+devtools+export+features
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -163,6 +163,57 @@ ignore-names = ["X*", "Y*", "B", "C", "H", "W", "F"]
 "core/data/dynamic/render_twin.py" = ["PLC0415", "FBT003"]
 # <<< LOCAL-SLOT: per-file-ignores
 
+# Static type gate (pyrefly, ENFORCED): every def carries annotations (a bare param fails
+# implicit-any-parameter) AND the annotations must CHECK (a mismatch fails bad-return / bad-argument-type)
+# — the R1 type-grade Correctness leg ruff's lint codes can't reach. `preset = "strict"` bundles
+# strict-callable-subtyping + implicit-any + missing-override + unused-ignore. Runs env-aware
+# (`uv run --with pyrefly`) so it reads installed dep stubs (pydantic/numpy ship py.typed). A fresh gen's
+# seed is fully typed (0 errors), so it BLOCKS from day one as a regression guard — no advisory ratchet.
+[tool.pyrefly]
+preset = "strict"
+check-unannotated-defs = true
+search-path = ["."]
+# Untyped third-party imports ERROR by default (stricter than mypy's silent Any). A dep that ships no
+# py.typed / stubs goes here to be treated as Any — a per-repo FACT vocab, parallel to the deptry/vulture
+# slots. jaxtyping shape strings (`Float[Array, "b n"]`) are a runtime-checked DSL
+# pyrefly's front-end models only partially; if one surfaces a type error, add its module here or suppress
+# at the line with `# pyrefly: ignore[<code>]`.
+# >>> LOCAL-SLOT: pyrefly-ignore-imports — this repo's untyped-dependency modules (treated as Any)
+# The Isaac Sim / USD engine stack is the OPTIONAL `sim` extra — base perception devs (and CI) never
+# install it, so these never resolve in a gate run. Ships no py.typed either way.
+#   pxr, omni*, carb, isaacsim*   the engine dependency (uv sync --extra sim)
+#   models.models                 M3DM upstream, checked out under external/ (not a package on the path)
+#   onnx, torchvision             the `export` / `features` extras — CI syncs only dev+devtools, so a gate
+#                                 run never has them (they ARE present in a dev env; see ci.yml install step)
+# The Isaac/USD stack is forced to Any whether or not it is installed. Without this the gate is
+# ENV-DEPENDENT: CI syncs dev+devtools only (no pxr/isaacsim -> ignore-missing-imports -> Any -> clean),
+# while an engine dev with `--extra sim` gets the real Boost.Python stubs, which declare every method
+# `-> None`, so suppressions needed locally read as unused-ignore in CI and vice versa. Pinning both
+# environments to Any makes one verdict for one commit.
+replace-imports-with-any = [
+    "pxr", "pxr.*",
+    "omni", "omni.*",
+    "carb", "carb.*",
+    "isaacsim", "isaacsim.*",
+]
+ignore-missing-imports = [
+    "pxr", "pxr.*",
+    "omni", "omni.*",
+    "carb", "carb.*",
+    "isaacsim", "isaacsim.*",
+    "models.models",
+    "onnx", "onnx.*",
+    "torchvision", "torchvision.*",
+]
+# <<< LOCAL-SLOT: pyrefly-ignore-imports
+
+# Tests inject unannotated fixture params (pytest fills them) — mirror the ruff `tests/**` carve-out so the
+# strict annotation requirement doesn't force a type onto every fixture signature. Scope is packages
+# (`lint_paths`) anyway, but this keeps a bare `pyrefly check` clean too.
+[[tool.pyrefly.sub-config]]
+matches = "**/tests/**"
+check-unannotated-defs = false
+
 [tool.vulture]
 min_confidence = 60
 ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer", "@model_serializer", "@computed_field"]
@@ -181,14 +232,33 @@ ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer"
 #   furthest_point_sample, gather_operation, pointnet2_utils   pointnet2 C-ext shim attrs, dynamic import
 #   AnomalyMethod           Protocol, satisfied structurally (duck-typed) — never referenced as a class
 #   score_map               method dispatched through the (fit, score) method contract, not by name
-# NOT silenced: metrics.boot_ci / boot_delta_ci — tested but no prod caller (genuine, tracked separately).
+#   DataclassInstance       _typeshed protocol used ONLY as a string TypeVar bound (cli_config.py:29),
+#                           which vulture's static name-match cannot follow into
+#   tot                     EpochAcc field, read/written train.py by string subscript (`ep["tot"]`)
+#   ext_memory, sources, accel_type, latency_ms_lo, latency_ms_hi
+#                           deploy dataclass fields serialized via asdict() into deploy/*.json and read
+#                           by deploy/index.html (latency_ms_lo in 3 places) — consumed by JS, so no
+#                           Python name-match can see them. Verified present in the emitted JSON.
+# NOT silenced (genuine findings, tracked as beads — silencing them would destroy the signal):
+#   metrics.boot_ci / boot_delta_ci      tested, no prod caller (bd 6n3)
+#   DiffusionSchedule.q_sample           tested, no prod caller — DiffusionPolicy does the forward
+#                                        diffusion inline in torch (diffusion_policy.py:91-92) instead
 #   control-leg contract types (ControlPolicy/Policy/Trajectory) are NOT listed — they are consumed by
 #   the rollout spine (core/rollout.py), so real use clears them; abstract-stub params are `_`-prefixed.
 ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "fig", "C",
-                "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map"]
+                "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map",
+                "DataclassInstance", "tot", "ext_memory", "sources", "accel_type",
+                "latency_ms_lo", "latency_ms_hi"]
 # <<< LOCAL-SLOT: vulture-ignore-names
 # >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
 paths = ["core", "surfscan", "control"]
+# deploy/schema.py is the deploy leg's VOCABULARY module — 200 lines of StrEnum + TypedDict, zero `def`,
+# zero executable statements. Its members are the JSON wire contract, read from disk by string key
+# (`row["op_class"]`) and by the index.html viewer, never by name in Python — so every symbol in it reads
+# as dead to a static name-match. Excluded wholesale rather than listing ~30 field names in the FACT vocab
+# above, which would swamp the entries that carry real information. Valid only while the file stays
+# declaration-only: if a `def` ever lands there, drop this exclude.
+exclude = ["surfscan/deploy/schema.py"]
 # <<< LOCAL-SLOT: vulture-scan
 
 [tool.coverage.run]

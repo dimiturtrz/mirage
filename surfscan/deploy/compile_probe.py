@@ -24,13 +24,16 @@ import argparse
 import io
 import json
 import re
+from pathlib import Path
+from typing import override
 
 import torch
-from torch import nn
+from jaxtyping import Float
+from torch import Tensor, nn
 
 from core.obs import Obs
 from surfscan.deploy import DEPLOY_DIR
-from surfscan.deploy.schema import OpSupport
+from surfscan.deploy.schema import CompileDoc, CompiledOp, CompileResult, GraphOps, OpSupport
 from surfscan.dispatch import Spec
 
 log = Obs.get()
@@ -48,7 +51,8 @@ class ConvRep(nn.Module):
         self.c1, self.bn = nn.Conv2d(c, c, 3, padding=1), nn.BatchNorm2d(c)
         self.c2, self.pool = nn.Conv2d(c, c, 3, padding=1), nn.MaxPool2d(2)
 
-    def forward(self, x):
+    @override
+    def forward(self, x: Float[Tensor, "b c h w"]) -> Float[Tensor, "b c h w"]:
         y = self.pool(torch.relu(self.bn(self.c1(x))))
         return torch.relu(self.c2(y) + y)
 
@@ -61,7 +65,8 @@ class BankTail(nn.Module):
         super().__init__()
         self.dist = nn.Conv2d(c, n_bank, 1)
 
-    def forward(self, feat):
+    @override
+    def forward(self, feat: Float[Tensor, "b c h w"]) -> tuple[Tensor, Tensor]:
         d = self.dist(feat)
         return torch.argmin(d, dim=1), torch.topk(-d, k=3, dim=1).values
 
@@ -73,7 +78,8 @@ class AttnRep(nn.Module):
         super().__init__()
         self.qkv = nn.Linear(d, d * 3)
 
-    def forward(self, x):
+    @override
+    def forward(self, x: Float[Tensor, "b n d"]) -> Float[Tensor, "b n d"]:
         q, k, v = self.qkv(x).chunk(3, dim=-1)
         return torch.softmax(q @ k.transpose(-1, -2) / 8.0, dim=-1) @ v
 
@@ -88,13 +94,14 @@ class CompileProbe:
     )
 
     @staticmethod
-    def build(outdir) -> list[dict]:
+    def build(outdir: Path) -> list[GraphOps]:
         outdir.mkdir(parents=True, exist_ok=True)
-        rows = []
+        rows: list[GraphOps] = []
         for name, op_class, make in CompileProbe.GRAPHS:
             mod, x = make()
             buf = io.BytesIO()
             with torch.no_grad():
+                # pyrefly: ignore[bad-argument-type]  stub narrows `args`/`f`; dynamo=False takes a Tensor + file-like
                 torch.onnx.export(mod.eval(), x, buf, opset_version=_OPSET, dynamo=False,
                                   input_names=["in"], output_names=["out"])
             (outdir / f"{name}.onnx").write_bytes(buf.getvalue())
@@ -104,13 +111,13 @@ class CompileProbe:
         return rows
 
     @staticmethod
-    def parse_rknn(text: str) -> dict[str, list[dict]]:
+    def parse_rknn(text: str) -> dict[str, list[CompiledOp]]:
         """rknn-toolkit2 build log: one op table per graph (a header row then `ID Op Dtype (NPU|CPU) ...` rows).
         A successful build prints no filename, so tables are split on the header and named in build order."""
         header = re.compile(r"\bID\b.*\bOpType\b.*\bTarget\b")
         row = re.compile(r"\b\d+\s+(\w+)\s+(?:FLOAT16|INT64|INT8|BOOL|FLOAT)\s+(NPU|CPU)\b")
         names = [g[0] for g in CompileProbe.GRAPHS]
-        tables: list[list[dict]] = []
+        tables: list[list[CompiledOp]] = []
         in_table = False
         for line in text.splitlines():
             if header.search(line):
@@ -126,9 +133,10 @@ class CompileProbe:
         return {names[i]: t for i, t in enumerate(tables) if i < len(names)}
 
     @staticmethod
-    def parse_edgetpu(text: str) -> dict[str, list[dict]]:
+    def parse_edgetpu(text: str) -> dict[str, list[CompiledOp]]:
         """edgetpu_compiler op log: per graph an `OPERATOR count Status` table; 'Mapped to Edge TPU' = native."""
-        blocks, cur = {}, None
+        blocks: dict[str, list[CompiledOp]] = {}
+        cur: str | None = None
         for line in text.splitlines():
             head = re.match(r"=+\s*(\w+)\s*=+", line)
             if head:
@@ -142,7 +150,7 @@ class CompileProbe:
         return {k: v for k, v in blocks.items() if v}
 
     @staticmethod
-    def _verdict(per_op: list[dict]) -> str:
+    def _verdict(per_op: list[CompiledOp]) -> str:
         native = {"NPU", "EDGETPU"}
         host = [o["op"] for o in per_op if o["on"] not in native]
         if not per_op:
@@ -156,10 +164,10 @@ class CompileProbe:
         return f"host_fragmented({','.join(sorted(set(host)))[:60]})"
 
     @staticmethod
-    def assemble(rknn_text: str, edgetpu_text: str) -> dict:
+    def assemble(rknn_text: str, edgetpu_text: str) -> CompileDoc:
         rk, et = CompileProbe.parse_rknn(rknn_text), CompileProbe.parse_edgetpu(edgetpu_text)
         graphs = {name: op_class for name, op_class, _ in CompileProbe.GRAPHS}
-        results = []
+        results: list[CompileResult] = []
         for name, op_class in graphs.items():
             if name in rk:
                 results.append({"graph": name, "represents": op_class, "target": "rknn_rk3588",

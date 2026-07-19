@@ -13,8 +13,9 @@ from jaxtyping import Float, Int
 
 class TwinGeom:
     @staticmethod
-    def parse_obj(path) -> tuple[Float[np.ndarray, "v 3"], Int[np.ndarray, "f 3"]]:
-        verts, faces = [], []
+    def parse_obj(path: str | Path) -> tuple[Float[np.ndarray, "v 3"], Int[np.ndarray, "f 3"]]:
+        verts: list[list[float]] = []
+        faces: list[list[int]] = []
         with Path(path).open() as fh:
             for line in fh:
                 if line.startswith("v "):
@@ -34,7 +35,9 @@ class TwinGeom:
         return np.stack([x, y, z], -1).astype(np.float32)
 
     @staticmethod
-    def deform(verts: Float[np.ndarray, "v 3"], rng, sign: float) -> tuple[Float[np.ndarray, "v 3"], float]:
+    def deform(
+        verts: Float[np.ndarray, "v 3"], rng: np.random.RandomState, sign: float
+    ) -> tuple[Float[np.ndarray, "v 3"], float]:
         """Physical defect: Gaussian z-displacement of a local surface patch (dent sign=+1 pushes the
         surface away from the sensor, bump sign=-1 toward it) — the 3D-mesh analogue of the classical
         normal-displacement defect, but rendered through the path tracer."""

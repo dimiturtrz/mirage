@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections.abc import Callable
 
 import numpy as np
 
@@ -25,6 +26,7 @@ from control.expert import PDExpert
 from control.point_mass import Phys, Task
 from control.sim.isaac_reach import IsaacReach
 from core.obs import Obs
+from core.policy import ControlPolicy, StateT
 from core.rollout import Rollout
 
 log = Obs.get()
@@ -41,12 +43,13 @@ class IsaacGap:
         self._task = task
         self._sim = sim
 
-    def _factory(self, phys: Phys):
+    def _factory(self, phys: Phys) -> Callable[[int], IsaacReach]:
         def make(seed: int) -> IsaacReach:
             return self._reach.configure(seed, phys)
         return make
 
-    def _success(self, policy, state, phys: Phys, episodes: int, seed0: int) -> float:
+    def _success(self, policy: ControlPolicy[StateT], state: StateT, phys: Phys, episodes: int,
+                 seed0: int) -> float:
         make = self._factory(phys)
         trajs = [Rollout.roll(policy, state, make(seed0 + i), self._task.horizon) for i in range(episodes)]
         return Rollout.success_rate(trajs)
@@ -67,7 +70,7 @@ class IsaacGap:
 
     @staticmethod
     def _aggregate(rows: list[dict[str, float]]) -> dict[str, float]:
-        agg = {}
+        agg: dict[str, float] = {}
         for key in rows[0]:
             vals = np.array([r[key] for r in rows], dtype=float)
             agg[f"{key}_mean"] = float(np.mean(vals))
@@ -75,7 +78,7 @@ class IsaacGap:
         return agg
 
     def run(self, seeds: int, episodes: int, epochs: int) -> dict[str, float]:
-        rows = []
+        rows: list[dict[str, float]] = []
         for s in range(seeds):
             log.info(f"[seed {s}] training BC + rolling gap sweep...")
             rows.append(self._one_seed(s, episodes, epochs))

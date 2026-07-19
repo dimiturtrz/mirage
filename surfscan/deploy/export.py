@@ -19,12 +19,16 @@ from __future__ import annotations
 import argparse
 import io
 import json
+from typing import cast
 
 import torch
+from jaxtyping import Float
+from torch import Tensor, nn
 
 from core.obs import Obs
 from surfscan.deploy import DEPLOY_DIR, profile
-from surfscan.deploy.schema import OpClass
+from surfscan.deploy.profile import Exportable, ProfileTarget
+from surfscan.deploy.schema import ComponentOps, DetectorDoc, DetectorOpsCheck, ExportDoc, ModelsDoc, OpClass
 from surfscan.dispatch import Spec
 
 log = Obs.get()
@@ -39,17 +43,19 @@ class Exporter:
     """Export each detector's neural graph to ONNX and inventory its ops — the measured op-class gate."""
 
     @staticmethod
-    def _op_types(mod, xin) -> list[str]:
+    def _op_types(mod: nn.Module, xin: Float[Tensor, "b *shape"]) -> list[str]:
         buf = io.BytesIO()
         with torch.no_grad():
+            # pyrefly: ignore[bad-argument-type]  stub narrows `f`; dynamo=False writes to a file-like object
             torch.onnx.export(mod, xin, buf, opset_version=_OPSET, dynamo=False)
         import onnx  # noqa: PLC0415  (optional `export` extra — imported only when the step actually runs)
         graph = onnx.load_from_string(buf.getvalue())
         return sorted({n.op_type for n in graph.graph.node})
 
     @staticmethod
-    def export_one(name: str, fn, x) -> dict:
-        mod, xin = fn.export_spec(x) if hasattr(fn, "export_spec") else (fn, x)
+    def export_one(name: str, fn: ProfileTarget, x: Float[Tensor, "b *shape"]) -> ComponentOps:
+        mod, xin = (cast(Exportable, fn).export_spec(x) if hasattr(fn, "export_spec")
+                    else (cast(nn.Module, fn), x))
         try:
             ops = Exporter._op_types(mod, xin)
         except Exception as exc:  # noqa: BLE001  the export FAILING is a recorded result (export-hostile graph)
@@ -60,7 +66,7 @@ class Exporter:
                 "has_bank_tail_op": bool(opset & _BANK_TAIL_OPS)}
 
     @staticmethod
-    def _detector_check(det: dict, by_name: dict[str, dict]) -> dict:
+    def _detector_check(det: DetectorDoc, by_name: dict[str, ComponentOps]) -> DetectorOpsCheck:
         """Does the exported op inventory of a detector's pieces corroborate its declared op-class?"""
         rows = [by_name[p] for p in det["pieces"] if p in by_name]
         exported = all(r.get("exported") for r in rows)
@@ -72,11 +78,11 @@ class Exporter:
                 "has_attention_op": has_attn, "corroborates_op_class": corroborated}
 
     @staticmethod
-    def document(size: int, dev: str) -> dict:
+    def document(size: int, dev: str) -> ExportDoc:
         rows = [Exporter.export_one(name, fn, x) for name, fn, x, _ in profile.Profiler.targets(size, dev)]
         by_name = {r["name"]: r for r in rows}
-        models = json.loads((profile.MODELS_DOC).read_text(encoding="utf-8")) if profile.MODELS_DOC.exists() \
-            else profile.Profiler.document(size, dev)
+        models: ModelsDoc = json.loads((profile.MODELS_DOC).read_text(encoding="utf-8")) \
+            if profile.MODELS_DOC.exists() else profile.Profiler.document(size, dev)
         checks = [Exporter._detector_check(d, by_name) for d in models["detectors"]]
         return {
             "note": "measured torch->ONNX (dynamo=False) op inventory — the op-class gate, verified not assumed",
@@ -85,7 +91,7 @@ class Exporter:
         }
 
     @staticmethod
-    def _log(doc: dict) -> None:
+    def _log(doc: ExportDoc) -> None:
         for r in doc["components"]:
             if r["exported"]:
                 flags = [f for f, on in (("attention", r["has_attention_op"]),

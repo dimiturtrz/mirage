@@ -6,6 +6,8 @@ CPU↔GPU copy. Shuffle indices + slice on the GPU. (The acoustic-engine trick.)
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 import polars as pl
 import torch
@@ -19,10 +21,18 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
     """All samples of a query as GPU-resident tensors:
     x [N,C,H,W] (the channels), valid [N,1,H,W], gt [N,1,H,W]."""
 
-    def __init__(self, df: pl.DataFrame, channels=("xyz",), device="cuda", dtype=torch.float32):
+    def __init__(
+        self,
+        df: pl.DataFrame,
+        channels: Sequence[str] = ("xyz",),
+        device: str | torch.device = "cuda",
+        dtype: torch.dtype = torch.float32,
+    ):
         self.df = df
         self.channels = tuple(channels)
-        xs, ms, gs = [], [], []
+        xs: list[np.ndarray] = []
+        ms: list[np.ndarray] = []
+        gs: list[np.ndarray] = []
         for path in df["path"].to_list():
             a = store.Store.load_arrays(path)
             xs.append(GpuSplit._stack_channels(a, channels))
@@ -40,13 +50,25 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
         return self.x.shape[0]
 
     @staticmethod
-    def _stack_channels(a: dict, channels) -> Float[np.ndarray, "c h w"]:
+    def _stack_channels(
+        a: dict[str, np.ndarray],
+        channels: Sequence[str],
+    ) -> Float[np.ndarray, "c h w"]:
         """(H,W,3) channels -> one (C,H,W) float32 array."""
-        return np.concatenate([a[c].transpose(2, 0, 1) for c in channels], 0).astype(np.float32)
+        return np.concatenate([a[c].transpose(2, 0, 1) for c in channels], 0).astype(
+            np.float32
+        )
 
     @staticmethod
-    def load_split(split=None, label=None, cats=None, channels=("xyz",),  # noqa: PLR0913  # pragma: no cover  store query + GpuSplit (disk)
-                   device="cuda", size=None, source=None) -> "GpuSplit":
+    def load_split(  # noqa: PLR0913  # pragma: no cover
+        split: str | None = None,
+        label: int | None = None,
+        cats: Sequence[str] | None = None,
+        channels: Sequence[str] = ("xyz",),
+        device: str | torch.device = "cuda",
+        size: int | None = None,
+        source: store.Source | None = None,
+    ) -> "GpuSplit":
         """Query the store (filter by split / label / category) -> GPU-resident tensors."""
         df = store.Store.load(size=size or pp.SIZE, source=source)
         if cats:

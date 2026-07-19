@@ -22,14 +22,17 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass
+from typing import Protocol, cast
 
 import torch
 import torchvision
+from jaxtyping import Float
+from torch import Tensor, nn
 from torch.utils.flop_counter import FlopCounterMode
 
 from core.obs import Obs
 from surfscan.deploy import MODELS_DOC, bank
-from surfscan.deploy.schema import CostRow, OpClass
+from surfscan.deploy.schema import ComponentCost, CostRow, ModelsDoc, OpClass
 from surfscan.dispatch import Spec
 from surfscan.models.draem import Draem
 from surfscan.models.feat_ae import FeatAE
@@ -80,12 +83,12 @@ class TruncatedResnet:
         self.mods = [getattr(net, m) for m in self.used_names(upto)]
 
     @torch.no_grad()
-    def __call__(self, x):
+    def __call__(self, x: Float[Tensor, "b c h w"]) -> Float[Tensor, "b c h w"]:
         for m in self.mods:
             x = m(x)
         return x
 
-    def export_spec(self, x):
+    def export_spec(self, x: Float[Tensor, "b c h w"]) -> tuple[torch.nn.Module, Float[Tensor, "b c h w"]]:
         """The exportable nn.Module + its input — the truncated stages as a Sequential (ONNX gate)."""
         return torch.nn.Sequential(*self.mods), x
 
@@ -107,16 +110,26 @@ class PointmaeBackbone:
         self.net = Pointmae.load_pointmae(dev, ckpt=None)
 
     @torch.no_grad()
-    def __call__(self, x):
+    def __call__(self, x: Float[Tensor, "b n c"]) -> tuple[Float[Tensor, "b g c"], Float[Tensor, "b g 3"]]:
         return Pointmae.pointmae_features(self.net, x)
 
-    def export_spec(self, x):
+    def export_spec(self, x: Float[Tensor, "b n c"]) -> tuple[nn.Module, Float[Tensor, "b c n"]]:
         """The transformer module + its (B,3,N) input — the Point-MAE forward wants channels-first."""
         return self.net, x.transpose(1, 2).contiguous()
 
     @property
     def params(self) -> int:
         return sum(p.numel() for p in self.net.parameters())
+
+
+class Exportable(Protocol):
+    """A profile target that knows its own exportable (module, input) pair — the wrappers whose forward is not
+    an nn.Module call (a truncated backbone, a channels-first point transformer) implement this."""
+
+    def export_spec(self, x: Float[Tensor, "b *shape"]) -> tuple[nn.Module, Float[Tensor, "b *shape"]]: ...
+
+
+ProfileTarget = ConvVAE | Draem | FeatAE | TruncatedResnet | PointmaeBackbone
 
 
 class Profiler:
@@ -133,19 +146,19 @@ class Profiler:
     )
 
     @staticmethod
-    def _params(fn) -> int:
-        own = getattr(fn, "params", None)   # profile wrappers expose .params; a bare nn.Module does not
-        return own if own is not None else sum(p.numel() for p in fn.parameters())
+    def _params(fn: ProfileTarget) -> int:
+        own: int | None = getattr(fn, "params", None)  # profile wrappers expose .params; a bare nn.Module does not
+        return own if own is not None else sum(p.numel() for p in cast(nn.Module, fn).parameters())
 
     @staticmethod
-    def _flops(fn, x) -> int:
+    def _flops(fn: ProfileTarget, x: Float[Tensor, "b *shape"]) -> int:
         fc = FlopCounterMode(display=False)
         with torch.no_grad(), fc:
             fn(x)
         return fc.get_total_flops()
 
     @staticmethod
-    def _peak_act_mb(fn, x, dev: str) -> float:
+    def _peak_act_mb(fn: ProfileTarget, x: Float[Tensor, "b *shape"], dev: str) -> float:
         if dev != _CUDA:
             return float("nan")
         torch.cuda.synchronize()
@@ -158,7 +171,8 @@ class Profiler:
         return (torch.cuda.max_memory_allocated() - base) / _MB
 
     @staticmethod
-    def profile_one(name: str, fn, x, note: str, dev: str) -> CostRow:
+    def profile_one(name: str, fn: ProfileTarget, x: Float[Tensor, "b *shape"], note: str,
+                    dev: str) -> CostRow:
         params = Profiler._params(fn)
         flops = Profiler._flops(fn, x)
         return CostRow(
@@ -173,12 +187,12 @@ class Profiler:
         )
 
     @staticmethod
-    def targets(size: int, dev: str):
+    def targets(size: int, dev: str) -> list[tuple[str, ProfileTarget, Float[Tensor, "b *shape"], str]]:
         """The neural detectors + their deploy-relevant input, built on `dev`. FPFH/BTF (open3d, CPU,
         non-neural) is a geometry-bank cost, not a forward-FLOP cost — handled in the bank model."""
         img = torch.randn(1, 3, size, size, device=dev)
         feat = torch.randn(1, _LAYER2_CH, size // 8, size // 8, device=dev)  # layer2 stride-8 feature map
-        out = [
+        out: list[tuple[str, ProfileTarget, Float[Tensor, "b *shape"], str]] = [
             ("convvae_xyz", ConvVAE(ModelCfg(in_ch=3)).to(dev).eval(), img, "reconstruction (xyz), full AE"),
             ("draem_rgb", Draem(ch=3).to(dev).eval(), img, "reconstructive+discriminative UNets (rgb)"),
             ("backbone_layer2", TruncatedResnet(_BACKBONE, _L2, dev), img,
@@ -214,7 +228,7 @@ class Profiler:
                 for name, fn, x, note in Profiler.targets(size, dev)]
 
     @staticmethod
-    def document(size: int, dev: str) -> dict:
+    def document(size: int, dev: str) -> ModelsDoc:
         """The deploy/models_params.json payload: components (neural forwards AND banks, one list) + detectors.
 
         A bank is a normal component — computed analytically (N x C), not FlopCounterMode-measured — so it
@@ -226,7 +240,7 @@ class Profiler:
             "note": "generated by `python -m surfscan.deploy profile` — single-frame footprint "
                     "(banks sized analytically)",
             "input_size": size, "device": dev,
-            "components": [asdict(r) for r in components],
+            "components": [cast(ComponentCost, asdict(r)) for r in components],
             "detectors": [{"name": d.name, "op_class": d.op_class, "pieces": list(d.pieces)} for d in detectors],
         }
 

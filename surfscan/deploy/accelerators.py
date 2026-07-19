@@ -19,7 +19,14 @@ from functools import cache
 
 from core.obs import Obs
 from surfscan.deploy import ACCEL_DIR
-from surfscan.deploy.schema import AccelType, MemoryModel, OpClass, OpSupport
+from surfscan.deploy.schema import (
+    AcceleratorInstanceDoc,
+    AcceleratorTypeDoc,
+    AccelType,
+    MemoryModel,
+    OpClass,
+    OpSupport,
+)
 from surfscan.dispatch import Spec
 
 log = Obs.get()
@@ -56,11 +63,13 @@ class Accelerators:
     """Load the typed, cited accelerator specs from deploy/accelerators/ — the source-of-truth JSON."""
 
     @staticmethod
-    def _support_map(raw: dict) -> dict[OpClass, OpSupport]:
+    def _support_map(raw: dict[str, str]) -> dict[OpClass, OpSupport]:
         return {OpClass(k): OpSupport(v) for k, v in raw.items()}
 
     @staticmethod
-    def _instance(raw: dict, atype: AccelType, support: dict[OpClass, OpSupport]) -> Accelerator:
+    def _instance(
+        raw: AcceleratorInstanceDoc, atype: AccelType, support: dict[OpClass, OpSupport]
+    ) -> Accelerator:
         return Accelerator(
             name=raw["name"], label=raw["label"], type=atype, op_support=support,
             precisions=raw["precisions"], memory_model=MemoryModel(raw["memory_model"]),
@@ -69,7 +78,7 @@ class Accelerators:
 
     @staticmethod
     def _load_type(atype: AccelType) -> AcceleratorType:
-        raw = json.loads((ACCEL_DIR / f"{atype}_params.json").read_text(encoding="utf-8"))
+        raw: AcceleratorTypeDoc = json.loads((ACCEL_DIR / f"{atype}_params.json").read_text(encoding="utf-8"))
         support = Accelerators._support_map(raw["op_support"])
         instances = tuple(Accelerators._instance(i, atype, support) for i in raw["instances"])
         return AcceleratorType(type=atype, label=raw["label"], op_support=support,

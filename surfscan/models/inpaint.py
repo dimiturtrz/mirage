@@ -7,8 +7,11 @@ an anomaly there gets predicted-as-normal -> the residual spikes only at the ano
 """
 from __future__ import annotations
 
+from typing import override
+
 import torch
 import torch.nn as nn
+from jaxtyping import Float
 
 from surfscan.models.vae import ConvVAE
 from surfscan.training.hparams import ModelCfg
@@ -16,7 +19,9 @@ from surfscan.training.hparams import ModelCfg
 
 class InpaintAE(nn.Module):
     @staticmethod
-    def random_mask(n, size, patch, ratio, device):
+    def random_mask(
+        n: int, size: int, patch: int, ratio: float, device: str | torch.device
+    ) -> Float[torch.Tensor, "n 1 size size"]:
         """(n,1,size,size) mask: ~ratio of patch-cells zeroed (0 = masked/hidden, 1 = visible)."""
         g = size // patch
         keep = (torch.rand(n, 1, g, g, device=device) > ratio).float()
@@ -39,7 +44,8 @@ class InpaintAE(nn.Module):
             ConvVAE.dec_block(decoder_channels[level], decoder_channels[level + 1],
                               last=(level == depth - 1), p=dropout) for level in range(depth))
 
-    def forward(self, x):
+    @override
+    def forward(self, x: Float[torch.Tensor, "b c h w"]) -> Float[torch.Tensor, "b c h w"]:
         for b in self.enc:
             x = b(x)
         x = self.fc(x.flatten(1)).view(-1, self.bottleneck_ch, self.feat, self.feat)

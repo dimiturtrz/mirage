@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Generic, override
 
 import numpy as np
 import torch
@@ -18,7 +18,8 @@ from jaxtyping import Float
 from torch import Tensor, nn
 
 from control.demos import Demos
-from core.rollout import EvalPlan
+from core.policy import ControlPolicy, StateT
+from core.rollout import Env, EvalPlan
 
 
 @dataclass(frozen=True)
@@ -43,14 +44,18 @@ class MLP(nn.Module):
             nn.Linear(hidden, out_dim),
         )
 
+    @override
     def forward(self, x: Float[Tensor, "b in"]) -> Float[Tensor, "b out"]:
         return self.net(x)
 
 
-class BCPolicy:
-    """Clone the PD expert from nominal-sim demos; the sim-trained policy the gap is measured on."""
+class BCPolicy(Generic[StateT]):
+    """Clone the PD expert from nominal-sim demos; the sim-trained policy the gap is measured on.
 
-    def __init__(self, sim_env_factory: Callable[[int], Any], expert: Any, cfg: BCConfig):
+    Generic in the *demonstrator's* state type (`StateT`): the clone is agnostic to what its expert carries
+    between train and act (the PD experts carry nothing), while its own state is the fitted `MLP`."""
+
+    def __init__(self, sim_env_factory: Callable[[int], Env], expert: ControlPolicy[StateT], cfg: BCConfig):
         self._make_sim = sim_env_factory
         self._expert = expert
         self._cfg = cfg
@@ -59,7 +64,7 @@ class BCPolicy:
         plan = EvalPlan(self._cfg.n_demo_episodes, self._cfg.seed, self._cfg.max_steps)
         return Demos.flat(Demos.rollouts(self._expert, task, self._make_sim, plan))
 
-    def train(self, task: str) -> Any:
+    def train(self, task: str) -> MLP:
         torch.manual_seed(self._cfg.seed)
         obs, act = self._collect(task)
         net = MLP(obs.shape[1], self._cfg.hidden, act.shape[1])
@@ -73,7 +78,7 @@ class BCPolicy:
             opt.step()
         return net
 
-    def act(self, state: Any, obs: Float[np.ndarray, "4"]) -> Float[np.ndarray, "2"]:
+    def act(self, state: nn.Module, obs: Float[np.ndarray, "4"]) -> Float[np.ndarray, "2"]:
         net = state
         with torch.no_grad():
             return net(torch.as_tensor(obs, dtype=torch.float32)).numpy()

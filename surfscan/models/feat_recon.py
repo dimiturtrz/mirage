@@ -9,24 +9,32 @@ from __future__ import annotations
 
 import torch
 import torchvision
+from jaxtyping import Float
 
-from surfscan.models.feat_ae import FeatAE  # noqa: F401  — re-export; the pure AE core lives there
+from surfscan.models.feat_ae import FeatAE
+
+__all__ = ["FeatAE", "FeatExtractor"]
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 
 
 class FeatExtractor:
-    def __init__(self, backbone="wide_resnet50_2", layer="layer2", device="cuda"):
+    def __init__(
+        self, backbone: str = "wide_resnet50_2", layer: str = "layer2", device: str | torch.device = "cuda"
+    ) -> None:
         net = getattr(torchvision.models, backbone)(weights="DEFAULT").to(device).eval()
         for p in net.parameters():
             p.requires_grad_(requires_grad=False)
-        self._feat = None
+        self._feat: torch.Tensor | None = None
         getattr(net, layer).register_forward_hook(lambda _m, _i, o: setattr(self, "_feat", o))
         self.net = net
         self.mean, self.std = _MEAN.to(device), _STD.to(device)
 
     @torch.no_grad()
-    def __call__(self, x):                      # x: N,3,H,W in [0,1] -> N,C,h,w features
+    def __call__(self, x: Float[torch.Tensor, "n 3 h w"]) -> Float[torch.Tensor, "n c fh fw"]:
         self.net((x - self.mean) / self.std)
-        return self._feat
+        feat = self._feat
+        if feat is None:
+            raise RuntimeError("forward hook did not fire — layer name does not match the backbone")
+        return feat

@@ -5,16 +5,28 @@ helpers live in TwinGeom (pxr-free).
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from jaxtyping import Float, Int
+
+if TYPE_CHECKING:
+    from pxr import Usd, UsdGeom
 
 
 class TwinObj:
     @staticmethod
-    def build_mesh(stage, verts: Float[np.ndarray, "v 3"], faces: Int[np.ndarray, "f 3"]):
+    def attr_float(attr: Usd.Attribute) -> float:
+        # the pxr .pyi is Boost.Python-generated with every method typed `-> None`; Get returns the authored value
+        return attr.Get()
+
+    @staticmethod
+    def build_mesh(
+        stage: Usd.Stage, verts: Float[np.ndarray, "v 3"], faces: Int[np.ndarray, "f 3"]
+    ) -> UsdGeom.Mesh:
         from pxr import Gf, UsdGeom, Vt  # noqa: PLC0415
 
-        mesh = UsdGeom.Mesh.Define(stage, "/World/Object")
+        mesh: UsdGeom.Mesh = UsdGeom.Mesh.Define(stage, "/World/Object")
         mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(verts.astype(np.float32)))
         mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(faces), 3, np.int32)))
         mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(faces.flatten().astype(np.int32)))

@@ -9,12 +9,13 @@ lives in `experiment.py` for the BC gap curve; a paradigm is only worth multi-se
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
 
 import mlflow
 import numpy as np
 from jaxtyping import Float
+from torch import nn
 
 from control.act import ACTConfig, ACTPolicy
 from control.bc import BCConfig, BCPolicy
@@ -23,6 +24,7 @@ from control.expert import PDExpert
 from control.point_mass import Phys, PointMassReach, Task
 from core.metrics import Metrics
 from core.obs import Obs
+from core.policy import ControlPolicy
 from core.rollout import EvalPlan, Rollout, Trajectory
 
 log = Obs.get()
@@ -47,7 +49,8 @@ class PolicyCompare:
     """Train BC / ACT / diffusion on shared nominal demos, roll matched sim/real, report each one's gap."""
 
     @staticmethod
-    def _policies(cfg: CompareConfig, train_make: Callable[[int], PointMassReach]) -> dict[str, Any]:
+    def _policies(cfg: CompareConfig,
+                  train_make: Callable[[int], PointMassReach]) -> dict[str, ControlPolicy[nn.Module]]:
         expert = PDExpert(amax=cfg.sim.amax)
         return {"bc": BCPolicy(train_make, expert, cfg.bc),
                 "act": ACTPolicy(train_make, expert, cfg.act),
@@ -58,7 +61,7 @@ class PolicyCompare:
         return np.array([t.success.any() for t in trajs], dtype=float)   # per-episode success (matched seeds)
 
     @staticmethod
-    def _gap(cfg: CompareConfig, policy: Any) -> dict[str, float]:
+    def _gap(cfg: CompareConfig, policy: ControlPolicy[nn.Module]) -> dict[str, float]:
         state = policy.train("reach")
         plan = EvalPlan(cfg.episodes, cfg.eval_seed, cfg.task.horizon)
         sim_t = Rollout.rollset(policy, state, PointMassReach.factory(cfg.sim, cfg.task), plan)

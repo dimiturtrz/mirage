@@ -10,9 +10,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import numpy as np
+import torch
+from jaxtyping import Bool, Float
+
 from core.data.static import store
 from core.data.static.dataset import GpuSplit
 from core.data.static.mvtec import Split
+from core.method import ScoreArrays
 from surfscan.evaluation import scoring
 from surfscan.method_cli import MethodCli
 from surfscan.models.fpfh_bank import FpfhBank
@@ -30,23 +35,23 @@ class FusedCfg:
 class FusedMethod:
     run_name = "fused_rgb_fpfh"
 
-    def __init__(self, cfg: FusedCfg, dev):
+    def __init__(self, cfg: FusedCfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
 
     @staticmethod
-    def _zscore(maps, valids):
+    def _zscore(maps: Float[np.ndarray, "n h w"], valids: Bool[np.ndarray, "n h w"]) -> Float[np.ndarray, "n h w"]:
         v = maps[valids]
         return (maps - v.mean()) / (v.std() + 1e-9)
 
-    def fit(self, cat):
+    def fit(self, cat: str) -> tuple[PatchCore, FpfhBank]:
         train_rgb = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=["rgb"], device=self.dev)
         pc = PatchCore(device=self.dev, amp=self.cfg.amp).fit(train_rgb.x)
         _, train_arr = store.Store.arrays(cat, Split.TRAIN, 0)
         fbank = FpfhBank(device=self.dev).fit([(a["xyz"], a["valid"]) for a in train_arr])
         return pc, fbank
 
-    def score(self, state, cat):
+    def score(self, state: tuple[PatchCore, FpfhBank], cat: str) -> ScoreArrays:
         pc, fbank = state
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=["rgb"], device=self.dev)
         valids = test.valid.squeeze(1).cpu().numpy().astype(bool)

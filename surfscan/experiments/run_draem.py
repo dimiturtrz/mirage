@@ -36,7 +36,7 @@ class DraemCfg:
 
 
 class DraemMethod:
-    def __init__(self, cfg: DraemCfg, dev):
+    def __init__(self, cfg: DraemCfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
 
@@ -44,16 +44,17 @@ class DraemMethod:
     def run_name(self) -> str:
         return f"draem_{self.cfg.synth}_{'_'.join(self.cfg.channels)}"
 
-    def fit(self, cat):
+    def fit(self, cat: str) -> torch.nn.Module:
         torch.manual_seed(self.cfg.seed)
         rng = np.random.RandomState(self.cfg.seed)
         train = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
-        model = Draem(ch=train.in_ch).to(self.dev, memory_format=torch.channels_last)
+        model = Draem(ch=train.in_ch).to(  # pyrefly: ignore[no-matching-overload]  Module.to forwards memory_format to _parse_to; the stub omits it
+            self.dev, memory_format=torch.channels_last)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
 
-        def step(idx):
+        def step(idx: Tensor) -> Tensor:
             x, v = train.x[idx], train.valid[idx]
-            aug, mask = (Defects(rng).synthesize(x, v, channels=self.cfg.channels)
+            aug, mask = (Defects(rng).synthesize(x, v, channels=tuple(self.cfg.channels))
                          if self.cfg.synth == "realistic" else DraemSynth(rng).synthesize(x, v))
             with Compute.autocast(x):
                 rec, logits = model(aug.to(memory_format=torch.channels_last))
@@ -63,7 +64,7 @@ class DraemMethod:
 
         return Trainer(model, opt, self.dev, batch=16).fit(len(train), self.cfg.epochs, step)
 
-    def score(self, model, cat: str) -> ScoreArrays:
+    def score(self, model: torch.nn.Module, cat: str) -> ScoreArrays:
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=self.cfg.channels, device=self.dev)
         model.eval()
 

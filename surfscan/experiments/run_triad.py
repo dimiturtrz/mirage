@@ -19,6 +19,7 @@ Run:  python -m surfscan.run triad [--cats bagel ...] [--epochs 100] [--seed 0]
 """
 from __future__ import annotations
 
+from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -69,28 +70,32 @@ class TriadRun:
     `cfg` (arm/run config) and `dev` (device) are fixed for the whole triad run — held as state;
     `cat` (category) varies per harness call — stays a method arg."""
 
-    def __init__(self, cfg, dev):
+    def __init__(self, cfg: TriadCfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
 
     @staticmethod
-    def _split_idx(labels):
+    def _split_idx(labels: Int[np.ndarray, "n"]) -> tuple[Int[np.ndarray, "n_calib"], Int[np.ndarray, "n_eval"]]:
         """Deterministic per-label alternating split of the test set -> (calib_idx, eval_idx).
         Stratified by label so both halves carry good + defective samples. Same split in fit and score."""
         idx = np.arange(len(labels))
-        calib, ev = [], []
+        calib: list[int] = []
+        ev: list[int] = []
         for lab in np.unique(labels):
             li = idx[labels == lab]
             calib += list(li[1::2])
             ev += list(li[::2])
         return np.array(sorted(calib)), np.array(sorted(ev))
 
-    def _new(self, in_ch):
-        return UNet(in_ch, 1).to(self.dev, memory_format=torch.channels_last)
+    def _new(self, in_ch: int) -> UNet:
+        return UNet(in_ch, 1).to(self.dev, memory_format=torch.channels_last)  # pyrefly: ignore[no-matching-overload]  Module.to forwards **kwargs to _parse_to; the stub omits memory_format
 
     @staticmethod
     @torch.no_grad()
-    def _synth_val_au_pro(model, x, v, ch, seed):
+    def _synth_val_au_pro(
+        model: nn.Module, x: Float[Tensor, "n c h w"], v: Float[Tensor, "n 1 h w"],
+        ch: tuple[str, ...], seed: int
+    ) -> float:
         """Val signal for early stopping: au_pro on a FIXED held-out synth set (same seed each call ->
         identical val defects -> a stable plateau to detect). Synthetic, from the arm's own train
         distribution — never the real eval half, so the synth->real arm stays honestly synth-only."""
@@ -102,7 +107,7 @@ class TriadRun:
         return Metrics.au_pro(amaps, mask.squeeze(1).cpu().numpy().astype(bool),
                               v.squeeze(1).cpu().numpy().astype(bool))
 
-    def fit_synth(self, cat, source=None):
+    def fit_synth(self, cat: str, source: Source | None = None) -> nn.Module:
         """Train on good scans + on-the-fly synthetic defects, EARLY-STOPPED on a held-out synth val
         (one optimized run, best weights restored). The synth->real arm. `source` selects the GOOD
         scans: real (classical) or the digital twin (twin_grid arm) — same on-the-fly grid defect, so
@@ -121,7 +126,7 @@ class TriadRun:
         opt = optim.AdamW(model.parameters(), lr=1e-3)
         ctrl = curric.KindCurriculum(KINDS, seed=cfg.seed) if cfg.curriculum else None
 
-        def step(idx):
+        def step(idx: Tensor) -> Tensor:
             sel = tr_t[idx]
             x, v = good.x[sel], good.valid[sel]
             kinds = ctrl.sample(len(idx)) if ctrl else KINDS
@@ -149,14 +154,14 @@ class TriadRun:
         model = self._new(data.in_ch)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
 
-        def step(idx):
+        def step(idx: Tensor) -> Tensor:
             with Compute.autocast(x):
                 logits = model(x[idx].to(memory_format=torch.channels_last))
                 return F.binary_cross_entropy_with_logits(logits.float(), g[idx], weight=v[idx])
 
         return Trainer(model, opt, dev, batch=BATCH, telem=Telemetry(tag)).fit(x.shape[0], cfg.epochs, step)
 
-    def fit_real(self, cat):
+    def fit_real(self, cat: str) -> nn.Module:
         """Train on REAL defect masks (calib half of test). The real->real ceiling — note it's a
         *scarce-label* ceiling (only ~half of an already-small defect set), not an oracle; that's the
         measured supervised bar for this detector, and why the unsupervised memory bank can beat it."""
@@ -165,7 +170,7 @@ class TriadRun:
         ci, _ = TriadRun._split_idx(test.df["label"].to_numpy())
         return self._fit_bce(test, f"real:{cat}", rows=ci)
 
-    def fit_twin_phys(self, cat):
+    def fit_twin_phys(self, cat: str) -> nn.Module:
         """Train on the twin's RENDERED physical-defect scans + their depth-diff gt (all of them —
         synthetic, so no eval leakage). The full physics-twin arm: shape AND defect come from the
         Isaac render, scored on the shared real eval half."""
@@ -175,7 +180,8 @@ class TriadRun:
 
     @staticmethod
     @torch.no_grad()
-    def _adabn(model, x, passes=2, batch=BATCH):
+    def _adabn(model: nn.Module, x: Float[Tensor, "n c h w"], passes: int = 2,
+               batch: int = BATCH) -> nn.Module:
         """AdaBN (Li 2017): reset BN running stats, recompute them on the target (real) images via
         forward passes in train mode (momentum=None -> cumulative average). No labels, no backward.
         Transductive — it adapts on the eval images it will then score (standard test-time adaptation;
@@ -192,14 +198,14 @@ class TriadRun:
         model.eval()
         return model
 
-    def fit_twin_grid(self, cat):
+    def fit_twin_grid(self, cat: str) -> nn.Module:
         """twin good scans + the same on-the-fly grid defect as classical — isolates the SHAPE source
         (reconstructed twin vs real scan) against the classical synth arm. `twin_sensor` swaps the clean
         twin store for the Zivid-sensor-modeled one (jlc.2)."""
         src = Source.twin_sensor() if self.cfg.twin_sensor else Source.twin()
         return self.fit_synth(cat, source=src)
 
-    def fit_synth_da(self, cat):
+    def fit_synth_da(self, cat: str) -> nn.Module:
         """synth-trained, then AdaBN-adapted to the real eval images (unlabeled). The closure arm."""
         dev = self.dev
         model = self.fit_synth(cat)
@@ -209,7 +215,7 @@ class TriadRun:
         return TriadRun._adabn(model, test.x[torch.as_tensor(ei, device=dev)])
 
     @torch.no_grad()
-    def score(self, model, cat: str, batch: int = BATCH) -> ScoreArrays:
+    def score(self, model: nn.Module, cat: str, batch: int = BATCH) -> ScoreArrays:
         """Score the shared real EVAL half -> ScoreArrays fields for the harness."""
         dev = self.dev
         test = GpuSplit.load_split(split=Split.TEST, cats=[cat], channels=tuple(self.cfg.channels), device=dev,
@@ -225,19 +231,19 @@ class TriadRun:
         return scoring.Scoring.score_logits(forward, v, test, batch, idx=ei)
 
     @staticmethod
-    def args(ap):
+    def args(ap: ArgumentParser) -> None:
         Dispatch.add_cats(ap)
         CliConfig.add_config_args(ap, TriadCfg)
 
     @staticmethod
-    def run(args):
+    def run(args: Namespace) -> None:
         Compute.enable_tf32()
         cfg = CliConfig.build_config(TriadCfg, args)
         run = TriadRun(cfg, Compute.pick_device())
 
         fits = {"real": run.fit_real, "synth": run.fit_synth, "synth_da": run.fit_synth_da,
                 "twin_grid": run.fit_twin_grid, "twin_phys": run.fit_twin_phys}
-        res = {}
+        res: dict[str, harness.EvalResult] = {}
         for arm in cfg.arms:
             tag = f"triad_{arm}" + ("_curric" if cfg.curriculum and arm != "real" else "")
             log.info(f"\n===== {tag} (seed {cfg.seed}) =====")
@@ -247,43 +253,47 @@ class TriadRun:
         TriadRun._report_gap(res)
 
     @staticmethod
-    def _pro_delta_ci(res_a, res_b):
+    def _pro_delta_ci(
+        res_a: harness.EvalResult, res_b: harness.EvalResult
+    ) -> tuple[float, float, float]:
         """Paired MACRO bootstrap CI for au_pro(B) − au_pro(A) — mean-of-categories, matching the headline
         arm numbers. Arms score the same deterministic eval half per category in the same order, so the
         within-category paired resample cancels shared image noise (a CI clearing 0 = an honest gap)."""
-        pc_a = [(sa.amaps, sa.masks, sa.valids) for sa in res_a["by_cat"]]
-        pc_b = [(sa.amaps, sa.masks, sa.valids) for sa in res_b["by_cat"]]
+        pc_a = [(sa.amaps, sa.masks, sa.valids) for sa in res_a.by_cat]
+        pc_b = [(sa.amaps, sa.masks, sa.valids) for sa in res_b.by_cat]
         return Metrics.boot_macro_delta_ci(Metrics.au_pro, pc_a, pc_b)
 
     @staticmethod
-    def _report_gap(res):
+    def _report_gap(res: dict[str, harness.EvalResult]) -> None:
         """The headline: sim-to-real GAP and DA CLOSURE, each as a point with a PAIRED bootstrap CI —
         one deterministic run, uncertainty from the shared eval set (no seed scatter)."""
         if "real" not in res or "synth" not in res:
             return
-        real_ap, synth_ap = res["real"]["mean"]["au_pro"], res["synth"]["mean"]["au_pro"]
+        real_ap, synth_ap = res["real"].mean.au_pro, res["synth"].mean.au_pro
         gap, glo, ghi = TriadRun._pro_delta_ci(res["synth"], res["real"])   # real − synth (the gap)
         Invariants.reconciles(gap, synth_ap, real_ap, "gap")               # macro delta must == mean diff
         log.info(f"\n>>> SIM-TO-REAL GAP (au_pro): real {real_ap:.3f} "
                  f"- synth {synth_ap:.3f} = {gap:+.3f} pp  [{glo:+.3f}, {ghi:+.3f}]")
         if "synth_da" in res:
-            da_ap = res["synth_da"]["mean"]["au_pro"]
+            da_ap = res["synth_da"].mean.au_pro
             clo_pt, clo_lo, clo_hi = TriadRun._pro_delta_ci(res["synth"], res["synth_da"])  # DA − synth
             Invariants.reconciles(clo_pt, synth_ap, da_ap, "da_closure")
             log.info(f">>> DA CLOSURE (AdaBN): synth+DA {da_ap:.3f} "
                      f"(+{clo_pt:.3f} vs synth)  [{clo_lo:+.3f}, {clo_hi:+.3f}]")
         for arm in ("twin_grid", "twin_phys"):                              # digital-twin synth sources
             if arm in res:
-                ap = res[arm]["mean"]["au_pro"]
+                ap = res[arm].mean.au_pro
                 pt, ci = TriadRun._delta_or_point(res[arm], res["real"], real_ap - ap)  # real − twin
                 log.info(f">>> {arm.upper()}->real gap: real {real_ap:.3f} - {arm} {ap:.3f} = {pt:+.3f} pp{ci}")
         if "twin_grid" in res:                                             # shape-source effect (same defect)
-            tg_ap = res["twin_grid"]["mean"]["au_pro"]
+            tg_ap = res["twin_grid"].mean.au_pro
             pt, ci = TriadRun._delta_or_point(res["synth"], res["twin_grid"], tg_ap - synth_ap)
             log.info(f">>> SHAPE-SOURCE (twin_grid - synth, same defect): {pt:+.3f} pp{ci}")
 
     @staticmethod
-    def _delta_or_point(res_a, res_b, point):
+    def _delta_or_point(
+        res_a: harness.EvalResult, res_b: harness.EvalResult, point: float
+    ) -> tuple[float, str]:
         """(delta, ci-suffix) for a twin-arm bootstrap CI — a per-arm CI is optional decoration on the
         headline POINT gap, so a degenerate bootstrap draw (mismatched paired resample / empty interval)
         must not abort the whole report. On failure, fall back to the caller's point and note the reason

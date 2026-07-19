@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import open3d as o3d
+from jaxtyping import Bool, Float
 from scipy.ndimage import binary_erosion
 from skimage.transform import resize as sk_resize
 
@@ -38,7 +39,12 @@ class Preprocess:
     """Raw sample -> the unified processed tensor (the preprocess contract, docs/PLAN.md)."""
 
     @staticmethod
-    def _remove_flying_pixels(xyz, valid, nb=SO_NB, std=SO_STD):
+    def _remove_flying_pixels(
+        xyz: Float[np.ndarray, "h w 3"],
+        valid: Bool[np.ndarray, "h w"],
+        nb: int = SO_NB,
+        std: float = SO_STD,
+    ) -> Bool[np.ndarray, "h w"]:
         """Drop structured-light flying pixels (non-zero outliers at depth edges)."""
         pts = xyz[valid]
         if len(pts) < nb + 1:
@@ -52,12 +58,17 @@ class Preprocess:
         return out
 
     @staticmethod
-    def _bbox(valid):
+    def _bbox(valid: Bool[np.ndarray, "h w"]) -> tuple[np.intp, np.intp, np.intp, np.intp]:
         ys, xs = np.where(valid)
         return ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
 
     @staticmethod
-    def preprocess(rgb, xyz, gt, p=None):
+    def preprocess(
+        rgb: Float[np.ndarray, "h w 3"],
+        xyz: Float[np.ndarray, "h w 3"],
+        gt: Bool[np.ndarray, "h w"] | None,
+        p: PP | None = None,
+    ) -> dict[str, np.ndarray]:
         p = p or PP()
         size, scale, clip = p.size, p.scale, p.clip
         valid = np.any(xyz != 0, axis=-1)                 # background = exactly (0,0,0)

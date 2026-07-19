@@ -1,7 +1,72 @@
 {
   "edges": [
     {
+      "source": "control.act",
+      "target": "control.demos",
+      "weight": 1
+    },
+    {
+      "source": "control.act",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "control.adaptive",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
       "source": "control.bc",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "control.demos",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "control.diffusion_policy",
+      "target": "control.demos",
+      "weight": 1
+    },
+    {
+      "source": "control.diffusion_policy",
+      "target": "control.diffusion_schedule",
+      "weight": 1
+    },
+    {
+      "source": "control.diffusion_policy",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "control.edge",
+      "target": "control.demos",
+      "weight": 1
+    },
+    {
+      "source": "control.edge",
+      "target": "control.diffusion_policy",
+      "weight": 1
+    },
+    {
+      "source": "control.edge",
+      "target": "control.expert",
+      "weight": 1
+    },
+    {
+      "source": "control.edge",
+      "target": "control.point_mass",
+      "weight": 1
+    },
+    {
+      "source": "control.edge",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "control.edge",
       "target": "core.rollout",
       "weight": 1
     },
@@ -36,73 +101,188 @@
       "weight": 1
     },
     {
-      "source": "core.data.dataset",
-      "target": "core.data.preprocess",
+      "source": "control.policy_compare",
+      "target": "control.act",
       "weight": 1
     },
     {
-      "source": "core.data.dataset",
-      "target": "core.data.store",
+      "source": "control.policy_compare",
+      "target": "control.bc",
       "weight": 1
     },
     {
-      "source": "core.data.defects",
+      "source": "control.policy_compare",
+      "target": "control.diffusion_policy",
+      "weight": 1
+    },
+    {
+      "source": "control.policy_compare",
+      "target": "control.expert",
+      "weight": 1
+    },
+    {
+      "source": "control.policy_compare",
+      "target": "control.point_mass",
+      "weight": 1
+    },
+    {
+      "source": "control.policy_compare",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "control.policy_compare",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "control.sim.isaac_gap",
+      "target": "control.bc",
+      "weight": 1
+    },
+    {
+      "source": "control.sim.isaac_gap",
+      "target": "control.expert",
+      "weight": 1
+    },
+    {
+      "source": "control.sim.isaac_gap",
+      "target": "control.point_mass",
+      "weight": 1
+    },
+    {
+      "source": "control.sim.isaac_gap",
+      "target": "control.sim.isaac_reach",
+      "weight": 1
+    },
+    {
+      "source": "control.sim.isaac_gap",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "control.sim.isaac_gap",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "control.sim.isaac_reach",
+      "target": "core.rollout",
+      "weight": 1
+    },
+    {
+      "source": "core.data.dynamic.defects",
       "target": "core.geometry",
       "weight": 1
     },
     {
-      "source": "core.data.mvtec",
-      "target": "core.config",
+      "source": "core.data.dynamic.generate_twin_synth",
+      "target": "core.data.dynamic.twin_geom",
       "weight": 1
     },
     {
-      "source": "core.data.store",
-      "target": "core.config",
+      "source": "core.data.dynamic.generate_twin_synth",
+      "target": "core.data.dynamic.twin_obj",
       "weight": 1
     },
     {
-      "source": "core.data.store",
-      "target": "core.data.mvtec",
-      "weight": 1
-    },
-    {
-      "source": "core.data.store",
-      "target": "core.data.preprocess",
-      "weight": 1
-    },
-    {
-      "source": "core.data.store",
+      "source": "core.data.dynamic.generate_twin_synth",
       "target": "core.obs",
       "weight": 1
     },
     {
-      "source": "core.data.synth",
+      "source": "core.data.dynamic.reconstruct",
       "target": "core.config",
       "weight": 1
     },
     {
-      "source": "core.data.synth",
-      "target": "core.data.mvtec",
+      "source": "core.data.dynamic.reconstruct",
+      "target": "core.data.static.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "core.data.dynamic.reconstruct",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "core.data.dynamic.render_twin",
+      "target": "core.data.dynamic.twin_geom",
+      "weight": 1
+    },
+    {
+      "source": "core.data.dynamic.render_twin",
+      "target": "core.data.dynamic.twin_obj",
+      "weight": 1
+    },
+    {
+      "source": "core.data.dynamic.render_twin",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "core.data.dynamic.sensor_noise",
+      "target": "core.data.static.store",
+      "weight": 1
+    },
+    {
+      "source": "core.data.dynamic.sensor_noise",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.dataset",
+      "target": "core.data.static.preprocess",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.dataset",
+      "target": "core.data.static.store",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.mvtec",
+      "target": "core.config",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.store",
+      "target": "core.config",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.store",
+      "target": "core.data.static.mvtec",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.store",
+      "target": "core.data.static.preprocess",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.store",
+      "target": "core.obs",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.synth",
+      "target": "core.config",
+      "weight": 1
+    },
+    {
+      "source": "core.data.static.synth",
+      "target": "core.data.static.mvtec",
       "weight": 2
+    },
+    {
+      "source": "core.invariants",
+      "target": "core.obs",
+      "weight": 1
     },
     {
       "source": "core.rollout",
       "target": "core.policy",
-      "weight": 1
-    },
-    {
-      "source": "core.twin.reconstruct",
-      "target": "core.config",
-      "weight": 1
-    },
-    {
-      "source": "core.twin.reconstruct",
-      "target": "core.data.mvtec",
-      "weight": 1
-    },
-    {
-      "source": "core.twin.reconstruct",
-      "target": "core.obs",
       "weight": 1
     },
     {
@@ -388,11 +568,6 @@
     {
       "source": "surfscan.evaluation.harness",
       "target": "surfscan.tracking",
-      "weight": 1
-    },
-    {
-      "source": "surfscan.evaluation.invariants",
-      "target": "core.obs",
       "weight": 1
     },
     {
@@ -1078,15 +1253,51 @@
   ],
   "nodes": [
     {
-      "descendants": 4,
+      "descendants": 14,
       "id": "control",
       "label": "control",
       "parent": null
     },
     {
       "descendants": 0,
+      "id": "control.act",
+      "label": "act",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.adaptive",
+      "label": "adaptive",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
       "id": "control.bc",
       "label": "bc",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.demos",
+      "label": "demos",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.diffusion_policy",
+      "label": "diffusion_policy",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.diffusion_schedule",
+      "label": "diffusion_schedule",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.edge",
+      "label": "edge",
       "parent": "control"
     },
     {
@@ -1108,7 +1319,31 @@
       "parent": "control"
     },
     {
-      "descendants": 17,
+      "descendants": 0,
+      "id": "control.policy_compare",
+      "label": "policy_compare",
+      "parent": "control"
+    },
+    {
+      "descendants": 2,
+      "id": "control.sim",
+      "label": "sim",
+      "parent": "control"
+    },
+    {
+      "descendants": 0,
+      "id": "control.sim.isaac_gap",
+      "label": "isaac_gap",
+      "parent": "control.sim"
+    },
+    {
+      "descendants": 0,
+      "id": "control.sim.isaac_reach",
+      "label": "isaac_reach",
+      "parent": "control.sim"
+    },
+    {
+      "descendants": 30,
       "id": "core",
       "label": "core",
       "parent": null
@@ -1132,7 +1367,7 @@
       "parent": "core"
     },
     {
-      "descendants": 6,
+      "descendants": 19,
       "id": "core.data",
       "label": "data",
       "parent": "core"
@@ -1150,6 +1385,54 @@
       "parent": "core.data"
     },
     {
+      "descendants": 7,
+      "id": "core.data.dynamic",
+      "label": "dynamic",
+      "parent": "core.data"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.dynamic.defects",
+      "label": "defects",
+      "parent": "core.data.dynamic"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.dynamic.generate_twin_synth",
+      "label": "generate_twin_synth",
+      "parent": "core.data.dynamic"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.dynamic.reconstruct",
+      "label": "reconstruct",
+      "parent": "core.data.dynamic"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.dynamic.render_twin",
+      "label": "render_twin",
+      "parent": "core.data.dynamic"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.dynamic.sensor_noise",
+      "label": "sensor_noise",
+      "parent": "core.data.dynamic"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.dynamic.twin_geom",
+      "label": "twin_geom",
+      "parent": "core.data.dynamic"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.dynamic.twin_obj",
+      "label": "twin_obj",
+      "parent": "core.data.dynamic"
+    },
+    {
       "descendants": 0,
       "id": "core.data.mvtec",
       "label": "mvtec",
@@ -1162,15 +1445,45 @@
       "parent": "core.data"
     },
     {
-      "descendants": 0,
-      "id": "core.data.store",
-      "label": "store",
+      "descendants": 5,
+      "id": "core.data.static",
+      "label": "static",
       "parent": "core.data"
     },
     {
       "descendants": 0,
-      "id": "core.data.synth",
+      "id": "core.data.static.dataset",
+      "label": "dataset",
+      "parent": "core.data.static"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.static.mvtec",
+      "label": "mvtec",
+      "parent": "core.data.static"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.static.preprocess",
+      "label": "preprocess",
+      "parent": "core.data.static"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.static.store",
+      "label": "store",
+      "parent": "core.data.static"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.static.synth",
       "label": "synth",
+      "parent": "core.data.static"
+    },
+    {
+      "descendants": 0,
+      "id": "core.data.store",
+      "label": "store",
       "parent": "core.data"
     },
     {
@@ -1181,8 +1494,20 @@
     },
     {
       "descendants": 0,
+      "id": "core.invariants",
+      "label": "invariants",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
       "id": "core.method",
       "label": "method",
+      "parent": "core"
+    },
+    {
+      "descendants": 0,
+      "id": "core.metrics",
+      "label": "metrics",
       "parent": "core"
     },
     {
@@ -1202,18 +1527,6 @@
       "id": "core.rollout",
       "label": "rollout",
       "parent": "core"
-    },
-    {
-      "descendants": 1,
-      "id": "core.twin",
-      "label": "twin",
-      "parent": "core"
-    },
-    {
-      "descendants": 0,
-      "id": "core.twin.reconstruct",
-      "label": "reconstruct",
-      "parent": "core.twin"
     },
     {
       "descendants": 59,

@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import torch
+from jaxtyping import Bool, Float
+from torch import Tensor
 
 from core.data.static import store
 from core.data.static.mvtec import Split
@@ -33,20 +35,25 @@ class PointMAECfg:
 class PointMAEMethod:
     run_name = "pointmae_geom"
 
-    def __init__(self, cfg: PointMAECfg, dev):
+    def __init__(self, cfg: PointMAECfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
         self.size = cfg.size or 256
         self.net = Pointmae.load_pointmae(dev, ckpt="pointmae_pretrain.pth")
 
-    def _norm(self, pts):
+    def _norm(
+        self, pts: Float[Tensor, "n 3"]
+    ) -> tuple[Float[Tensor, "n 3"], Float[Tensor, "3"], Float[Tensor, ""]]:
         """Unit-sphere normalize (ShapeNet pc_normalize) — the frame Point-MAE was pretrained on:
         centre, then scale by the max distance to the centre. -> (normalized pts, mean, scale)."""
         mean = pts.mean(0)
         scale = (pts - mean).norm(dim=1).max() + 1e-6
         return (pts - mean) / scale, mean, scale
 
-    def _features(self, xyz, valid):
+    def _features(
+        self, xyz: Float[np.ndarray, "n 3"], valid: Bool[np.ndarray, "n"]
+    ) -> tuple[Float[Tensor, "g c"], Float[Tensor, "g 3"], Float[Tensor, "3"],
+               Float[Tensor, ""]]:
         """Valid points -> (per-group features [G,C], centers [G,3], mean, scale) in the unit-sphere
         frame the backbone saw (so score can map pixels back to groups in that same frame)."""
         pts = torch.from_numpy(xyz[valid]).float().to(self.dev)
@@ -56,12 +63,15 @@ class PointMAEMethod:
         f, c = Pointmae.pointmae_features(self.net, pn.unsqueeze(0))
         return f[0], c[0], mean, scale
 
-    def fit(self, cat):
+    def fit(self, cat: str) -> Float[Tensor, "n d"]:
         _, train = store.Store.arrays(cat, Split.TRAIN, 0, self.size)
         feats = torch.cat([self._features(a["xyz"], a["valid"])[0] for a in train])   # (sum G, C)
         return Coreset.greedy_coreset(feats, max(1, int(len(feats) * self.cfg.coreset)), 0)
 
-    def _amap(self, bank, xyz, valid):
+    def _amap(
+        self, bank: Float[Tensor, "n d"], xyz: Float[np.ndarray, "n 3"],
+        valid: Bool[np.ndarray, "n"]
+    ) -> Float[np.ndarray, "h w"]:
         f, centers, mean, scale = self._features(xyz, valid)
         gd = Coreset.bank_nn_dist(f, bank)                                             # per-group anomaly (G,)
         pn = (torch.from_numpy(xyz[valid]).float().to(self.dev) - mean) / scale        # all valid pts, same frame
@@ -70,7 +80,7 @@ class PointMAEMethod:
         amap[valid] = gd[nearest].cpu().numpy()
         return amap
 
-    def score(self, bank, cat):
+    def score(self, bank: Float[Tensor, "n d"], cat: str):
         dft, test = store.Store.arrays(cat, Split.TEST, size=self.size)
         amaps = np.stack([self._amap(bank, a["xyz"], a["valid"]) for a in test])
         return scoring.Scoring.score_arrays_store(amaps, test, dft)

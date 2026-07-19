@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -22,6 +23,10 @@ from PIL import Image
 from core.data.dynamic.twin_geom import TwinGeom
 from core.data.dynamic.twin_obj import TwinObj
 from core.obs import Obs
+
+if TYPE_CHECKING:
+    from omni.replicator.core import Annotator
+    from pxr import UsdLux
 
 log = Obs.get()
 _SUBFRAMES = 48
@@ -59,8 +64,10 @@ class TwinRenderQC:
         rep.orchestrator.set_capture_on_play(False)
         TwinObj.build_mesh(stage, verts, faces)
 
-        UsdLux.DistantLight.Define(stage, Sdf.Path("/World/Light")).CreateIntensityAttr(_DISTANT_LIGHT)
-        UsdLux.DomeLight.Define(stage, Sdf.Path("/World/Dome")).CreateIntensityAttr(_DOME_LIGHT)
+        light: UsdLux.DistantLight = UsdLux.DistantLight.Define(stage, Sdf.Path("/World/Light"))
+        dome: UsdLux.DomeLight = UsdLux.DomeLight.Define(stage, Sdf.Path("/World/Dome"))
+        light.CreateIntensityAttr(_DISTANT_LIGHT)
+        dome.CreateIntensityAttr(_DOME_LIGHT)
 
         cx, cy, cz = (float(v) for v in centroid)
         # reproduce the Zivid top-down pose: sensor near z=0 looking +z at the object (~0.52 m away)
@@ -83,7 +90,7 @@ class TwinRenderQC:
 
         self._save(annots)
 
-    def _save(self, annots: dict) -> None:
+    def _save(self, annots: dict[str, Annotator]) -> None:
         os.makedirs(self._out, exist_ok=True)
         for n, a in annots.items():
             d = a.get_data()
@@ -104,6 +111,7 @@ class TwinRenderQC:
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         from isaacsim import SimulationApp
 
+        # isaacsim seeds `SimulationApp = None` before a conditional import; the sim extra binds the class
         app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",
                              "multi_gpu": False, "active_gpu": 0})
         log.info("BOOTED")

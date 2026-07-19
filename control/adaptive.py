@@ -20,12 +20,10 @@ Two pieces, both `core.rollout`-native:
 """
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 from jaxtyping import Float
 
-from core.rollout import StepResult
+from core.rollout import Env, StepResult
 
 _DIM = 2
 _VEL0 = 2                # obs[2:4] is velocity in the base [goal-pos, vel] observation
@@ -38,7 +36,7 @@ class ProprioEnv:
     The extra channels are the one-step proprioceptive cue an adaptive policy needs to identify the plant
     gain online; at reset they are zero (no history yet), so the first command is the nominal one."""
 
-    def __init__(self, env: Any):
+    def __init__(self, env: Env):
         self._env = env
         self._prev_vel = np.zeros(_DIM)
         self._last_action = np.zeros(_DIM)
@@ -80,7 +78,7 @@ class AdaptiveExpert:
         self._kd = kd
         self._amax = amax
 
-    def train(self, _task: str) -> Any:
+    def train(self, _task: str) -> None:
         return None
 
     def _estimate_gain(self, last_action: Float[np.ndarray, "2"], delta_vel: Float[np.ndarray, "2"]) -> float:
@@ -90,7 +88,7 @@ class AdaptiveExpert:
         k_hat = float(np.linalg.norm(delta_vel)) / (self._dt * u_norm)
         return float(np.clip(k_hat, self._K_MIN, self._K_MAX))
 
-    def act(self, _state: Any, obs: Float[np.ndarray, "8"]) -> Float[np.ndarray, "2"]:
+    def act(self, _state: None, obs: Float[np.ndarray, "8"]) -> Float[np.ndarray, "2"]:
         goal_minus_pos = obs[:_DIM]
         vel = obs[_DIM:_OBS4]
         last_action = obs[_OBS4:_OBS4 + _DIM]

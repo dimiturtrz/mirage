@@ -6,6 +6,7 @@ so pointcloud-viewer/data/ is gitignored — run this to populate the viewer loc
 """
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -24,12 +25,13 @@ class ExportWeb:
     """Export samples to the web viewer's data/ — points + rgb + PatchCore anomaly + gt, downsampled."""
 
     @staticmethod
-    def export_one(sample, n=15000, seed=0):
+    def export_one(sample: tuple[str, str, str, int], n: int = 15000, seed: int = 0) -> str:
         cat, split, defect, idx = sample
         rgb, xyz, gt, valid = Show.load_processed(cat, split, defect, idx)
         v = valid.astype(bool)
         an = Show(rgb, xyz, valid, gt).patchcore_map(cat)[v]
-        pts, cols, g = xyz[v], rgb[v], (gt[v] > 0).astype(int)
+        pts, cols = xyz[v], rgb[v]
+        g = (gt[v] > 0).astype(int) if gt is not None else np.zeros(int(v.sum()), int)   # good samples ship no gt
         an = (an / (np.percentile(an, 99) + 1e-9)).clip(0, 1)        # robust 0..1
         pts = pts - pts.mean(0)                                       # center for the viewer
         if len(pts) > n:
@@ -48,11 +50,11 @@ class ExportWeb:
         return sid
 
     @staticmethod
-    def args(ap):
+    def args(ap: argparse.ArgumentParser) -> None:
         ap.add_argument("--samples", nargs="+", required=True, help="cat:split:defect:idx ...")
 
     @staticmethod
-    def run(args):
+    def run(args: argparse.Namespace) -> None:
         ids = []
         for spec in args.samples:
             cat, split, defect, idx = spec.split(":")

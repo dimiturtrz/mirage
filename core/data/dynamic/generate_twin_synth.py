@@ -16,14 +16,20 @@ from __future__ import annotations
 
 import argparse
 import os
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import tifffile
+from jaxtyping import Float
 from PIL import Image
 
 from core.data.dynamic.twin_geom import TwinGeom
 from core.data.dynamic.twin_obj import TwinObj
 from core.obs import Obs
+
+if TYPE_CHECKING:
+    from omni.replicator.core import Annotator
+    from pxr import Usd, UsdGeom, UsdLux
 
 log = Obs.get()
 _TWIN_DIR = "D:/data/3d/twin"
@@ -68,19 +74,23 @@ class TwinSynth:
         s.set_int("/omni/replicator/RTSubframes", _SUBFRAMES)
         timeline = omni.timeline.get_timeline_interface()
 
-        def intrinsics(stage, w, h):
+        def intrinsics(stage: Usd.Stage, w: int, h: int) -> tuple[float, float]:
             cam = UsdGeom.Camera(stage.GetPrimAtPath("/World/Camera"))
-            focal = cam.GetFocalLengthAttr().Get()
-            return (w * focal / cam.GetHorizontalApertureAttr().Get(),
-                    h * focal / cam.GetVerticalApertureAttr().Get())
+            focal_a: Usd.Attribute = cam.GetFocalLengthAttr()
+            h_aperture_a: Usd.Attribute = cam.GetHorizontalApertureAttr()
+            v_aperture_a: Usd.Attribute = cam.GetVerticalApertureAttr()
+            focal = TwinObj.attr_float(focal_a)
+            h_aperture = TwinObj.attr_float(h_aperture_a)
+            v_aperture = TwinObj.attr_float(v_aperture_a)
+            return (w * focal / h_aperture, h * focal / v_aperture)
 
-        def jitter_pose(mesh):
+        def jitter_pose(mesh: UsdGeom.Mesh):
             api = UsdGeom.XformCommonAPI(mesh.GetPrim())
             api.SetRotate(Gf.Vec3f(float(rng.uniform(-_TILT, _TILT)), float(rng.uniform(-_TILT, _TILT)),
                                    float(rng.uniform(0, _SPIN))))
             api.SetTranslate(Gf.Vec3d(*(float(rng.uniform(-_TRANS, _TRANS)) for _ in range(3))))
 
-        def render(rgb_a, dep_a):
+        def render(rgb_a: Annotator, dep_a: Annotator):
             for _ in range(_RENDER_STEPS):
                 rep.orchestrator.step(delta_time=0.0, rt_subframes=_SUBFRAMES)
             return np.asarray(rgb_a.get_data())[..., :3], np.asarray(dep_a.get_data())
@@ -105,10 +115,15 @@ class TwinSynth:
             dep_a = rep.annotators.get("distance_to_image_plane"); dep_a.attach(rp)
             fx, fy = intrinsics(stage, self._res, self._res)
 
-            def set_points(v, mesh=mesh):
-                mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
+            def set_points(v: np.ndarray, mesh: UsdGeom.Mesh = mesh):
+                points_a: Usd.Attribute = mesh.GetPointsAttr()
+                points_a.Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
 
-            def randomize(mesh=mesh, light=light, dome=dome):
+            def randomize(
+                mesh: UsdGeom.Mesh = mesh,
+                light: UsdLux.DistantLight = light,
+                dome: UsdLux.DomeLight = dome,
+            ):
                 jitter_pose(mesh)
                 light.CreateIntensityAttr(float(rng.uniform(*_LIGHT)))
                 dome.CreateIntensityAttr(float(rng.uniform(*_DOME)))
@@ -120,7 +135,18 @@ class TwinSynth:
             log.info("CAT %-12s good=%d defect=%d mean_obj_px=%d", cat, self._views, 2 * n_def, npx // self._views)
         log.info("DONE")
 
-    def _good_views(self, cat, vc, set_points, randomize, render, rgb_a, dep_a, fx, fy) -> int:
+    def _good_views(
+        self,
+        cat: str,
+        vc: Float[np.ndarray, "v 3"],
+        set_points: Callable[[np.ndarray], None],
+        randomize: Callable[[], None],
+        render: Callable[[Annotator, Annotator], tuple[np.ndarray, np.ndarray]],
+        rgb_a: Annotator,
+        dep_a: Annotator,
+        fx: float,
+        fy: float,
+    ) -> int:
         gdir = f"{_OUT_ROOT}/{cat}/train/good"
         for sub in ("rgb", "xyz"):
             os.makedirs(f"{gdir}/{sub}", exist_ok=True)
@@ -134,7 +160,18 @@ class TwinSynth:
             npx += int((np.abs(xyz).sum(-1) > 0).sum())
         return npx
 
-    def _defect_views(self, cat, vc, set_points, randomize, render, rgb_a, dep_a, fx, fy) -> int:
+    def _defect_views(
+        self,
+        cat: str,
+        vc: Float[np.ndarray, "v 3"],
+        set_points: Callable[[np.ndarray], None],
+        randomize: Callable[[], None],
+        render: Callable[[Annotator, Annotator], tuple[np.ndarray, np.ndarray]],
+        rgb_a: Annotator,
+        dep_a: Annotator,
+        fx: float,
+        fy: float,
+    ) -> int:
         n_def = max(1, self._views // _DEF_FRAC)
         for dtype, sign in _DEFECTS:
             ddir = f"{_OUT_ROOT}/{cat}/test/{dtype}"
@@ -165,6 +202,7 @@ class TwinSynth:
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         from isaacsim import SimulationApp
 
+        # isaacsim seeds `SimulationApp = None` before a conditional import; the sim extra binds the class
         app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",
                              "multi_gpu": False, "active_gpu": 0})
         log.info("BOOTED")

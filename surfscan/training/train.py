@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import argparse
 import time
+from typing import TypedDict
 
 import torch
-from torch import optim
+from jaxtyping import Float
+from torch import Tensor, nn, optim
 
 from core.compute import Compute
 from core.data.static.dataset import GpuSplit
@@ -30,6 +32,17 @@ from surfscan.training.trainer import Trainer
 log = Obs.get()
 
 
+class EpochAcc(TypedDict):
+    """Per-epoch accumulator for the train loop's metric aggregation: epoch index, epoch start time,
+    running loss total, batch count, and the per-key extra-metric totals (already `.item()`-ed floats)."""
+
+    i: int
+    t0: float
+    tot: float
+    nb: int
+    extra: dict[str, float]
+
+
 class TrainRun:
     """The reconstruction-model train spine + the per-model (build, step) registry helpers. `hp` (the
     run's hyperparameters) is fixed for the run's life and threaded by every method -> held in __init__;
@@ -38,26 +51,29 @@ class TrainRun:
     def __init__(self, hp: HParams):
         self.hp = hp
 
-    def vae_model(self, in_ch):
+    def vae_model(self, in_ch: int) -> nn.Module:
         return ConvVAE(self.hp.model_cfg(in_ch))
 
-    def inpaint_model(self, in_ch):
+    def inpaint_model(self, in_ch: int) -> nn.Module:
         return InpaintAE(self.hp.model_cfg(in_ch))
 
-    def vae_step(self, run_model, x, m):
+    def vae_step(self, run_model: nn.Module, x: Float[Tensor, "b c h w"],
+                 m: Float[Tensor, "b 1 h w"]) -> tuple[Float[Tensor, ""], dict[str, Tensor]]:
         recon, mu, logvar = run_model(x)
         rl = Losses.masked_recon_loss(recon, x, m)
         kl = Losses.kl_loss(mu, logvar)
         return rl + self.hp.beta * kl, {"recon": rl, "kl": kl}
 
-    def inpaint_step(self, run_model, x, m):
+    def inpaint_step(self, run_model: nn.Module, x: Float[Tensor, "b c h w"],
+                     m: Float[Tensor, "b 1 h w"]) -> tuple[Float[Tensor, ""], dict[str, Tensor]]:
         hp = self.hp
         patch = hp.size // hp.grid
         keep = InpaintAE.random_mask(x.shape[0], hp.size, patch, hp.mask_ratio, x.device)
         recon = run_model(x * keep)                 # reconstruct FULL image from masked input
-        return Losses.masked_recon_loss(recon, x, m), {}
+        extras: dict[str, Tensor] = {}
+        return Losses.masked_recon_loss(recon, x, m), extras
 
-    def train(self, run_name: str | None = None, device: str = "cuda") -> str:
+    def train(self, run_name: str | None = None, device: str | torch.device = "cuda") -> str:
         hp = self.hp
         build, step = _REGISTRY[hp.model_type]
         run_name = run_name or hp.model_type
@@ -68,16 +84,20 @@ class TrainRun:
         data = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=hp.cats, channels=hp.channels,
                                    device=dev, size=hp.size)
         n = len(data)
-        model = build(self, data.in_ch).to(dev, memory_format=torch.channels_last)
-        run_model = torch.compile(model) if (hp.compile and dev == "cuda") else model
+        model = build(self, data.in_ch).to(  # pyrefly: ignore[no-matching-overload]  Module.to forwards memory_format to _parse_to; the stub omits it
+            dev, memory_format=torch.channels_last)
+        run_model: nn.Module = (
+            # pyrefly: ignore[bad-assignment]  torch.compile returns an OptimizedModule (an nn.Module subclass);
+            # the stub types it as a bare Callable
+            torch.compile(model) if (hp.compile and dev == "cuda") else model)
         opt = optim.AdamW(model.parameters(), lr=hp.lr)
         amp = dev == "cuda" and hp.bf16
 
         # the SGD mechanics are the shared Trainer; the per-epoch metric aggregation + mlflow logging
         # (this method's observability, not the loop) live in the step/after_epoch closures.
-        ep = {"i": 0, "t0": 0.0, "tot": 0.0, "nb": 0, "extra": {}}
+        ep: EpochAcc = {"i": 0, "t0": 0.0, "tot": 0.0, "nb": 0, "extra": {}}
 
-        def step_fn(idx):
+        def step_fn(idx: Tensor) -> Tensor:
             x = data.x[idx].to(memory_format=torch.channels_last)
             with Compute.autocast(x, amp=amp):
                 loss, extra = step(self, run_model, x, data.valid[idx])

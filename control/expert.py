@@ -8,8 +8,6 @@ reproduce and an MLP clone can.
 """
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 from jaxtyping import Float
 
@@ -24,10 +22,10 @@ class PDExpert:
         self._kd = kd
         self._amax = amax
 
-    def train(self, _task: str) -> Any:
+    def train(self, _task: str) -> None:
         return None
 
-    def act(self, _state: Any, obs: Float[np.ndarray, "4"]) -> Float[np.ndarray, "2"]:
+    def act(self, _state: None, obs: Float[np.ndarray, "4"]) -> Float[np.ndarray, "2"]:
         goal_minus_pos = obs[:_OBS_SPLIT]
         vel = obs[_OBS_SPLIT:]
         return np.clip(self._kp * goal_minus_pos - self._kd * vel, -self._amax, self._amax)

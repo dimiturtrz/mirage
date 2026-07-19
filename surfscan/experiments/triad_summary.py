@@ -10,6 +10,9 @@ time (they need the raw per-image predictions); this post-hoc view reports the p
 """
 from __future__ import annotations
 
+from argparse import ArgumentParser, Namespace
+from typing import TypeAlias
+
 import mlflow
 
 from core.obs import Obs
@@ -19,12 +22,15 @@ log = Obs.get()
 
 ARMS = ["triad_real", "triad_synth", "triad_synth_da", "triad_synth_curric"]
 
+ArmMetrics: TypeAlias = dict[str, float]
+ArmRow: TypeAlias = tuple[float, float | None, float | None, float | None, float | None]
+
 
 class TriadSummary:
     """Report the sim-to-real triad from ONE run per arm — au_pro [boot CI], GAP, DA CLOSURE."""
 
     @staticmethod
-    def _latest(client, name):
+    def _latest(client: mlflow.MlflowClient, name: str) -> ArmMetrics | None:
         """The most recent active run named `name` carrying au_pro_mean, or None."""
         for e in client.search_experiments():
             runs = client.search_runs(e.experiment_id, filter_string=f"tags.`mlflow.runName` = '{name}'",
@@ -34,23 +40,23 @@ class TriadSummary:
         return None
 
     @staticmethod
-    def collect(uri="sqlite:///mlflow.db"):
+    def collect(uri: str = "sqlite:///mlflow.db") -> dict[str, ArmMetrics]:
         mlflow.set_tracking_uri(uri)
         c = mlflow.MlflowClient()
         return {arm: m for arm in ARMS if (m := TriadSummary._latest(c, arm)) is not None}
 
     @staticmethod
-    def _row(m):
+    def _row(m: ArmMetrics) -> ArmRow:
         """(au_pro, lo, hi, img_auroc, ece) for one arm — lo/hi are the bootstrap bracket (NaN-safe)."""
         return (m["au_pro_mean"], m.get("au_pro_lo"), m.get("au_pro_hi"),
                 m.get("img_auroc_mean"), m.get("ece"))
 
     @staticmethod
-    def _fmt_ci(lo, hi):
+    def _fmt_ci(lo: float | None, hi: float | None) -> str:
         return f"[{lo:.3f}, {hi:.3f}]" if lo is not None and hi is not None else "[—, —]"
 
     @staticmethod
-    def summarize(uri="sqlite:///mlflow.db"):
+    def summarize(uri: str = "sqlite:///mlflow.db") -> dict[str, ArmRow]:
         by = TriadSummary.collect(uri)
         rows = {arm: TriadSummary._row(m) for arm, m in by.items()}
         log.info(f"{'arm':22s} {'au_pro [95% boot CI]':28s} {'img_auroc':>10s} {'ECE':>8s}")
@@ -64,7 +70,7 @@ class TriadSummary:
         return rows
 
     @staticmethod
-    def _deltas(rows):
+    def _deltas(rows: dict[str, ArmRow]) -> None:
         """GAP (real − synth) and DA CLOSURE (synth+DA − synth) point deltas. The paired CIs for these
         are emitted by run_triad at run time — this is the post-hoc point recap."""
         real, synth = rows.get("triad_real"), rows.get("triad_synth")
@@ -81,8 +87,12 @@ class TriadSummary:
             log.info(f">>> CURRICULUM: {cu[0]:.3f} (+{cu[0] - synth[0]:.3f} vs uniform synth)")
 
     @staticmethod
-    def args(ap):
+    def args(ap: ArgumentParser) -> None:
         ap.add_argument("--uri", default="sqlite:///mlflow.db")
 
+    @staticmethod
+    def run(args: Namespace) -> None:  # pragma: no cover  CLI glue; summarize is the logic
+        TriadSummary.summarize(args.uri)
 
-SPEC = Spec("triad-summary", TriadSummary.args, lambda args: TriadSummary.summarize(args.uri))
+
+SPEC = Spec("triad-summary", TriadSummary.args, TriadSummary.run)

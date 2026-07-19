@@ -15,15 +15,15 @@ import numpy as np
 import torch
 from jaxtyping import Bool, Float, Int
 from sklearn.covariance import LedoitWolf
-from torch import Tensor
+from torch import Tensor, nn
 
 from core.compute import Compute
+from core.method import ScoreArrays
 
 if TYPE_CHECKING:
     import polars as pl
 
     from core.data.static.dataset import GpuSplit
-    from core.method import ScoreArrays
 
 
 class Scoring:
@@ -32,7 +32,7 @@ class Scoring:
     the array/stat reducers (image_scores/score_arrays/mahalanobis) touch no model, so they stay static.
     `batch` is a per-call arg, not state — its default legitimately differs per method (64 vs inpaint's 16)."""
 
-    def __init__(self, model, *, amp=True):
+    def __init__(self, model: nn.Module, *, amp: bool = True):
         self.model = model
         self.amp = amp
 
@@ -41,7 +41,7 @@ class Scoring:
         """-> (N,H,W) per-pixel squared-reconstruction-error maps, zeroed outside the object."""
         self.model.eval()
 
-        def span(i0, i1):
+        def span(i0: int, i1: int):
             x = data.x[i0:i1].to(memory_format=torch.channels_last)
             m = data.valid[i0:i1]
             with Compute.autocast(x, amp=self.amp):
@@ -58,7 +58,7 @@ class Scoring:
         size = data.x.shape[-1]
         patch = size // grid
 
-        def span(i0, i1):
+        def span(i0: int, i1: int):
             x = data.x[i0:i1]
             m = data.valid[i0:i1]
             inpainted = torch.zeros_like(x)
@@ -101,18 +101,18 @@ class Scoring:
         if idx is not None:
             labels, defects = labels[idx], defects[idx]
         scores = Scoring.image_scores(amaps, valids) if scores is None else scores
-        return amaps, valids, masks, scores, labels, defects
+        return ScoreArrays(amaps, valids, masks, scores, labels, defects)
 
     @staticmethod
-    def score_arrays_store(amaps: Float[np.ndarray, "n h w"], test: list[dict], dft: pl.DataFrame,
+    def score_arrays_store(amaps: Float[np.ndarray, "n h w"], test: list[dict[str, np.ndarray]], dft: pl.DataFrame,
                            scores: Float[np.ndarray, "n"] | None = None) -> ScoreArrays:
         """Store-dict path -> the same ScoreArrays 6-tuple: valid/gt come from per-sample store dicts (the
         BTF / PointMAE geometry methods read the raw store, not a GpuSplit); labels from the dataframe."""
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([a["gt"] > 0 for a in test])
         scores = Scoring.image_scores(amaps, valids) if scores is None else scores
-        return (amaps, valids, masks, scores,
-                dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
+        return ScoreArrays(amaps, valids, masks, scores,
+                           dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
     @staticmethod
     def logits_to_amap(logits: Float[Tensor, "n 1 h w"],
@@ -133,7 +133,7 @@ class Scoring:
         `valid` is the per-pixel mask aligned to forward's row space (its length is the row count); `idx`
         subsets the split rows for score_arrays (the triad scores only the shared real-eval half; DRAEM
         scores the whole split)."""
-        def span(i0, i1):
+        def span(i0: int, i1: int):
             return Scoring.logits_to_amap(forward(i0, i1), valid[i0:i1])
         amaps = Compute.batched_forward(span, valid.shape[0], batch).numpy()
         return Scoring.score_arrays(amaps, test, idx=idx)
@@ -143,15 +143,17 @@ class Scoring:
         """-> (N,D) encoder latent means (VAE mu) — the input to latent-distance scoring."""
         self.model.eval()
 
-        def span(i0, i1):
+        def span(i0: int, i1: int):
             x = data.x[i0:i1].to(memory_format=torch.channels_last)
             with Compute.autocast(x, amp=self.amp):
+                # pyrefly: ignore[not-callable]  torch's nn.Module.__getattr__ stub returns Tensor|Module,
+                # erasing the concrete subclass method; ConvVAE.encode resolves normally at runtime
                 mu, _ = self.model.encode(x)
             return mu.float().cpu()
         return Compute.batched_forward(span, len(data), batch).numpy()
 
     @staticmethod
-    def mahalanobis(train_lat, test_lat):
+    def mahalanobis(train_lat: Float[np.ndarray, "n d"], test_lat: Float[np.ndarray, "m d"]) -> Float[np.ndarray, "m"]:
         """Fit a Gaussian on the NORMAL (train) latents; score each test latent by its Mahalanobis
         distance to it. Ledoit-Wolf shrinkage -> a well-conditioned precision even when n_normal < D."""
         lw = LedoitWolf().fit(train_lat)

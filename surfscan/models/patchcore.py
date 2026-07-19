@@ -12,23 +12,38 @@ No training — just feature extraction + kNN. Run on the rgb channel (image-lik
 """
 from __future__ import annotations
 
+from typing import Callable, TypeAlias
+
+import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
+from jaxtyping import Float
+from torch import Tensor
 
 from core.compute import Compute
 from surfscan.models.coreset import Coreset, FitCfg
+
+ForwardHook: TypeAlias = Callable[[nn.Module, tuple[Tensor, ...], Tensor], None]
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 
 
 class PatchCore:
-    def __init__(self, backbone="wide_resnet50_2", layers=("layer2", "layer3"), device="cuda", *, amp=False):
+    def __init__(
+        self,
+        backbone: str = "wide_resnet50_2",
+        layers: tuple[str, ...] = ("layer2", "layer3"),
+        device: str | torch.device = "cuda",
+        *,
+        amp: bool = False,
+    ):
         self.device = device
         self.amp = amp                          # bf16 backbone forward (opt-in; fp32 default = reported number)
         self.layers = layers
-        self._feats = {}
+        self._feats: dict[str, Tensor] = {}
         net = getattr(torchvision.models, backbone)(weights="DEFAULT").to(device).eval()
         for p in net.parameters():
             p.requires_grad_(requires_grad=False)
@@ -36,15 +51,15 @@ class PatchCore:
             getattr(net, name).register_forward_hook(self._save(name))
         self.net = net
         self.mean, self.std = _MEAN.to(device), _STD.to(device)
-        self.bank = None
+        self.bank: Tensor | None = None
 
-    def _save(self, name):
-        def hook(_m, _i, out):
+    def _save(self, name: str) -> ForwardHook:
+        def hook(_m: nn.Module, _i: tuple[Tensor, ...], out: Tensor) -> None:
             self._feats[name] = out
         return hook
 
     @torch.no_grad()
-    def _embed(self, x):
+    def _embed(self, x: Float[Tensor, "n 3 h w"]) -> tuple[Tensor, tuple[int, int]]:
         """x: N,3,H,W in [0,1] -> patch features (N, h*w, C) and (h, w)."""
         x = (x - self.mean) / self.std
         self._feats = {}
@@ -59,7 +74,7 @@ class PatchCore:
         return f.permute(0, 2, 3, 1).reshape(n, h * w, c), (h, w)
 
     @torch.no_grad()
-    def fit(self, x, cfg=None):
+    def fit(self, x: Float[Tensor, "n 3 h w"], cfg: FitCfg | None = None) -> PatchCore:
         cfg = cfg or FitCfg()
         feats = []
         for i in range(0, len(x), cfg.batch):
@@ -78,18 +93,24 @@ class PatchCore:
         return self
 
     @torch.no_grad()
-    def score_maps(self, x, batch=8, qchunk=8192):
+    def score_maps(
+        self, x: Float[Tensor, "n 3 h w"], batch: int = 8, qchunk: int = 8192
+    ) -> Float[np.ndarray, "n h w"]:
         """-> (N,H,W) anomaly maps = nearest-neighbor distance to the bank, upsampled to input size.
         Scored via bank_nn_dist (the matmul-offload form) in qchunk-row blocks so the (n*h*w, M) field
         never materializes in full — at high resolution that matrix is what spills VRAM."""
         H, W = x.shape[-2:]
 
-        def span(i0, i1):
+        if self.bank is None:
+            raise RuntimeError("PatchCore.score_maps called before fit — no memory bank")
+        bank = self.bank
+
+        def span(i0: int, i1: int) -> Tensor:
             e, (h, w) = self._embed(x[i0:i1])                      # n,h*w,C
             n = e.shape[0]
             q = e.reshape(-1, e.shape[-1])                          # (n*h*w, C)
             nn = Compute.batched_forward(
-                lambda j0, j1: Coreset.bank_nn_dist(q[j0:j1], self.bank), len(q), qchunk).reshape(n, h, w)
+                lambda j0, j1: Coreset.bank_nn_dist(q[j0:j1], bank), len(q), qchunk).reshape(n, h, w)
             m = F.interpolate(nn[:, None], size=(H, W), mode="bilinear", align_corners=False)[:, 0]
             return m.cpu()
         return Compute.batched_forward(span, len(x), batch).numpy()

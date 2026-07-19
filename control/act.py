@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Generic, override
 
 import numpy as np
 import torch
@@ -30,7 +30,8 @@ from jaxtyping import Float
 from torch import Tensor, nn
 
 from control.demos import Demos
-from core.rollout import EvalPlan
+from core.policy import ControlPolicy, StateT
+from core.rollout import Env, EvalPlan
 
 
 @dataclass(frozen=True)
@@ -56,7 +57,6 @@ class ChunkTransformer(nn.Module):
 
     def __init__(self, obs_dim: int, act_dim: int, cfg: ACTConfig):
         super().__init__()
-        self._chunk = cfg.chunk
         self.obs_embed = nn.Linear(obs_dim, cfg.d_model)
         self.queries = nn.Parameter(torch.randn(cfg.chunk, cfg.d_model))
         layer = nn.TransformerDecoderLayer(cfg.d_model, cfg.nhead, dim_feedforward=cfg.d_model * 4,
@@ -64,21 +64,24 @@ class ChunkTransformer(nn.Module):
         self.decoder = nn.TransformerDecoder(layer, cfg.layers)
         self.head = nn.Linear(cfg.d_model, act_dim)
 
+    @override
     def forward(self, obs: Float[Tensor, "b obs"]) -> Float[Tensor, "b k act"]:
         memory = self.obs_embed(obs).unsqueeze(1)                    # (b, 1, d) — one observation token
         queries = self.queries.unsqueeze(0).expand(obs.shape[0], -1, -1)
         return self.head(self.decoder(queries, memory))
 
 
-class ACTPolicy:
-    """Fit a chunk transformer on expert demos; execute the first action of each predicted chunk."""
+class ACTPolicy(Generic[StateT]):
+    """Fit a chunk transformer on expert demos; execute the first action of each predicted chunk.
 
-    def __init__(self, sim_env_factory: Callable[[int], Any], expert: Any, cfg: ACTConfig):
+    Generic in the demonstrator's state type (`StateT`); its own state is the fitted `ChunkTransformer`."""
+
+    def __init__(self, sim_env_factory: Callable[[int], Env], expert: ControlPolicy[StateT], cfg: ACTConfig):
         self._make_sim = sim_env_factory
         self._expert = expert
         self._cfg = cfg
 
-    def train(self, task: str) -> Any:
+    def train(self, task: str) -> ChunkTransformer:
         torch.manual_seed(self._cfg.seed)
         plan = EvalPlan(self._cfg.n_demo_episodes, self._cfg.seed, self._cfg.max_steps)
         obs, chunks = Demos.chunks(Demos.rollouts(self._expert, task, self._make_sim, plan), self._cfg.chunk)
@@ -93,7 +96,7 @@ class ACTPolicy:
             opt.step()
         return net
 
-    def act(self, state: Any, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "act"]:
+    def act(self, state: nn.Module, obs: Float[np.ndarray, "obs"]) -> Float[np.ndarray, "act"]:
         net = state
         with torch.no_grad():
             chunk = net(torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0))

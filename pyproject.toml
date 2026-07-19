@@ -100,13 +100,14 @@ extend_exclude = ["noxfile.py"]
 # only exercised by the test suite or by tooling. PERMANENT ignores (never imported in scanned source by
 # design): the test-runner deps `pytest`/`pytest-cov`, and `sdlc-devtools` (the analyzers, invoked as a CLI
 # `python -m devtools.*`). STARTERS: the runtime deps the scaffold ships for you to build on
-# (numpy/jaxtyping/beartype/pydantic) — they read as unused until you import them.
+# (numpy/jaxtyping/beartype) — they read as unused until you import them; pydantic is wired (it validates the
+# hand-authored accelerator specs in surfscan/deploy/accelerators.py) so it is no longer ignored.
 [tool.deptry.per_rule_ignores]
 # >>> LOCAL-SLOT: deptry-unused — PRUNE a starter once you wire it (keep pytest/pytest-cov/sdlc-devtools)
 # tqdm (progress bars), timm (alt backbone source — torchvision supplies wide_resnet50_2 today), onnxruntime
 # (ONNX runtime for the deploy parity check, not yet wired — `onnx` itself IS imported in deploy/export.py):
 # declared for real use, not yet imported in core/surfscan, so DEP002 fires until they're wired.
-DEP002 = ["pytest", "pytest-cov", "sdlc-devtools", "numpy", "jaxtyping", "beartype", "pydantic",
+DEP002 = ["pytest", "pytest-cov", "sdlc-devtools", "numpy", "jaxtyping", "beartype",
           "tqdm", "timm", "onnxruntime"]
 # `models` = M3DM's PointTransformer, imported from external/M3DM via a sys.path shim (checked out, never
 # vendored/PyPI), so not a declarable dependency — see surfscan/models/pointmae.py. omni/carb/pxr = the USD/

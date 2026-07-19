@@ -45,6 +45,12 @@ class Source:
     def twin() -> "Source":
         return Source("twin", config.Config.twin_synth_root())
 
+    @staticmethod
+    def twin_sensor() -> "Source":
+        """The twin store after the derived Zivid sensor model (jlc.2) — a processed-space transform of
+        `twin`, not a raw dataset, so its store is built by ZividSensor.build_store, not Store.build."""
+        return Source("twin_sensor", config.Config.twin_synth_root())
+
 # unified cloud columns. `file` -> the npz in data/; `raw_*` -> the original channels.
 META_FIELDS = ["sample_id", "category", "split", "defect", "label", "has_gt", "file",
                "raw_rgb", "raw_xyz", "raw_gt", "H", "W", "n_valid", "defect_frac"]

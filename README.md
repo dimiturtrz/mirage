@@ -67,25 +67,31 @@ Sim-to-real for 3D anomaly is only now being charted ([SiM3D](https://arxiv.org/
 first synthetic→real benchmark, single-instance CAD→real). What's still open — a physics-based generator
 that shrinks the gap **at the source**, and a closed-loop curriculum — is what comes next.
 
-## Stage 2 — a physics-based digital twin (the honest negative)
+## Stage 2 — a physics-based digital twin (a negative traced to its cause, then closed to parity)
 Shrinking the gap *at the source* means a better generator. Stage 2 builds one: reconstruct a per-category
 mean-surface mesh from the 244 real good scans, render it headless through **Isaac Sim / USD / Replicator**
-(path-traced, back-projected to an organized xyz map, MVTec layout), and feed the *same* triad. Swapping the
-label **source** to the twin, scored on **geometry** (xyz, the twin's actual axis):
+(path-traced, back-projected to an organized xyz map, MVTec layout), and feed the *same* triad. Scored on the
+controlled **shape-source** delta (twin_grid − synth: same on-the-fly grid defect, same real eval — only the
+good-scan surface differs), on **geometry** (xyz, the twin's axis), it first came out **negative** (−0.192
+AU-PRO): the reconstructed surface was a worse training substrate than the real scan. The rigorous spine then
+traced *why* and removed it — two levers, each argued a priori (4-cat subset; the triad is one deterministic
+run, uncertainty from the paired bootstrap over the shared eval half, not seed scatter):
 
-| arm (label source) | rgb AU-PRO | xyz AU-PRO |
-|---|---|---|
-| synth (classical, on-the-fly) → real | 0.628 | 0.565 |
-| twin_grid (same defect, reconstructed surface) → real | 0.300 | 0.373 |
-| twin_phys (physical mesh-deform defect) → real | 0.081 | 0.321 |
+| shape-source (twin_grid − synth), xyz | value |
+|---|---:|
+| 256² baseline | −0.224 |
+| + native resolution (512², jlc.1) | −0.067 |
+| + Zivid sensor-capture model (jlc.2) | **+0.019** |
 
-**The twin transfers geometric signal but does not beat classical synth.** Holding the defect constant, the
-**shape-source** delta (twin_grid − synth) is **negative** (−0.192 AU-PRO on xyz): the *reconstructed* surface
-is a worse training substrate than the real good scan. A higher-fidelity rebuild (fuse voxel 0.8 → 0.4 mm,
-150k → 300k faces) **did not move it** (−0.190, flat) — the extra detail is resampled away at 256², so the
-deficit is a **render-vs-Zivid sensor domain gap**, not reconstruction resolution. Kept as a measured
-negative — the sim-to-real spine located *where* the twin loses and ruled out the obvious culprit. Full
-diagnosis + ablation → [`interpretations/twin/2026-07-15_twin-vs-classical.md`](interpretations/twin/2026-07-15_twin-vs-classical.md).
+A higher-fidelity rebuild had already **not** moved it (Fork A, flat) — the deficit was never the mesh. It was
+(1) detail **resampled away at 256²** — native resolution recovers +0.157, by removing classical synth's
+real-surface advantage; and (2) the **render↔Zivid sensor domain gap** — a [physics-derived structured-light
+model](core/data/dynamic/sensor_noise.py) (dropout at the measured ~11 % rate + grazing 1/cosθ noise, *not* a
+tuned Gaussian) trains the twin on realistic sensor artifacts for a further +0.086. Together they lift the twin
+from −0.224 to **parity** (+0.019). Honestly *parity, not dominance* — the twin now matches classical at the
+source, it does not beat it; the result is the **closure and its mechanism** (subset, foam a kept outlier —
+directional pending full-10 coverage + the paired-bootstrap CI, *not* seeds). Full verdict →
+[`interpretations/twin/2026-07-18_source-verdict.md`](interpretations/twin/2026-07-18_source-verdict.md).
 
 ## The same eval on a second axis — control (a ramp)
 If the real contribution is the sim-to-real *eval* and not one detector, it shouldn't much care what the task

@@ -25,7 +25,7 @@ import io
 import json
 import re
 from pathlib import Path
-from typing import override
+from typing import NotRequired, TypedDict, override
 
 import torch
 from jaxtyping import Float
@@ -33,7 +33,7 @@ from torch import Tensor, nn
 
 from core.obs import Obs
 from surfscan.deploy import DEPLOY_DIR
-from surfscan.deploy.schema import CompileDoc, CompiledOp, CompileResult, GraphOps, OpSupport
+from surfscan.deploy.accelerators import OpSupport
 from surfscan.dispatch import Spec
 
 log = Obs.get()
@@ -41,6 +41,54 @@ log = Obs.get()
 _COMPILE_DOC = DEPLOY_DIR / "compile_ops.json"
 _SELECT_TAIL = frozenset({"TopK", "ArgMin", "ArgMax", "TOPK_V2", "ARG_MIN", "ARG_MAX"})  # the kNN host residue
 _OPSET = 13
+
+
+class GraphOps(TypedDict):
+    """One representative graph emitted by `compile_probe --build`, with its exported ONNX op types."""
+    graph: str
+    represents: str        # an OpClass value
+    ops: list[str]
+
+
+class CompiledOp(TypedDict):
+    """One row of a vendor compiler's op table. RKNN logs only (op, target); edgetpu_compiler also gives a
+    count and the per-op status string — optional keys, not a widened row."""
+    op: str
+    on: str                # NPU | CPU | EDGETPU
+    count: NotRequired[int]
+    status: NotRequired[str]
+
+
+class CompileResult(TypedDict):
+    """`results[]` of deploy/compile_ops.json — one (representative graph x vendor target) partition."""
+    graph: str
+    represents: str        # an OpClass value
+    target: str
+    per_op: list[CompiledOp]
+    verdict: str           # an OpSupport value, "no_data", or "host_fragmented(...)"
+
+
+class ToolchainDoc(TypedDict):
+    """The vendor compiler a probe result came from — pinned so the measurement is reproducible."""
+    tool: str
+    version: str
+    mode: str
+
+
+class ReconciliationDoc(TypedDict):
+    """Per-op-class prose reconciling the compiled verdicts with what the fit matrix asserts."""
+    conv_native: str
+    bank_lookup: str
+    transformer_attention: str
+
+
+class CompileDoc(TypedDict):
+    """deploy/compile_ops.json — compile-verified op-support, measured not cited."""
+    note: str
+    toolchains: dict[str, ToolchainDoc]
+    gated: dict[str, str]
+    results: list[CompileResult]
+    reconciliation: ReconciliationDoc
 
 
 class ConvRep(nn.Module):

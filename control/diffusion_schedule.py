@@ -22,10 +22,19 @@ class DiffusionSchedule:
         self.betas = np.linspace(beta_start, beta_end, steps, dtype=np.float64)
         self.alphas = 1.0 - self.betas
         self.alphas_cumprod = np.cumprod(self.alphas)
+        # Precomputed forward coefficients for the TORCH trainer, which needs whole arrays to index with a
+        # batched per-sample t (it cannot call q_sample: numpy, scalar t, no autograd). Deliberately NOT
+        # shared with q_sample below — that one recomputes the formula, so the two are independent
+        # implementations and `test_batched_torch_forward_matches_q_sample_reference` can actually catch a
+        # drift here. Collapsing them onto one expression would make that test tautological.
+        self.sqrt_alphas_cumprod = np.sqrt(self.alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = np.sqrt(1.0 - self.alphas_cumprod)
 
     def q_sample(self, x0: Float[np.ndarray, "*shape"], t: int,
                  noise: Float[np.ndarray, "*shape"]) -> Float[np.ndarray, "*shape"]:
-        """Forward marginal: noise a clean sample to level `t` in one closed-form step."""
+        """Forward marginal: noise a clean sample to level `t` in one closed-form step. The numpy
+        REFERENCE for the process the torch trainer runs batched — the tensor path is the only one that
+        runs in production, so this is the oracle a test cross-checks it against."""
         a_bar = self.alphas_cumprod[t]
         return np.sqrt(a_bar) * x0 + np.sqrt(1.0 - a_bar) * noise
 

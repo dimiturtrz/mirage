@@ -22,7 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass
-from typing import Protocol, cast
+from typing import Protocol, TypedDict, cast
 
 import torch
 import torchvision
@@ -31,8 +31,8 @@ from torch import Tensor, nn
 from torch.utils.flop_counter import FlopCounterMode
 
 from core.obs import Obs
-from surfscan.deploy import MODELS_DOC, bank
-from surfscan.deploy.schema import ComponentCost, CostRow, ModelsDoc, OpClass
+from surfscan.deploy import MODELS_DOC, OpClass, bank
+from surfscan.deploy.bank import CostRow
 from surfscan.dispatch import Spec
 from surfscan.models.draem import Draem
 from surfscan.models.feat_ae import FeatAE
@@ -50,6 +50,34 @@ _LAYER2_CH = 512  # wide_resnet50_2 layer2 output channels (feat-recon AE input 
 _POINTMAE = "pointmae"
 _POINTMAE_N = 2048  # points fed to the Point-MAE transformer (num_group 1024 x group_size 128 -> grouped internally)
 _OPTIONAL_DEP = (ImportError, FileNotFoundError, RuntimeError, OSError)  # external/M3DM may be absent
+
+
+class ComponentCost(TypedDict):
+    """`components[]` of deploy/models_params.json — a CostRow in its serialized form."""
+    name: str
+    params_m: float
+    gflops: float
+    macs_g: float
+    act_mb: float
+    disk_fp32_mb: float
+    disk_int8_mb: float
+    note: str
+
+
+class DetectorDoc(TypedDict):
+    """`detectors[]` of deploy/models_params.json — a composition of `components` names + its op-class."""
+    name: str
+    op_class: str          # an OpClass value; a plain str once read back from JSON
+    pieces: list[str]
+
+
+class ModelsDoc(TypedDict):
+    """deploy/models_params.json — written by `profile`, read by `fit` and `export`."""
+    note: str
+    input_size: int
+    device: str
+    components: list[ComponentCost]
+    detectors: list[DetectorDoc]
 
 
 @dataclass(frozen=True)

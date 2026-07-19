@@ -5,9 +5,9 @@ graph on an NPU), memory-fit (fits / streams / over an on-die-only envelope), an
 crosses only its OWN supported precisions). A bank is just another piece (a component), so a bank_lookup
 detector lists its bank in `pieces`; the host-tail on a fixed NPU and the whole graph on a GPU are the thesis.
 """
-from surfscan.deploy.accelerators import Accelerator, Accelerators
+from surfscan.deploy import OpClass
+from surfscan.deploy.accelerators import Accelerator, Accelerators, AccelType, MemoryModel, OpSupport
 from surfscan.deploy.fit import Fit, Options, Verdict
-from surfscan.deploy.schema import AccelType, MemoryModel, OpClass, OpSupport
 
 _CONV = {"name": "c", "op_class": OpClass.CONV_NATIVE, "pieces": ["m"]}
 _BANK = {"name": "p", "op_class": OpClass.BANK_LOOKUP, "pieces": ["m", "bank1"]}   # a bank is just a piece

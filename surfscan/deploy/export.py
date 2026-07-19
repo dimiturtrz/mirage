@@ -19,16 +19,15 @@ from __future__ import annotations
 import argparse
 import io
 import json
-from typing import cast
+from typing import NotRequired, TypedDict, cast
 
 import torch
 from jaxtyping import Float
 from torch import Tensor, nn
 
 from core.obs import Obs
-from surfscan.deploy import DEPLOY_DIR, profile
-from surfscan.deploy.profile import Exportable, ProfileTarget
-from surfscan.deploy.schema import ComponentOps, DetectorDoc, DetectorOpsCheck, ExportDoc, ModelsDoc, OpClass
+from surfscan.deploy import DEPLOY_DIR, OpClass, profile
+from surfscan.deploy.profile import DetectorDoc, Exportable, ModelsDoc, ProfileTarget
 from surfscan.dispatch import Spec
 
 log = Obs.get()
@@ -37,6 +36,37 @@ _OPSET = 17
 _ATTENTION_OPS = frozenset({"Softmax"})   # attention normalization: present in a transformer, absent in a conv graph
 _BANK_TAIL_OPS = frozenset({"TopK", "ArgMin", "ArgMax"})  # the kNN tail — should NOT appear in an exported conv graph
 _EXPORT_DOC = DEPLOY_DIR / "export_ops.json"
+
+
+class ComponentOps(TypedDict):
+    """`components[]` of deploy/export_ops.json. The export FAILING is a recorded result, so a row carries
+    either the op inventory or the `error` — hence the NotRequired split, not a widened value type."""
+    name: str
+    exported: bool
+    error: NotRequired[str]
+    n_ops: NotRequired[int]
+    op_types: NotRequired[list[str]]
+    has_attention_op: NotRequired[bool]
+    has_bank_tail_op: NotRequired[bool]
+
+
+class DetectorOpsCheck(TypedDict):
+    """`detectors[]` of deploy/export_ops.json — does the exported inventory corroborate the declared class?"""
+    detector: str
+    op_class: OpClass      # built in-process via OpClass(...), not read back
+    pieces_exported: bool
+    has_attention_op: bool
+    corroborates_op_class: bool
+
+
+class ExportDoc(TypedDict):
+    """deploy/export_ops.json — the measured torch->ONNX op-class gate."""
+    note: str
+    opset: int
+    input_size: int
+    device: str
+    components: list[ComponentOps]
+    detectors: list[DetectorOpsCheck]
 
 
 class Exporter:

@@ -1,176 +1,6 @@
 {
   "edges": [
     {
-      "source": "control.act",
-      "target": "control.demos",
-      "weight": 1
-    },
-    {
-      "source": "control.act",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.adaptive",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.bc",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.demos",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.diffusion_policy",
-      "target": "control.demos",
-      "weight": 1
-    },
-    {
-      "source": "control.diffusion_policy",
-      "target": "control.diffusion_schedule",
-      "weight": 1
-    },
-    {
-      "source": "control.diffusion_policy",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.edge",
-      "target": "control.demos",
-      "weight": 1
-    },
-    {
-      "source": "control.edge",
-      "target": "control.diffusion_policy",
-      "weight": 1
-    },
-    {
-      "source": "control.edge",
-      "target": "control.expert",
-      "weight": 1
-    },
-    {
-      "source": "control.edge",
-      "target": "control.point_mass",
-      "weight": 1
-    },
-    {
-      "source": "control.edge",
-      "target": "core.obs",
-      "weight": 1
-    },
-    {
-      "source": "control.edge",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.experiment",
-      "target": "control.bc",
-      "weight": 1
-    },
-    {
-      "source": "control.experiment",
-      "target": "control.expert",
-      "weight": 1
-    },
-    {
-      "source": "control.experiment",
-      "target": "control.point_mass",
-      "weight": 1
-    },
-    {
-      "source": "control.experiment",
-      "target": "core.obs",
-      "weight": 1
-    },
-    {
-      "source": "control.experiment",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.point_mass",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.policy_compare",
-      "target": "control.act",
-      "weight": 1
-    },
-    {
-      "source": "control.policy_compare",
-      "target": "control.bc",
-      "weight": 1
-    },
-    {
-      "source": "control.policy_compare",
-      "target": "control.diffusion_policy",
-      "weight": 1
-    },
-    {
-      "source": "control.policy_compare",
-      "target": "control.expert",
-      "weight": 1
-    },
-    {
-      "source": "control.policy_compare",
-      "target": "control.point_mass",
-      "weight": 1
-    },
-    {
-      "source": "control.policy_compare",
-      "target": "core.obs",
-      "weight": 1
-    },
-    {
-      "source": "control.policy_compare",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.sim.isaac_gap",
-      "target": "control.bc",
-      "weight": 1
-    },
-    {
-      "source": "control.sim.isaac_gap",
-      "target": "control.expert",
-      "weight": 1
-    },
-    {
-      "source": "control.sim.isaac_gap",
-      "target": "control.point_mass",
-      "weight": 1
-    },
-    {
-      "source": "control.sim.isaac_gap",
-      "target": "control.sim.isaac_reach",
-      "weight": 1
-    },
-    {
-      "source": "control.sim.isaac_gap",
-      "target": "core.obs",
-      "weight": 1
-    },
-    {
-      "source": "control.sim.isaac_gap",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
-      "source": "control.sim.isaac_reach",
-      "target": "core.rollout",
-      "weight": 1
-    },
-    {
       "source": "core.data.dynamic.defects",
       "target": "core.geometry",
       "weight": 1
@@ -277,6 +107,11 @@
     },
     {
       "source": "core.invariants",
+      "target": "core.method",
+      "weight": 1
+    },
+    {
+      "source": "core.invariants",
       "target": "core.obs",
       "weight": 1
     },
@@ -293,11 +128,6 @@
     {
       "source": "surfscan.deploy.__main__",
       "target": "surfscan.deploy.bank",
-      "weight": 1
-    },
-    {
-      "source": "surfscan.deploy.__main__",
-      "target": "surfscan.deploy.compile_probe",
       "weight": 1
     },
     {
@@ -332,22 +162,12 @@
     },
     {
       "source": "surfscan.deploy.accelerators",
-      "target": "surfscan.deploy.schema",
-      "weight": 1
-    },
-    {
-      "source": "surfscan.deploy.accelerators",
       "target": "surfscan.dispatch",
       "weight": 1
     },
     {
       "source": "surfscan.deploy.bank",
       "target": "core.obs",
-      "weight": 1
-    },
-    {
-      "source": "surfscan.deploy.bank",
-      "target": "surfscan.deploy.schema",
       "weight": 1
     },
     {
@@ -367,7 +187,7 @@
     },
     {
       "source": "surfscan.deploy.compile_probe",
-      "target": "surfscan.deploy.schema",
+      "target": "surfscan.deploy.accelerators",
       "weight": 1
     },
     {
@@ -388,12 +208,7 @@
     {
       "source": "surfscan.deploy.export",
       "target": "surfscan.deploy.profile",
-      "weight": 1
-    },
-    {
-      "source": "surfscan.deploy.export",
-      "target": "surfscan.deploy.schema",
-      "weight": 1
+      "weight": 2
     },
     {
       "source": "surfscan.deploy.export",
@@ -417,7 +232,7 @@
     },
     {
       "source": "surfscan.deploy.fit",
-      "target": "surfscan.deploy.schema",
+      "target": "surfscan.deploy.profile",
       "weight": 1
     },
     {
@@ -438,12 +253,7 @@
     {
       "source": "surfscan.deploy.profile",
       "target": "surfscan.deploy.bank",
-      "weight": 1
-    },
-    {
-      "source": "surfscan.deploy.profile",
-      "target": "surfscan.deploy.schema",
-      "weight": 1
+      "weight": 2
     },
     {
       "source": "surfscan.deploy.profile",
@@ -1253,96 +1063,6 @@
   ],
   "nodes": [
     {
-      "descendants": 14,
-      "id": "control",
-      "label": "control",
-      "parent": null
-    },
-    {
-      "descendants": 0,
-      "id": "control.act",
-      "label": "act",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.adaptive",
-      "label": "adaptive",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.bc",
-      "label": "bc",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.demos",
-      "label": "demos",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.diffusion_policy",
-      "label": "diffusion_policy",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.diffusion_schedule",
-      "label": "diffusion_schedule",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.edge",
-      "label": "edge",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.experiment",
-      "label": "experiment",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.expert",
-      "label": "expert",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.point_mass",
-      "label": "point_mass",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.policy_compare",
-      "label": "policy_compare",
-      "parent": "control"
-    },
-    {
-      "descendants": 2,
-      "id": "control.sim",
-      "label": "sim",
-      "parent": "control"
-    },
-    {
-      "descendants": 0,
-      "id": "control.sim.isaac_gap",
-      "label": "isaac_gap",
-      "parent": "control.sim"
-    },
-    {
-      "descendants": 0,
-      "id": "control.sim.isaac_reach",
-      "label": "isaac_reach",
-      "parent": "control.sim"
-    },
-    {
       "descendants": 30,
       "id": "core",
       "label": "core",
@@ -1529,13 +1249,13 @@
       "parent": "core"
     },
     {
-      "descendants": 59,
+      "descendants": 58,
       "id": "surfscan",
       "label": "surfscan",
       "parent": null
     },
     {
-      "descendants": 8,
+      "descendants": 7,
       "id": "surfscan.deploy",
       "label": "deploy",
       "parent": "surfscan"
@@ -1580,12 +1300,6 @@
       "descendants": 0,
       "id": "surfscan.deploy.profile",
       "label": "profile",
-      "parent": "surfscan.deploy"
-    },
-    {
-      "descendants": 0,
-      "id": "surfscan.deploy.schema",
-      "label": "schema",
       "parent": "surfscan.deploy"
     },
     {

@@ -100,13 +100,14 @@ extend_exclude = ["noxfile.py"]
 # only exercised by the test suite or by tooling. PERMANENT ignores (never imported in scanned source by
 # design): the test-runner deps `pytest`/`pytest-cov`, and `sdlc-devtools` (the analyzers, invoked as a CLI
 # `python -m devtools.*`). STARTERS: the runtime deps the scaffold ships for you to build on
-# (numpy/jaxtyping/beartype/pydantic) — they read as unused until you import them.
+# (numpy/jaxtyping/beartype) — they read as unused until you import them; pydantic is wired (it validates the
+# hand-authored accelerator specs in surfscan/deploy/accelerators.py) so it is no longer ignored.
 [tool.deptry.per_rule_ignores]
 # >>> LOCAL-SLOT: deptry-unused — PRUNE a starter once you wire it (keep pytest/pytest-cov/sdlc-devtools)
 # tqdm (progress bars), timm (alt backbone source — torchvision supplies wide_resnet50_2 today), onnxruntime
 # (ONNX runtime for the deploy parity check, not yet wired — `onnx` itself IS imported in deploy/export.py):
 # declared for real use, not yet imported in core/surfscan, so DEP002 fires until they're wired.
-DEP002 = ["pytest", "pytest-cov", "sdlc-devtools", "numpy", "jaxtyping", "beartype", "pydantic",
+DEP002 = ["pytest", "pytest-cov", "sdlc-devtools", "numpy", "jaxtyping", "beartype",
           "tqdm", "timm", "onnxruntime"]
 # `models` = M3DM's PointTransformer, imported from external/M3DM via a sys.path shim (checked out, never
 # vendored/PyPI), so not a declarable dependency — see surfscan/models/pointmae.py. omni/carb/pxr = the USD/
@@ -235,30 +236,37 @@ ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer"
 #   DataclassInstance       _typeshed protocol used ONLY as a string TypeVar bound (cli_config.py:29),
 #                           which vulture's static name-match cannot follow into
 #   tot                     EpochAcc field, read/written train.py by string subscript (`ep["tot"]`)
+#   deploy wire-format keys — TypedDict/dataclass fields serialized into deploy/*.json and read by
+#     deploy/index.html. Each was VERIFIED present in the emitted JSON before being listed. Only the
+#     DISTINCTIVE names are here: `ignore_names` is global, so silencing generic ones (count, error,
+#     mode, op, status, tool, version) would mask real dead code anywhere in the repo that shares the
+#     name. Those few stay visible as advisories — noise is cheaper than a blind spot.
 #   ext_memory, sources, accel_type, latency_ms_lo, latency_ms_hi
 #                           deploy dataclass fields serialized via asdict() into deploy/*.json and read
 #                           by deploy/index.html (latency_ms_lo in 3 places) — consumed by JS, so no
 #                           Python name-match can see them. Verified present in the emitted JSON.
 # NOT silenced (genuine findings, tracked as beads — silencing them would destroy the signal):
 #   metrics.boot_ci / boot_delta_ci      tested, no prod caller (bd 6n3)
-#   DiffusionSchedule.q_sample           tested, no prod caller — DiffusionPolicy does the forward
-#                                        diffusion inline in torch (diffusion_policy.py:91-92) instead
+#   DiffusionSchedule.q_sample           no prod caller BY DESIGN (bd ccq): it is the numpy ORACLE the
+#                                        batched torch forward step is cross-checked against, since only
+#                                        the tensor path runs in production. Kept independent of the
+#                                        precomputed coefficients on purpose — sharing them makes the
+#                                        cross-check tautological (verified by mutation).
 #   control-leg contract types (ControlPolicy/Policy/Trajectory) are NOT listed — they are consumed by
 #   the rollout spine (core/rollout.py), so real use clears them; abstract-stub params are `_`-prefixed.
 ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "fig", "C",
                 "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map",
                 "DataclassInstance", "tot", "ext_memory", "sources", "accel_type",
-                "latency_ms_lo", "latency_ms_hi"]
+                "latency_ms_lo", "latency_ms_hi",
+                # deploy wire-format keys — DISTINCTIVE names only (see the note above about generics)
+                "SCRATCHPAD_HOST", "UNIFIED", "SYSTEM", "CPU", "GPU",
+                "conv_native", "bank_lookup", "transformer_attention",
+                "op_support_provenance", "corroborates_op_class", "pieces_exported",
+                "has_attention_op", "has_bank_tail_op", "n_ops", "op_types", "input_size",
+                "toolchains", "gated", "reconciliation", "represents"]
 # <<< LOCAL-SLOT: vulture-ignore-names
 # >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
 paths = ["core", "surfscan", "control"]
-# deploy/schema.py is the deploy leg's VOCABULARY module — 200 lines of StrEnum + TypedDict, zero `def`,
-# zero executable statements. Its members are the JSON wire contract, read from disk by string key
-# (`row["op_class"]`) and by the index.html viewer, never by name in Python — so every symbol in it reads
-# as dead to a static name-match. Excluded wholesale rather than listing ~30 field names in the FACT vocab
-# above, which would swamp the entries that carry real information. Valid only while the file stays
-# declaration-only: if a `def` ever lands there, drop this exclude.
-exclude = ["surfscan/deploy/schema.py"]
 # <<< LOCAL-SLOT: vulture-scan
 
 [tool.coverage.run]

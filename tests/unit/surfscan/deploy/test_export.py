@@ -11,8 +11,8 @@ pytest.importorskip("onnx")
 import torch
 import torch.nn as nn
 
+from surfscan.deploy import OpClass
 from surfscan.deploy.export import Exporter
-from surfscan.deploy.schema import OpClass
 
 
 class TestOpInventory:

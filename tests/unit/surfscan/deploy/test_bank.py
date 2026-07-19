@@ -5,8 +5,7 @@ The load-bearing correctness is (1) the PQ formula reproducing the PatchCore-Lit
 = the distance matmul, int8 disk = the product-quantized edge form — so the fit engine treats it like any
 conv stage (no bank special-case).
 """
-from surfscan.deploy.bank import GEOMETRY_BANK, RGB_BANK, BankMemory
-from surfscan.deploy.schema import CostRow
+from surfscan.deploy.bank import GEOMETRY_BANK, RGB_BANK, BankMemory, CostRow
 
 _PATCHES = 1024
 

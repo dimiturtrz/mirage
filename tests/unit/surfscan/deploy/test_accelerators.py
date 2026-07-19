@@ -4,8 +4,8 @@ These are the facts the fit engine turns on: a fixed NPU runs conv native but th
 residue and attention is unsupported; only a general CPU/GPU runs the bank lookup fully on-device;
 unsourced numbers stay None (not guessed). The source is the JSON in deployment/accelerators/.
 """
-from surfscan.deploy.accelerators import Accelerator, Accelerators
-from surfscan.deploy.schema import AccelType, MemoryModel, OpClass, OpSupport
+from surfscan.deploy import OpClass
+from surfscan.deploy.accelerators import Accelerator, Accelerators, AccelType, MemoryModel, OpSupport
 
 
 class TestLoad:
@@ -60,3 +60,29 @@ class TestPrecisions:
         for a in Accelerators.specs():
             if a.type in (AccelType.NPU_FIXED, AccelType.NPU_SOC):
                 assert set(a.precisions) == {"int8"}   # quantization baked in — no fp32/fp16 to toggle
+
+
+class TestWireValues:
+    """The enum string values are a JSON contract with deployment/*.json — a renamed value silently breaks
+    the loader, so an equivalence-class check over each axis guards the wire form."""
+
+    def test_op_class_values(self):
+        assert {c.value for c in OpClass} == {"conv_native", "bank_lookup", "transformer_attention"}
+
+    def test_op_support_values(self):
+        assert {s.value for s in OpSupport} == {"native", "host_tail", "unsupported"}
+
+    def test_memory_model_values(self):
+        assert {m.value for m in MemoryModel} == {"on_die_only", "scratchpad_host", "unified", "system"}
+
+    def test_accel_type_values(self):
+        assert {t.value for t in AccelType} == {"cpu", "gpu", "npu_fixed", "npu_soc"}
+
+
+class TestStrEnumBehaviour:
+    def test_constructs_from_wire_string(self):
+        assert OpClass("bank_lookup") is OpClass.BANK_LOOKUP
+        assert MemoryModel("on_die_only") is MemoryModel.ON_DIE_ONLY
+
+    def test_is_str_for_json(self):
+        assert OpSupport.HOST_TAIL == "host_tail"   # StrEnum serializes as its value

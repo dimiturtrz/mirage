@@ -66,7 +66,7 @@ Env is **uv** (like the siblings): `uv sync --extra features` (creates `.venv`, 
 
 ## Static analysis — the gates (CI blocks dev→main)
 
-Principles are enforced **mechanically**, not by review — a **ratcheting** gate per axis: a rule graduates to blocking once it hits zero, then any regression fails CI (fix, don't suppress; no limit-bumps, no `noqa` spray). Six axes:
+Principles are enforced **mechanically**, not by review — a **ratcheting** gate per axis: a rule graduates to blocking once it hits zero, then any regression fails CI (fix, don't suppress; no limit-bumps, no `noqa` spray). Eight axes:
 
 | Axis | Tool | What it catches | Config |
 |------|------|-----------------|--------|
@@ -76,6 +76,7 @@ Principles are enforced **mechanically**, not by review — a **ratcheting** gat
 | Arch fitness | `python -m devtools.graph --assert` (grimp+networkx) | god-module (fan-in AND fan-out both >8), god-file (>750 lines), import cycle; line-floor/chokepoint advisory | `[tool.structure]` |
 | Module shape | `ast-grep` (config from the installed `devtools` pkg, `python -m devtools.config sgconfig`) | no import-time side-effect call (`matplotlib.use` exempt); **everything-in-a-class** — every top-level `def` is a method on the class that owns it (`main` exempt) | package `sg-rules/` |
 | Duplication | `jscpd` (advisory, config `python -m devtools.config jscpd`) | copy-paste over the DRY threshold | package `jscpd.json` |
+| Types | `pyrefly@1.1.1 check` (`preset = "strict"`, enforced) | every def annotated (implicit-any-parameter) **and** the annotations check (bad-return / bad-argument-type); `Any`/`object` are not escapes. Untyped or not-installed deps go in the `ignore-missing-imports` / `replace-imports-with-any` slots — the latter keeps the verdict identical in a dev env and the leaner CI env | `[tool.pyrefly]` |
 | Shape contracts | `python -m devtools.shape_contracts --assert` (enforced) | public array/tensor boundary carries a `jaxtyping` shape (`Float[Tensor, "b c h w"]`), not bare `np.ndarray`/`Tensor`; `@shapecheck` (jaxtyping+beartype) makes it live at runtime | `[tool.shape_contracts]` |
 
 **noqa policy: bare `# noqa: RULE`** — no prose reasons; minimal comments, prefer self-documenting names. **Everything-in-a-class** (qc5, matching systole): a top-level function belongs as a method on the class that owns its state/responsibility; a pure stateless helper is a `@staticmethod` on that class. `main`/`_main` exempt. The rule catches decorated top-level defs too (a `@contextmanager`/`@torch.no_grad()` free func can't slip past).
@@ -93,3 +94,4 @@ _See [`docs/PLAN.md`](docs/PLAN.md) → "Structure". Three pieces: `pipeline/` (
 - Data lives OUT of the repo (licensing + size); one-root `paths.yaml`, per-source adapters → common schema.
 - Three doc layers: `research/` = external / field synthesis (theirs) · `learning/<date>_<topic>.md` = the study ramp / general understanding · `interpretations/<task>/<date>_<topic>.md` = sense-making of *our own* results (per task, `converging/` for cross-task). Build log = git history; portfolio READMEs carry the result + link to the interpretation.
 - Test layout: unit (equivalence-class) + integration (module-pairs).
+- Types live beside their producer — a payload/result/wire type is declared in the file of the class that produces it; shared vocabulary with no single producer sits at the package root. Never a module named for the kind of thing it holds.

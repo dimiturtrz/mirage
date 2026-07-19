@@ -4,8 +4,8 @@ Pure text/logic: no vendor SDK is needed (the parsers consume compiler-log strin
 class — RKNN table split + NPU/CPU tag, EdgeTPU mapped-vs-fallback tag, and the NATIVE / HOST_TAIL /
 host_fragmented verdict boundaries.
 """
+from surfscan.deploy.accelerators import OpSupport
 from surfscan.deploy.compile_probe import CompileProbe
-from surfscan.deploy.schema import OpSupport
 
 _RKNN = """
 D RKNN: ID   OpType   DataType Target InputShape OutputShape

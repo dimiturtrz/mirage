@@ -27,20 +27,17 @@ import argparse
 import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from core.obs import Obs
-from surfscan.deploy import FIT_DOC, MODELS_DOC, accelerators
-from surfscan.deploy.accelerators import Accelerator
-from surfscan.deploy.schema import (
-    AccelType,
-    ComponentCost,
-    DetectorDoc,
-    MemoryModel,
-    ModelsDoc,
-    OpClass,
-    OpSupport,
-)
+from surfscan.deploy import FIT_DOC, MODELS_DOC, OpClass, accelerators
+from surfscan.deploy.accelerators import Accelerator, AccelType, MemoryModel, OpSupport
 from surfscan.dispatch import Spec
+
+if TYPE_CHECKING:
+    # The models-doc payload shapes belong to their writer (`profile`), which imports torch. `fit` reads the
+    # committed JSON and never runs the profiler, so it takes the SHAPES without taking the dependency.
+    from surfscan.deploy.profile import ComponentCost, DetectorDoc, ModelsDoc
 
 log = Obs.get()
 

@@ -80,12 +80,15 @@ Principles enforced **mechanically** via a **ratcheting** gate per axis — a ru
 ```bash
 uvx ruff@0.15.13 check core surfscan          # style/bugs (enforced)
 uvx vulture@2.16 --min-confidence 80          # dead code (blocks ≥80)
+uv run --with pyrefly==1.1.1 pyrefly check core surfscan control   # types (strict, enforced): every def annotated + the annotations check
 uvx --from import-linter lint-imports         # core = independent kernel (imports no surfscan)
 uv run python -m devtools.graph --assert      # arch fitness: god-module / god-file / cycle
 uvx --from ast-grep-cli ast-grep scan -c "$(uv run python -m devtools.config sgconfig)" core surfscan   # no import-time side-effects
 uv run python -m devtools.shape_contracts core surfscan --assert   # shape contracts (enforced): jaxtyping shapes on array/tensor boundaries
 npx --yes jscpd@4 core surfscan --config "$(uv run python -m devtools.config jscpd)"                    # duplication (advisory)
 ```
+
+**Types live beside their producer** — a payload/result/wire type is declared in the file of the class that produces it; shared vocabulary with no single producer sits at the package root. Never a module named for the kind of thing it holds. `Any`/`object` are not annotations — use a `TypeVar`/`Protocol`/`TypedDict`.
 
 **noqa policy: bare `# noqa: RULE`** (no prose). **Everything-in-a-class** (matching systole): every top-level `def` is a method on the class that owns it (`main` exempt) — enforced by the ast-grep `py-top-level-function` rule (blocking, catches decorated defs too). Full detail in `CLAUDE.md` → "Static analysis — the gates".
 

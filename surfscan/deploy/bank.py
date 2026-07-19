@@ -18,9 +18,9 @@ op-class (BANK_LOOKUP), which the fit engine maps to a host residue on every com
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 
 from core.obs import Obs
-from surfscan.deploy.schema import CostRow
 from surfscan.dispatch import Spec
 
 log = Obs.get()
@@ -51,6 +51,24 @@ _ANCHOR_D = 256
 
 RGB_BANK = "patchcore_rgb_bank"
 GEOMETRY_BANK = "fpfh_geometry_bank"
+
+
+@dataclass(frozen=True)
+class CostRow:
+    """One model's single-frame footprint — a neural forward OR a stored kNN bank, treated identically.
+
+    A bank is a normal model here: its `params_m` is the stored vectors (N x C), its `gflops` the per-frame
+    distance matmul, its `disk_fp32_mb` the raw store and `disk_int8_mb` the product-quantized edge form
+    (a bank's quantization, as int8 weights are a conv model's). The argmin/top-k tail is not a footprint
+    field — it rides the detector's op-class (BANK_LOOKUP), which the fit engine maps to a host residue."""
+    name: str
+    params_m: float
+    gflops: float
+    macs_g: float
+    act_mb: float
+    disk_fp32_mb: float
+    disk_int8_mb: float
+    note: str
 
 
 class BankMemory:

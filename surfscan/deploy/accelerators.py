@@ -5,8 +5,15 @@ one file per accelerator TYPE (cpu / gpu / npu_fixed / npu_soc), real instances 
 the op-support contract (how it runs each op-class); the instance carries its datasheet numbers and its
 memory model (which varies within a type — Coral streams from host, Hailo is on-die-only, both npu_fixed).
 
+Both axes an accelerator declares about ITSELF are defined here, beside the loader that reads them:
+`OpSupport` (how a TYPE runs a given op-class — fully on-device, on-device with a host residue, or not at
+all) and `MemoryModel` (where an INSTANCE's working set lives — it varies within a type: a fixed NPU can
+be on-die-only like Hailo or scratchpad+host like Coral). The fit engine consumes both; neither is its.
+
 Every field traces to research/deep_dives/2026-07-08_edge_accelerator_landscape.md (source tags [S#]);
-numbers behind a vendor portal are `null` in the JSON (not guessed), surfacing here as `None`.
+numbers behind a vendor portal are `null` in the JSON (not guessed), surfacing here as `None`. An
+enum-valued field is typed `str` where it is READ back from disk (json.loads yields a plain str) and as
+its enum only where the value is produced in-process — an annotation must describe what is actually there.
 
     python -m surfscan.deploy accelerators     # log the loaded typed spec table
 """
@@ -15,21 +22,62 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass, field
+from enum import StrEnum
 from functools import cache
+from typing import NotRequired, TypedDict
 
 from core.obs import Obs
-from surfscan.deploy import ACCEL_DIR
-from surfscan.deploy.schema import (
-    AcceleratorInstanceDoc,
-    AcceleratorTypeDoc,
-    AccelType,
-    MemoryModel,
-    OpClass,
-    OpSupport,
-)
+from surfscan.deploy import ACCEL_DIR, OpClass
 from surfscan.dispatch import Spec
 
 log = Obs.get()
+
+
+class OpSupport(StrEnum):
+    """How an accelerator type runs an op-class — the prescriptive verdict primitive."""
+    NATIVE = "native"          # whole graph runs on-accelerator
+    HOST_TAIL = "host_tail"    # conv part on-accelerator, argmin/top-k residue on host CPU
+    UNSUPPORTED = "unsupported"  # op-class not expressible on this substrate at all
+
+
+class MemoryModel(StrEnum):
+    """Where an accelerator instance's working set lives — sets whether an over-envelope model still runs."""
+    ON_DIE_ONLY = "on_die_only"        # Hailo: no external RAM; over the on-die envelope = does not fit
+    SCRATCHPAD_HOST = "scratchpad_host"  # Coral: small on-chip scratchpad, streamed from host (latency penalty)
+    UNIFIED = "unified"                # Jetson/RKNN: GB-scale shared LPDDR
+    SYSTEM = "system"                  # CPU: system RAM
+
+
+class AccelType(StrEnum):
+    """Accelerator family — the typed file a set of instances is grouped under."""
+    CPU = "cpu"
+    GPU = "gpu"
+    NPU_FIXED = "npu_fixed"    # fixed-function dataflow NPU (Coral, Hailo)
+    NPU_SOC = "npu_soc"        # SoC-integrated NPU (RKNN)
+
+
+class AcceleratorInstanceDoc(TypedDict):
+    """`instances[]` of deploy/accelerators/<type>_params.json — one real unit's datasheet numbers.
+    `null` (-> None) is a spec behind a vendor portal, never a guess."""
+    name: str
+    label: str
+    precisions: dict[str, float]   # precision key -> peak TOPS
+    memory_model: str              # a MemoryModel value
+    capacity_mib: float | None
+    ext_memory: str
+    note: str
+    sources: NotRequired[str]
+
+
+class AcceleratorTypeDoc(TypedDict):
+    """deploy/accelerators/<type>_params.json — a typed group sharing one op-support contract."""
+    type: str                      # an AccelType value
+    label: str
+    op_support: dict[str, str]     # OpClass value -> OpSupport value
+    note: str
+    instances: list[AcceleratorInstanceDoc]
+    op_support_provenance: NotRequired[str]   # absent on cpu/gpu (nothing to compile-verify)
+    source: NotRequired[str]                  # absent on cpu (cited per-instance instead)
 
 
 @dataclass(frozen=True)

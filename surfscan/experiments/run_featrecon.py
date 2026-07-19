@@ -49,7 +49,7 @@ class FeatReconMethod:
 
     @staticmethod
     def _score_maps(
-        ext: FeatExtractor, ae: FeatAE, x: Float[Tensor, "n c h w"], hw: tuple[int, int],
+        ext: FeatExtractor, ae: nn.Module, x: Float[Tensor, "n c h w"], hw: tuple[int, int],
         batch: int = 32
     ) -> Float[np.ndarray, "n h w"]:
         H, W = hw

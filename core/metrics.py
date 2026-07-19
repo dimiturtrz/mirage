@@ -15,16 +15,16 @@ so one run yields `point [lo, hi]`; the paired delta cancels shared noise to ans
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any
 from dataclasses import dataclass
+from typing import TypeAlias
 
 import numpy as np
 from jaxtyping import Bool, Float, Int, Shaped
 from skimage.measure import label
 from sklearn.metrics import roc_auc_score
 
-MetricValue = float | np.floating[Any]
-MetricFn = Callable[..., MetricValue]
+MetricValue: TypeAlias = float | np.float64
+MetricFn: TypeAlias = Callable[..., MetricValue]
 
 
 @dataclass(frozen=True)
@@ -185,14 +185,14 @@ class Metrics:
         |accuracy − confidence| weighted by bin population. The measured 'is the score a probability?'
         number — under sim-to-real shift a synth-trained model is typically over-confident (ECE ↑).
         amaps/masks/valids: (N,H,W)."""
-        p: list[np.ndarray] = []
-        t: list[np.ndarray] = []
+        p_parts: list[np.ndarray] = []
+        t_parts: list[np.ndarray] = []
         for pr, tg, v in zip(probs, targets, valids, strict=True):
             vb = v.astype(bool)
-            p.append(np.asarray(pr)[vb].ravel())
-            t.append(np.asarray(tg)[vb].astype(np.float64).ravel())
-        p = np.concatenate(p) if p else np.array([])
-        t = np.concatenate(t) if t else np.array([])
+            p_parts.append(np.asarray(pr)[vb].ravel())
+            t_parts.append(np.asarray(tg)[vb].astype(np.float64).ravel())
+        p = np.concatenate(p_parts) if p_parts else np.array([])
+        t = np.concatenate(t_parts) if t_parts else np.array([])
         if p.size == 0:
             return float("nan")
         bins = np.linspace(0.0, 1.0, n_bins + 1)

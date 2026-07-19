@@ -48,12 +48,13 @@ class DraemMethod:
         torch.manual_seed(self.cfg.seed)
         rng = np.random.RandomState(self.cfg.seed)
         train = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=[cat], channels=self.cfg.channels, device=self.dev)
-        model = Draem(ch=train.in_ch).to(self.dev, memory_format=torch.channels_last)
+        model = Draem(ch=train.in_ch).to(  # pyrefly: ignore[no-matching-overload]  Module.to forwards memory_format to _parse_to; the stub omits it
+            self.dev, memory_format=torch.channels_last)
         opt = optim.AdamW(model.parameters(), lr=1e-3)
 
         def step(idx: Tensor) -> Tensor:
             x, v = train.x[idx], train.valid[idx]
-            aug, mask = (Defects(rng).synthesize(x, v, channels=self.cfg.channels)
+            aug, mask = (Defects(rng).synthesize(x, v, channels=tuple(self.cfg.channels))
                          if self.cfg.synth == "realistic" else DraemSynth(rng).synthesize(x, v))
             with Compute.autocast(x):
                 rec, logits = model(aug.to(memory_format=torch.channels_last))

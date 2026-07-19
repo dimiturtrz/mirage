@@ -73,7 +73,7 @@ class TrainRun:
         extras: dict[str, Tensor] = {}
         return Losses.masked_recon_loss(recon, x, m), extras
 
-    def train(self, run_name: str | None = None, device: str = "cuda") -> str:
+    def train(self, run_name: str | None = None, device: str | torch.device = "cuda") -> str:
         hp = self.hp
         build, step = _REGISTRY[hp.model_type]
         run_name = run_name or hp.model_type
@@ -84,8 +84,12 @@ class TrainRun:
         data = GpuSplit.load_split(split=Split.TRAIN, label=0, cats=hp.cats, channels=hp.channels,
                                    device=dev, size=hp.size)
         n = len(data)
-        model = build(self, data.in_ch).to(dev, memory_format=torch.channels_last)
-        run_model = torch.compile(model) if (hp.compile and dev == "cuda") else model
+        model = build(self, data.in_ch).to(  # pyrefly: ignore[no-matching-overload]  Module.to forwards memory_format to _parse_to; the stub omits it
+            dev, memory_format=torch.channels_last)
+        run_model: nn.Module = (
+            # pyrefly: ignore[bad-assignment]  torch.compile returns an OptimizedModule (an nn.Module subclass);
+            # the stub types it as a bare Callable
+            torch.compile(model) if (hp.compile and dev == "cuda") else model)
         opt = optim.AdamW(model.parameters(), lr=hp.lr)
         amp = dev == "cuda" and hp.bf16
 

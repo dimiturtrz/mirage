@@ -43,6 +43,7 @@ class Exporter:
     def _op_types(mod: Any, xin: Any) -> list[str]:
         buf = io.BytesIO()
         with torch.no_grad():
+            # pyrefly: ignore[bad-argument-type]  stub narrows `f`; dynamo=False writes to a file-like object
             torch.onnx.export(mod, xin, buf, opset_version=_OPSET, dynamo=False)
         import onnx  # noqa: PLC0415  (optional `export` extra — imported only when the step actually runs)
         graph = onnx.load_from_string(buf.getvalue())

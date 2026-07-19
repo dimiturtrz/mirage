@@ -71,7 +71,7 @@ class TriadRun:
     `cfg` (arm/run config) and `dev` (device) are fixed for the whole triad run — held as state;
     `cat` (category) varies per harness call — stays a method arg."""
 
-    def __init__(self, cfg: TriadCfg, dev: torch.device) -> None:
+    def __init__(self, cfg: TriadCfg, dev: str | torch.device) -> None:
         self.cfg = cfg
         self.dev = dev
 
@@ -89,7 +89,7 @@ class TriadRun:
         return np.array(sorted(calib)), np.array(sorted(ev))
 
     def _new(self, in_ch: int) -> UNet:
-        return UNet(in_ch, 1).to(self.dev, memory_format=torch.channels_last)
+        return UNet(in_ch, 1).to(self.dev, memory_format=torch.channels_last)  # pyrefly: ignore[no-matching-overload]  Module.to forwards **kwargs to _parse_to; the stub omits memory_format
 
     @staticmethod
     @torch.no_grad()

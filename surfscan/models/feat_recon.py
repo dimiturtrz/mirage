@@ -34,4 +34,7 @@ class FeatExtractor:
     @torch.no_grad()
     def __call__(self, x: Float[torch.Tensor, "n 3 h w"]) -> Float[torch.Tensor, "n c fh fw"]:
         self.net((x - self.mean) / self.std)
-        return self._feat
+        feat = self._feat
+        if feat is None:
+            raise RuntimeError("forward hook did not fire — layer name does not match the backbone")
+        return feat

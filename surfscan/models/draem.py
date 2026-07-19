@@ -66,7 +66,7 @@ class DraemSynth:
     """The crude Perlin proxy-anomaly synthesis. Holds the seeded RNG (6sc: rng threads both methods) so
     it mirrors the realistic path's `Defects(rng).synthesize(...)` — same DraemSynth(rng).synthesize shape."""
 
-    def __init__(self, rng: np.random.Generator) -> None:
+    def __init__(self, rng: np.random.RandomState) -> None:
         self.rng = rng
 
     def _perlin_mask(self, h: int, w: int, res: int = 16) -> Float[np.ndarray, "h w"]:

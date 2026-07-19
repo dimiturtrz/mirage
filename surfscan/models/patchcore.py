@@ -33,7 +33,7 @@ class PatchCore:
         self,
         backbone: str = "wide_resnet50_2",
         layers: tuple[str, ...] = ("layer2", "layer3"),
-        device: str = "cuda",
+        device: str | torch.device = "cuda",
         *,
         amp: bool = False,
     ):
@@ -98,12 +98,16 @@ class PatchCore:
         never materializes in full — at high resolution that matrix is what spills VRAM."""
         H, W = x.shape[-2:]
 
+        if self.bank is None:
+            raise RuntimeError("PatchCore.score_maps called before fit — no memory bank")
+        bank = self.bank
+
         def span(i0: int, i1: int) -> Tensor:
             e, (h, w) = self._embed(x[i0:i1])                      # n,h*w,C
             n = e.shape[0]
             q = e.reshape(-1, e.shape[-1])                          # (n*h*w, C)
             nn = Compute.batched_forward(
-                lambda j0, j1: Coreset.bank_nn_dist(q[j0:j1], self.bank), len(q), qchunk).reshape(n, h, w)
+                lambda j0, j1: Coreset.bank_nn_dist(q[j0:j1], bank), len(q), qchunk).reshape(n, h, w)
             m = F.interpolate(nn[:, None], size=(H, W), mode="bilinear", align_corners=False)[:, 0]
             return m.cpu()
         return Compute.batched_forward(span, len(x), batch).numpy()

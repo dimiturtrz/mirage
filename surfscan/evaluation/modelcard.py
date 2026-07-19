@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import math
 from typing import Any
 
@@ -64,11 +65,11 @@ class ModelCard:
         log.info(f"wrote {CARD.relative_to(ROOT)}")
 
     @staticmethod
-    def args(ap: object) -> None:
+    def args(ap: argparse.ArgumentParser) -> None:
         ap.add_argument("--run-name", default="patchcore_rgb_greedy")
 
     @staticmethod
-    def run(args: object) -> None:  # pragma: no cover  CLI glue; _render is the pure tested core
+    def run(args: argparse.Namespace) -> None:  # pragma: no cover  CLI glue; _render is the pure tested core
         ModelCard.build(args.run_name)
 
 

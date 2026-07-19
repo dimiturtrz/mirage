@@ -69,7 +69,8 @@ class FpfhBank:
         vectorized/GPU FPFH, not a pool — out of scope. Kept as a batch helper (fit + score_maps)."""
         return [FpfhBank.fpfh_for_sample(xyz, valid, cfg) for xyz, valid in samples]
 
-    def __init__(self, device: str = "cuda", per_sample: int = 2000, coreset: float = 0.25, seed: int = 0):
+    def __init__(self, device: str | torch.device = "cuda", per_sample: int = 2000, coreset: float = 0.25,
+                 seed: int = 0):
         self.device = device
         self.per_sample = per_sample      # cap FPFH per training sample (keeps the bank tractable)
         self.coreset = coreset

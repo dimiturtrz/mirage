@@ -10,12 +10,16 @@ Run:  python -m surfscan.report evaluate --run-id <mlflow-run-id> [--cats bagel]
 """
 from __future__ import annotations
 
+import argparse
 from typing import Any
+
+import torch
+from torch import nn
 
 from core.compute import Compute
 from core.data.static.dataset import GpuSplit
 from core.data.static.mvtec import Split
-from core.method import Method
+from core.method import Method, ScoreArrays
 from surfscan import tracking
 from surfscan.dispatch import Spec
 from surfscan.evaluation import harness, scoring
@@ -27,16 +31,16 @@ class Evaluate:
 
     @staticmethod
     def evaluate(
-        run_id: str, cats: list[str] | None = None, device: str = "cuda", image_score: str = "residual"
+        run_id: str, cats: list[str] | None = None, device: str | torch.device = "cuda", image_score: str = "residual"
     ) -> dict[str, Any]:
         hp = HParams(**tracking.Tracker.load_config(run_id))
         dev = device
         model = tracking.Tracker.load_model(run_id).to(dev)            # the built model + weights, from MLflow
 
-        def fit(_c):
+        def fit(_c: str) -> nn.Module:
             return model
 
-        def score(m: object, c: str) -> object:
+        def score(m: nn.Module, c: str) -> ScoreArrays:
             data = GpuSplit.load_split(split=Split.TEST, cats=[c], channels=hp.channels, device=dev, size=hp.size)
             sc = scoring.Scoring(m)
             amaps = sc.inpaint_maps(data, grid=hp.grid) if hp.model_type == "inpaint" else sc.anomaly_maps(data)
@@ -50,13 +54,13 @@ class Evaluate:
         return harness.Harness.run(hp.model_type, Method(fit, score), cats=cats or hp.cats, run_id=run_id)
 
     @staticmethod
-    def args(ap: object) -> None:
+    def args(ap: argparse.ArgumentParser) -> None:
         ap.add_argument("--run-id", required=True)
         ap.add_argument("--cats", nargs="*", default=None)
         ap.add_argument("--image-score", default="residual", choices=["residual", "mahalanobis"])
 
     @staticmethod
-    def run(args: object) -> None:  # pragma: no cover  CLI glue; evaluate() is the logic (mlflow-omitted whole-file)
+    def run(args: argparse.Namespace) -> None:  # pragma: no cover  CLI glue; evaluate() is the logic
         Evaluate.evaluate(args.run_id, cats=args.cats, device=Compute.pick_device(), image_score=args.image_score)
 
 

@@ -106,7 +106,7 @@ class IsaacGap:
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         from isaacsim import SimulationApp
 
-        app = SimulationApp({"headless": True})
+        app = SimulationApp({"headless": True})  # pyrefly: ignore[not-callable]  isaacsim/__init__ seeds SimulationApp = None before the try/except rebind
         log.info("BOOTED")
 
         task, sim = Task(), Phys()

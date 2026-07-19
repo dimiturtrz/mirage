@@ -18,12 +18,12 @@ from sklearn.covariance import LedoitWolf
 from torch import Tensor, nn
 
 from core.compute import Compute
+from core.method import ScoreArrays
 
 if TYPE_CHECKING:
     import polars as pl
 
     from core.data.static.dataset import GpuSplit
-    from core.method import ScoreArrays
 
 
 class Scoring:
@@ -101,7 +101,7 @@ class Scoring:
         if idx is not None:
             labels, defects = labels[idx], defects[idx]
         scores = Scoring.image_scores(amaps, valids) if scores is None else scores
-        return amaps, valids, masks, scores, labels, defects
+        return ScoreArrays(amaps, valids, masks, scores, labels, defects)
 
     @staticmethod
     def score_arrays_store(amaps: Float[np.ndarray, "n h w"], test: list[dict[str, Any]], dft: pl.DataFrame,
@@ -111,8 +111,8 @@ class Scoring:
         valids = np.stack([a["valid"].astype(bool) for a in test])
         masks = np.stack([a["gt"] > 0 for a in test])
         scores = Scoring.image_scores(amaps, valids) if scores is None else scores
-        return (amaps, valids, masks, scores,
-                dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
+        return ScoreArrays(amaps, valids, masks, scores,
+                           dft["label"].to_numpy(), np.array(dft["defect"].to_list()))
 
     @staticmethod
     def logits_to_amap(logits: Float[Tensor, "n 1 h w"],
@@ -146,6 +146,8 @@ class Scoring:
         def span(i0: int, i1: int):
             x = data.x[i0:i1].to(memory_format=torch.channels_last)
             with Compute.autocast(x, amp=self.amp):
+                # pyrefly: ignore[not-callable]  torch's nn.Module.__getattr__ stub returns Tensor|Module,
+                # erasing the concrete subclass method; ConvVAE.encode resolves normally at runtime
                 mu, _ = self.model.encode(x)
             return mu.float().cpu()
         return Compute.batched_forward(span, len(data), batch).numpy()

@@ -183,6 +183,7 @@ class Show:
                    else self.anomaly_map(args.anomaly))
             e = err[self.valid.astype(bool)]
             e = (e / (np.percentile(e, 99) + 1e-9)).clip(0, 1)
+            # pyrefly: ignore[missing-attribute]  cm.inferno is a runtime-registered colormap; the stub lists none
             pc.colors = o3d.utility.Vector3dVector(cm.inferno(e)[:, :3])
             tag = "patchcore" if args.patchcore else "recon residual"
             log.info(f"{tag}: median {np.median(err[self.valid.astype(bool)]):.4f}  "
@@ -192,6 +193,7 @@ class Show:
             ev = np.linalg.eigvalsh(np.asarray(pc.covariances))
             sv = ev[:, 0] / (ev.sum(1) + 1e-12)
             sv_n = (sv / (np.percentile(sv, 99) + 1e-12)).clip(0, 1)
+            # pyrefly: ignore[missing-attribute]  cm.inferno is a runtime-registered colormap; the stub lists none
             pc.colors = o3d.utility.Vector3dVector(cm.inferno(sv_n)[:, :3])
             log.info(f"surface variation: median {np.median(sv):.4f}  p99 {np.percentile(sv, 99):.4f}")
         elif args.normals:
@@ -270,6 +272,7 @@ class Show:
         show_normals = show._colorize(pc, args)
 
         log.info("3D: drag = rotate, scroll = zoom, q = quit")
+        # pyrefly: ignore[missing-attribute]  draw_geometries is a pybind builtin on the compiled module; no stub
         o3d.visualization.draw_geometries([pc], window_name="MVTec 3D-AD sample",
                                           point_show_normal=show_normals)
 

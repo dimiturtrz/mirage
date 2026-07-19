@@ -101,6 +101,7 @@ class CompileProbe:
             mod, x = make()
             buf = io.BytesIO()
             with torch.no_grad():
+                # pyrefly: ignore[bad-argument-type]  stub narrows `args`/`f`; dynamo=False takes a Tensor + file-like
                 torch.onnx.export(mod.eval(), x, buf, opset_version=_OPSET, dynamo=False,
                                   input_names=["in"], output_names=["out"])
             (outdir / f"{name}.onnx").write_bytes(buf.getvalue())

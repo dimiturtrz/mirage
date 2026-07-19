@@ -11,14 +11,13 @@ Browse with `mlflow ui`.
 """
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
 import numpy as np
 
 from core import invariants, metrics
 from core.data.static import mvtec
-from core.method import ScoreArrays  # the (fit_fn, score_fn) contract
+from core.method import AnomalyMethod, FitFn, Method, ScoreArrays, ScoreFn  # the (fit_fn, score_fn) contract
 from core.obs import Obs, Progress
 from surfscan import tracking
 from surfscan.evaluation import diagnostics, predictions
@@ -32,7 +31,7 @@ class Harness:
 
     @staticmethod
     def aggregate(
-        method: str, fit_fn: Callable[[str], Any], score_fn: Callable[[Any, str], object], cats: list[str]
+        method: str, fit_fn: FitFn, score_fn: ScoreFn, cats: list[str]
     ) -> dict[str, Any]:
         """Run the method over categories (per-category fit+score, ETA-logged), then compute the metrics."""
         prog = Progress(len(cats), tag=method)
@@ -119,7 +118,7 @@ class Harness:
     @staticmethod
     def run(
         method: str,
-        method_obj: object,
+        method_obj: AnomalyMethod | Method,
         cats: list[str] | None = None,
         run_id: str | None = None,
         params: dict[str, str] | None = None,

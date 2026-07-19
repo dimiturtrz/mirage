@@ -136,7 +136,7 @@ class Store:
         def _one(s: mvtec.Sample):
             rgb, xyz, gt = mvtec.Mvtec.load_raw(s)
             arr = pp.Preprocess.preprocess(rgb, xyz, gt, p)
-            np.savez_compressed(data_dir / f"{s.sample_id}.npz", **arr)
+            np.savez_compressed(data_dir / f"{s.sample_id}.npz", **arr)  # pyrefly: ignore[bad-argument-type]  **arrays lands in **kwds; the stub matches it against allow_pickle
 
         if todo:
             workers = workers or max(1, (os.cpu_count() or 4) - 2)
@@ -153,7 +153,7 @@ class Store:
 
     @staticmethod
     def load(
-        size: int = pp.SIZE,
+        size: int | None = pp.SIZE,
         cats: list[str] | None = None,
         source: Source | None = None,
     ) -> pl.DataFrame:  # pragma: no cover

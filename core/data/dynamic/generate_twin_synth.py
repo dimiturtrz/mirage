@@ -74,11 +74,15 @@ class TwinSynth:
         s.set_int("/omni/replicator/RTSubframes", _SUBFRAMES)
         timeline = omni.timeline.get_timeline_interface()
 
-        def intrinsics(stage: Usd.Stage, w: int, h: int):
+        def intrinsics(stage: Usd.Stage, w: int, h: int) -> tuple[float, float]:
             cam = UsdGeom.Camera(stage.GetPrimAtPath("/World/Camera"))
-            focal = cam.GetFocalLengthAttr().Get()
-            return (w * focal / cam.GetHorizontalApertureAttr().Get(),
-                    h * focal / cam.GetVerticalApertureAttr().Get())
+            focal_a: Usd.Attribute = cam.GetFocalLengthAttr()
+            h_aperture_a: Usd.Attribute = cam.GetHorizontalApertureAttr()
+            v_aperture_a: Usd.Attribute = cam.GetVerticalApertureAttr()
+            focal = TwinObj.attr_float(focal_a)
+            h_aperture = TwinObj.attr_float(h_aperture_a)
+            v_aperture = TwinObj.attr_float(v_aperture_a)
+            return (w * focal / h_aperture, h * focal / v_aperture)
 
         def jitter_pose(mesh: UsdGeom.Mesh):
             api = UsdGeom.XformCommonAPI(mesh.GetPrim())
@@ -112,7 +116,8 @@ class TwinSynth:
             fx, fy = intrinsics(stage, self._res, self._res)
 
             def set_points(v: np.ndarray, mesh: UsdGeom.Mesh = mesh):
-                mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
+                points_a: Usd.Attribute = mesh.GetPointsAttr()
+                points_a.Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
 
             def randomize(
                 mesh: UsdGeom.Mesh = mesh,
@@ -197,7 +202,8 @@ class TwinSynth:
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         from isaacsim import SimulationApp
 
-        app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",
+        # isaacsim seeds `SimulationApp = None` before a conditional import; the sim extra binds the class
+        app = SimulationApp({"headless": True, "renderer": "RealTimePathTracing",  # pyrefly: ignore[not-callable]
                              "multi_gpu": False, "active_gpu": 0})
         log.info("BOOTED")
         TwinSynth(args.views, args.res, args.cats).run()

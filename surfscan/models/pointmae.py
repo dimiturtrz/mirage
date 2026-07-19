@@ -34,11 +34,12 @@ class Pointmae:
         """Pure-torch stand-ins for the two CUDA deps M3DM imports, matching their call signatures."""
         if "pointnet2_ops" not in sys.modules:
             pu = types.ModuleType("pointnet2_ops.pointnet2_utils")
-            pu.furthest_point_sample = lambda xyz, n: PointmaeGroup.farthest_point_sample(xyz, n).int()   # (B,n) idx
-            pu.gather_operation = lambda feats, idx: (                                       # (B,C,N),(B,S)->(B,C,S)
+            pu.__dict__["furthest_point_sample"] = (
+                lambda xyz, n: PointmaeGroup.farthest_point_sample(xyz, n).int())              # (B,n) idx
+            pu.__dict__["gather_operation"] = lambda feats, idx: (                # (B,C,N),(B,S)->(B,C,S)
                 PointmaeGroup.index_points(feats.transpose(1, 2).contiguous(), idx.long()).transpose(1, 2).contiguous())
             pkg = types.ModuleType("pointnet2_ops")
-            pkg.pointnet2_utils = pu
+            pkg.__dict__["pointnet2_utils"] = pu
             sys.modules["pointnet2_ops"], sys.modules["pointnet2_ops.pointnet2_utils"] = pkg, pu
         if "knn_cuda" not in sys.modules:
             knn = types.ModuleType("knn_cuda")
@@ -53,7 +54,7 @@ class Pointmae:
                     dist, idx = PointmaeGroup.square_distance(query, ref).topk(self.k, dim=-1, largest=False)
                     return dist, idx
 
-            knn.KNN = KNN
+            knn.__dict__["KNN"] = KNN
             sys.modules["knn_cuda"] = knn
 
     @staticmethod

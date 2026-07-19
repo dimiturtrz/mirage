@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,8 @@ class Results:
             filter_string=f"tags.`mlflow.runName` = '{run_name}'",
             order_by=["start_time DESC"], max_results=1,
         )
+        # pyrefly: ignore[missing-attribute]  search_runs returns list[Run]|DataFrame keyed on the runtime
+        # output_format string; the default "pandas" is always a DataFrame, but mlflow ships no Literal overloads
         return df.iloc[0].to_dict() if len(df) else None
 
     @staticmethod
@@ -46,7 +49,7 @@ class Results:
 
     @staticmethod
     def _apply(
-        obj: dict[str, Any], row: dict[str, Any], pairs: list[tuple[str, str]]
+        obj: dict[str, Any], row: dict[str, Any], pairs: Sequence[tuple[str, str]]
     ) -> None:
         for metric, field in pairs:
             v = Results._get(row, metric)

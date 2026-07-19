@@ -10,7 +10,7 @@ time (they need the raw per-image predictions); this post-hoc view reports the p
 """
 from __future__ import annotations
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from typing import Any
 
 import mlflow
@@ -87,5 +87,9 @@ class TriadSummary:
     def args(ap: ArgumentParser) -> None:
         ap.add_argument("--uri", default="sqlite:///mlflow.db")
 
+    @staticmethod
+    def run(args: Namespace) -> None:  # pragma: no cover  CLI glue; summarize is the logic
+        TriadSummary.summarize(args.uri)
 
-SPEC = Spec("triad-summary", TriadSummary.args, lambda args: TriadSummary.summarize(args.uri))
+
+SPEC = Spec("triad-summary", TriadSummary.args, TriadSummary.run)

@@ -47,7 +47,7 @@ class Telemetry:
             row = {f"{self.tag}.loss": loss, f"{self.tag}.epoch_s": secs}
             if val is not None:
                 row[f"{self.tag}.val"] = val
-            self.sink(row, step=i)
+            self.sink(row, i)
 
     def stopped(self, i: int, best: float) -> None:
         if self.tag:
@@ -117,7 +117,7 @@ class Trainer:
             done = stop is not None and stop.step(self.model)
             self.telem.epoch(ep, n, total / max(nb, 1), (stop.last if stop is not None else None),
                              perf_counter() - t0)
-            if done:
+            if done and stop is not None:
                 self.telem.stopped(ep, stop.best)
                 break
         if stop is not None:

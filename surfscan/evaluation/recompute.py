@@ -9,6 +9,7 @@ command that would have turned this project's macro-CI fix from a full GPU re-ru
 """
 from __future__ import annotations
 
+import argparse
 from typing import Any
 
 from surfscan import tracking
@@ -28,11 +29,11 @@ class Recompute:
         return res
 
     @staticmethod
-    def args(ap: object) -> None:
+    def args(ap: argparse.ArgumentParser) -> None:
         ap.add_argument("--run-id", required=True)
 
     @staticmethod
-    def run(args: object) -> None:  # pragma: no cover  CLI glue
+    def run(args: argparse.Namespace) -> None:  # pragma: no cover  CLI glue
         Recompute.recompute(args.run_id)
 
 

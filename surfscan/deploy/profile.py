@@ -122,6 +122,9 @@ class PointmaeBackbone:
         return sum(p.numel() for p in self.net.parameters())
 
 
+ProfileTarget = ConvVAE | Draem | FeatAE | TruncatedResnet | PointmaeBackbone
+
+
 class Profiler:
     """Measure params/FLOPs/activation-mem/disk per neural detector and emit the structured cost source."""
 
@@ -176,12 +179,12 @@ class Profiler:
         )
 
     @staticmethod
-    def targets(size: int, dev: str):
+    def targets(size: int, dev: str) -> list[tuple[str, ProfileTarget, Float[Tensor, "b *shape"], str]]:
         """The neural detectors + their deploy-relevant input, built on `dev`. FPFH/BTF (open3d, CPU,
         non-neural) is a geometry-bank cost, not a forward-FLOP cost — handled in the bank model."""
         img = torch.randn(1, 3, size, size, device=dev)
         feat = torch.randn(1, _LAYER2_CH, size // 8, size // 8, device=dev)  # layer2 stride-8 feature map
-        out = [
+        out: list[tuple[str, ProfileTarget, Float[Tensor, "b *shape"], str]] = [
             ("convvae_xyz", ConvVAE(ModelCfg(in_ch=3)).to(dev).eval(), img, "reconstruction (xyz), full AE"),
             ("draem_rgb", Draem(ch=3).to(dev).eval(), img, "reconstructive+discriminative UNets (rgb)"),
             ("backbone_layer2", TruncatedResnet(_BACKBONE, _L2, dev), img,

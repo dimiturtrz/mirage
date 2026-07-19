@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from core.obs import Obs
 from surfscan.deploy import MODELS_DOC
@@ -41,7 +42,7 @@ class NumberSync:
         return "—" if x is None else f"{x:.{p}f}"
 
     @staticmethod
-    def _cost_cols(method: dict) -> str:
+    def _cost_cols(method: dict[str, Any]) -> str:
         """`| params(M) | GFLOPs | int8(MB) |` summed over the method's profiled pieces, or dashes."""
         refs = method.get("cost_ref")
         if not refs:
@@ -52,7 +53,7 @@ class NumberSync:
         return f"| {params:.1f} | {gflops:.1f} | {disk:.1f} |"
 
     @staticmethod
-    def _ci(obj: dict, base: str, p: int = 3) -> str:
+    def _ci(obj: dict[str, Any], base: str, p: int = 3) -> str:
         """`point [lo, hi]` when a bootstrap interval is present (obj[base_lo/base_hi]), else bare point.
         One run's honest uncertainty — the bracket, not a ± seed-scatter std."""
         point = NumberSync._n(obj.get(base), p)
@@ -127,7 +128,7 @@ class NumberSync:
         (the CI in-sync gate turns that into a build failure)."""
         refs = NumberSync._refs()
 
-        def _sub(mt: re.Match) -> str:
+        def _sub(mt: re.Match[str]) -> str:
             key = mt.group(2)
             if key not in refs:
                 raise KeyError(f"unknown results ref '{key}' in RESULTS.md")

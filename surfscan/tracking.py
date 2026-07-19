@@ -19,6 +19,7 @@ import json
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import mlflow
 import mlflow.pytorch
@@ -39,7 +40,7 @@ class Tracker:
             mlflow.set_tracking_uri(_TRACKING_URI)
 
     @staticmethod
-    def _flat(d, prefix=""):
+    def _flat(d: dict[str, Any] | None, prefix: str = "") -> dict[str, Any]:
         out = {}
         for k, v in (d or {}).items():
             key = f"{prefix}{k}"
@@ -51,7 +52,8 @@ class Tracker:
 
     @staticmethod
     @contextmanager
-    def run(experiment, name, params=None):  # pragma: no cover  mlflow run context (network/db); _flat is the pure core
+    def run(experiment: str, name: str,
+            params: dict[str, Any] | None = None):  # pragma: no cover  mlflow run context (network/db); _flat is the pure core
         Tracker._ensure_backend()
         mlflow.set_experiment(experiment)
         with mlflow.start_run(run_name=name) as r:
@@ -60,30 +62,30 @@ class Tracker:
             yield r.info.run_id
 
     @staticmethod
-    def resume(run_id):  # pragma: no cover  mlflow run resume (network/db)
+    def resume(run_id: str):  # pragma: no cover  mlflow run resume (network/db)
         Tracker._ensure_backend()
         return mlflow.start_run(run_id=run_id)        # context manager; log more into an existing run
 
     @staticmethod
-    def metrics(d, step=None):  # pragma: no cover  mlflow metric logging (network/db)
+    def metrics(d: dict[str, Any], step: int | None = None):  # pragma: no cover  mlflow metric logging (network/db)
         for k, v in d.items():
             if isinstance(v, (int, float)) and not np.isnan(v):   # skip None / NaN
                 mlflow.log_metric(k, float(v), step=step)
 
     @staticmethod
-    def per_group(metric, group_vals):  # pragma: no cover  mlflow metric logging (network/db)
+    def per_group(metric: str, group_vals: dict[str, Any]):  # pragma: no cover  mlflow metric logging (network/db)
         """Log a metric per group as <metric>/<group> (e.g. au_pro/bagel)."""
         Tracker.metrics({f"{metric}/{g}": v for g, v in group_vals.items()})
 
     @staticmethod
-    def artifact_json(name, obj):  # pragma: no cover  mlflow artifact write (disk/db)
+    def artifact_json(name: str, obj: Any):  # pragma: no cover  mlflow artifact write (disk/db)
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / name
             p.write_text(json.dumps(obj, indent=2))
             mlflow.log_artifact(str(p))
 
     @staticmethod
-    def artifact_npz(name, arrays):  # pragma: no cover  mlflow artifact write (disk/db)
+    def artifact_npz(name: str, arrays: dict[str, Any]):  # pragma: no cover  mlflow artifact write (disk/db)
         """Persist a flat {key: ndarray} dict as a compressed .npz run artifact (the per-image predictions)."""
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / name
@@ -91,29 +93,29 @@ class Tracker:
             mlflow.log_artifact(str(p))
 
     @staticmethod
-    def load_npz(run_id, name="predictions.npz"):  # pragma: no cover  mlflow artifact download (network/db)
+    def load_npz(run_id: str, name: str = "predictions.npz"):  # pragma: no cover  mlflow artifact download (network/db)
         """Download + load a run's persisted predictions -> an np.load handle (the offline-recompute input)."""
         Tracker._ensure_backend()
         p = mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path=name)
         return np.load(p, allow_pickle=False)
 
     @staticmethod
-    def log_model(model):  # pragma: no cover  mlflow model serialization (disk/db)
+    def log_model(model: Any):  # pragma: no cover  mlflow model serialization (disk/db)
         mlflow.pytorch.log_model(model, name="model", serialization_format="pickle")
 
     @staticmethod
-    def load_model(run_id):  # pragma: no cover  mlflow model load (network/db)
+    def load_model(run_id: str):  # pragma: no cover  mlflow model load (network/db)
         Tracker._ensure_backend()
         return mlflow.pytorch.load_model(f"runs:/{run_id}/model")
 
     @staticmethod
-    def load_config(run_id):  # pragma: no cover  mlflow artifact download (network/db)
+    def load_config(run_id: str):  # pragma: no cover  mlflow artifact download (network/db)
         """Read back the config.json artifact (the full HParams dict) logged at train time."""
         Tracker._ensure_backend()
         p = mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path="config.json")
         return json.loads(Path(p).read_text())
 
     @staticmethod
-    def params(run_id):  # pragma: no cover  mlflow run query (network/db)
+    def params(run_id: str):  # pragma: no cover  mlflow run query (network/db)
         Tracker._ensure_backend()
         return mlflow.get_run(run_id).data.params

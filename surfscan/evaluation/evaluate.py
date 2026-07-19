@@ -10,6 +10,8 @@ Run:  python -m surfscan.report evaluate --run-id <mlflow-run-id> [--cats bagel]
 """
 from __future__ import annotations
 
+from typing import Any
+
 from core.compute import Compute
 from core.data.static.dataset import GpuSplit
 from core.data.static.mvtec import Split
@@ -24,7 +26,9 @@ class Evaluate:
     """Score a trained reconstruction model through the shared eval harness (recon-model adapter)."""
 
     @staticmethod
-    def evaluate(run_id, cats=None, device="cuda", image_score="residual"):
+    def evaluate(
+        run_id: str, cats: list[str] | None = None, device: str = "cuda", image_score: str = "residual"
+    ) -> dict[str, Any]:
         hp = HParams(**tracking.Tracker.load_config(run_id))
         dev = device
         model = tracking.Tracker.load_model(run_id).to(dev)            # the built model + weights, from MLflow
@@ -32,7 +36,7 @@ class Evaluate:
         def fit(_c):
             return model
 
-        def score(m, c):
+        def score(m: object, c: str) -> object:
             data = GpuSplit.load_split(split=Split.TEST, cats=[c], channels=hp.channels, device=dev, size=hp.size)
             sc = scoring.Scoring(m)
             amaps = sc.inpaint_maps(data, grid=hp.grid) if hp.model_type == "inpaint" else sc.anomaly_maps(data)
@@ -46,13 +50,13 @@ class Evaluate:
         return harness.Harness.run(hp.model_type, Method(fit, score), cats=cats or hp.cats, run_id=run_id)
 
     @staticmethod
-    def args(ap):
+    def args(ap: object) -> None:
         ap.add_argument("--run-id", required=True)
         ap.add_argument("--cats", nargs="*", default=None)
         ap.add_argument("--image-score", default="residual", choices=["residual", "mahalanobis"])
 
     @staticmethod
-    def run(args):  # pragma: no cover  CLI glue; evaluate() is the logic (mlflow-omitted whole-file)
+    def run(args: object) -> None:  # pragma: no cover  CLI glue; evaluate() is the logic (mlflow-omitted whole-file)
         Evaluate.evaluate(args.run_id, cats=args.cats, device=Compute.pick_device(), image_score=args.image_score)
 
 

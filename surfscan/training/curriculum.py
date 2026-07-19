@@ -12,18 +12,21 @@ sample the next batch's kind ∝ softmax(standardized EMA loss). Unseen kinds st
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 from jaxtyping import Float
 
 
 class KindCurriculum:
-    def __init__(self, kinds, seed: int = 0, alpha: float = 0.3, temp: float = 1.0):
+    def __init__(self, kinds: Sequence[str], seed: int = 0, alpha: float = 0.3,
+                 temp: float = 1.0):
         self.kinds = list(kinds)
         self.rng = np.random.RandomState(seed)
         self.alpha = alpha            # EMA weight on the newest loss
         self.temp = temp              # softmax temperature (low = chase weakest harder)
         self.loss: dict[str, float | None] = dict.fromkeys(self.kinds)
-        self.history: list[dict] = []
+        self.history: list[dict[str, float | None]] = []
 
     def _weights(self) -> Float[np.ndarray, "k"]:
         vals = [self.loss[k] for k in self.kinds]
@@ -34,11 +37,11 @@ class KindCurriculum:
         w = np.exp(z)                                         # higher loss -> higher sampling prob
         return w / w.sum()
 
-    def sample(self, n: int) -> tuple:
+    def sample(self, n: int) -> tuple[str, ...]:
         """Return a single-kind tuple for the whole batch (clean per-kind loss attribution)."""
         return (str(self.rng.choice(self.kinds, p=self._weights())),)
 
-    def observe(self, kinds: tuple, loss: float) -> None:
+    def observe(self, kinds: tuple[str, ...], loss: float) -> None:
         k = kinds[0]
         prev = self.loss[k]
         self.loss[k] = loss if prev is None else (1 - self.alpha) * prev + self.alpha * loss

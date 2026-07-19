@@ -11,6 +11,9 @@ device/mlflow boundary.
 """
 from __future__ import annotations
 
+import argparse
+from typing import Any
+
 from core.cli_config import CliConfig
 from core.compute import Compute
 from surfscan.dispatch import Dispatch, Spec
@@ -21,19 +24,20 @@ class MethodCli:
     """Generic-runner namespace — turn a configured method class into a `surfscan.run` subcommand Spec."""
 
     @staticmethod
-    def build_method(method_cls, cfg_cls, args, dev):
+    def build_method(method_cls: type[Any], cfg_cls: type[Any], args: argparse.Namespace,
+                     dev: str) -> tuple[str | None, Any]:
         """(parsed namespace, device) -> (run_name, method instance). run_name defaults to None when the
         method doesn't declare one (the caller falls back to the subcommand name)."""
         method = method_cls(CliConfig.build_config(cfg_cls, args), dev)
         return getattr(method, "run_name", None), method
 
     @staticmethod
-    def method_spec(name: str, method_cls, cfg_cls) -> Spec:
-        def add_args(ap):
+    def method_spec(name: str, method_cls: type[Any], cfg_cls: type[Any]) -> Spec:
+        def add_args(ap: argparse.ArgumentParser) -> None:
             Dispatch.add_cats(ap)
             CliConfig.add_config_args(ap, cfg_cls)
 
-        def run(args):  # pragma: no cover  device pick + mlflow harness boundary; build_method is the core
+        def run(args: argparse.Namespace) -> None:  # pragma: no cover  device pick + mlflow harness boundary; build_method is the core
             Compute.enable_tf32()
             run_name, method = MethodCli.build_method(method_cls, cfg_cls, args, Compute.pick_device())
             harness.Harness.run(run_name or name, method, cats=args.cats)

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from typing import Callable
 
 import numpy as np
 import tifffile
@@ -68,19 +69,19 @@ class TwinSynth:
         s.set_int("/omni/replicator/RTSubframes", _SUBFRAMES)
         timeline = omni.timeline.get_timeline_interface()
 
-        def intrinsics(stage, w, h):
+        def intrinsics(stage: "pxr.Usd.Stage", w: int, h: int):
             cam = UsdGeom.Camera(stage.GetPrimAtPath("/World/Camera"))
             focal = cam.GetFocalLengthAttr().Get()
             return (w * focal / cam.GetHorizontalApertureAttr().Get(),
                     h * focal / cam.GetVerticalApertureAttr().Get())
 
-        def jitter_pose(mesh):
+        def jitter_pose(mesh: "pxr.UsdGeom.Mesh"):
             api = UsdGeom.XformCommonAPI(mesh.GetPrim())
             api.SetRotate(Gf.Vec3f(float(rng.uniform(-_TILT, _TILT)), float(rng.uniform(-_TILT, _TILT)),
                                    float(rng.uniform(0, _SPIN))))
             api.SetTranslate(Gf.Vec3d(*(float(rng.uniform(-_TRANS, _TRANS)) for _ in range(3))))
 
-        def render(rgb_a, dep_a):
+        def render(rgb_a: "omni.replicator.core.Annotator", dep_a: "omni.replicator.core.Annotator"):
             for _ in range(_RENDER_STEPS):
                 rep.orchestrator.step(delta_time=0.0, rt_subframes=_SUBFRAMES)
             return np.asarray(rgb_a.get_data())[..., :3], np.asarray(dep_a.get_data())
@@ -105,10 +106,14 @@ class TwinSynth:
             dep_a = rep.annotators.get("distance_to_image_plane"); dep_a.attach(rp)
             fx, fy = intrinsics(stage, self._res, self._res)
 
-            def set_points(v, mesh=mesh):
+            def set_points(v: np.ndarray, mesh: "pxr.UsdGeom.Mesh" = mesh):
                 mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v.astype(np.float32)))
 
-            def randomize(mesh=mesh, light=light, dome=dome):
+            def randomize(
+                mesh: "pxr.UsdGeom.Mesh" = mesh,
+                light: "pxr.UsdLux.DistantLight" = light,
+                dome: "pxr.UsdLux.DomeLight" = dome,
+            ):
                 jitter_pose(mesh)
                 light.CreateIntensityAttr(float(rng.uniform(*_LIGHT)))
                 dome.CreateIntensityAttr(float(rng.uniform(*_DOME)))
@@ -120,7 +125,19 @@ class TwinSynth:
             log.info("CAT %-12s good=%d defect=%d mean_obj_px=%d", cat, self._views, 2 * n_def, npx // self._views)
         log.info("DONE")
 
-    def _good_views(self, cat, vc, set_points, randomize, render, rgb_a, dep_a, fx, fy) -> int:
+    def _good_views(
+        self,
+        cat: str,
+        vc: np.ndarray,
+        set_points: Callable[[np.ndarray], None],
+        randomize: Callable[[], None],
+        render: Callable[["omni.replicator.core.Annotator", "omni.replicator.core.Annotator"],
+                         tuple[np.ndarray, np.ndarray]],
+        rgb_a: "omni.replicator.core.Annotator",
+        dep_a: "omni.replicator.core.Annotator",
+        fx: float,
+        fy: float,
+    ) -> int:
         gdir = f"{_OUT_ROOT}/{cat}/train/good"
         for sub in ("rgb", "xyz"):
             os.makedirs(f"{gdir}/{sub}", exist_ok=True)
@@ -134,7 +151,19 @@ class TwinSynth:
             npx += int((np.abs(xyz).sum(-1) > 0).sum())
         return npx
 
-    def _defect_views(self, cat, vc, set_points, randomize, render, rgb_a, dep_a, fx, fy) -> int:
+    def _defect_views(
+        self,
+        cat: str,
+        vc: np.ndarray,
+        set_points: Callable[[np.ndarray], None],
+        randomize: Callable[[], None],
+        render: Callable[["omni.replicator.core.Annotator", "omni.replicator.core.Annotator"],
+                         tuple[np.ndarray, np.ndarray]],
+        rgb_a: "omni.replicator.core.Annotator",
+        dep_a: "omni.replicator.core.Annotator",
+        fx: float,
+        fy: float,
+    ) -> int:
         n_def = max(1, self._views // _DEF_FRAC)
         for dtype, sign in _DEFECTS:
             ddir = f"{_OUT_ROOT}/{cat}/test/{dtype}"

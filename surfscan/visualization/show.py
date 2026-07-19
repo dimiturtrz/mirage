@@ -16,6 +16,9 @@ right-drag = pan, q = quit); the defect is painted red with --mask. Add
 --rgb to also pop the flat photo + mask first (matplotlib, blocks until
 closed). --no-3d with --rgb = photo only.
 """
+from __future__ import annotations
+
+import argparse
 import json
 from pathlib import Path
 
@@ -25,6 +28,7 @@ import numpy as np
 import open3d as o3d
 import tifffile
 import torch
+from jaxtyping import Bool, Float, UInt8
 from PIL import Image
 
 from core import config
@@ -52,14 +56,26 @@ class Show:
     one `Show(...)` and renders it.
     """
 
-    def __init__(self, rgb, xyz, valid, gt=None):
+    def __init__(
+        self,
+        rgb: UInt8[np.ndarray, "h w 3"] | Float[np.ndarray, "h w 3"],
+        xyz: Float[np.ndarray, "h w 3"],
+        valid: Bool[np.ndarray, "h w"],
+        gt: UInt8[np.ndarray, "h w"] | None = None,
+    ):
         self.rgb = rgb
         self.xyz = xyz
         self.valid = valid
         self.gt = gt
 
     @staticmethod
-    def load_sample(root, cat, split, defect, idx):
+    def load_sample(
+        root: str | Path, cat: str, split: str, defect: str, idx: int
+    ) -> tuple[
+        UInt8[np.ndarray, "h w 3"] | Float[np.ndarray, "h w 3"],
+        Float[np.ndarray, "h w 3"],
+        UInt8[np.ndarray, "h w"] | None,
+    ]:
         base = Path(root) / cat / split / defect
         stem = f"{idx:03d}"
         rgb = np.asarray(Image.open(base / "rgb" / f"{stem}.png"))      # H x W x 3, uint8
@@ -69,7 +85,14 @@ class Show:
         return rgb, xyz, gt
 
     @staticmethod
-    def load_processed(cat, split, defect, idx, size=None):
+    def load_processed(
+        cat: str, split: str, defect: str, idx: int, size: int | None = None
+    ) -> tuple[
+        Float[np.ndarray, "h w 3"],
+        Float[np.ndarray, "h w 3"],
+        UInt8[np.ndarray, "h w"] | None,
+        Bool[np.ndarray, "h w"],
+    ]:
         """Load one CLEANED sample from the processed store (rgb [0,1], xyz normalized,
         valid + gt)."""
         sid = f"{cat}_{split}_{defect}_{idx:03d}"
@@ -79,7 +102,9 @@ class Show:
         a = store.Store.load_arrays(path)
         return a["rgb"], a["xyz"], a["gt"], a["valid"]
 
-    def _run_model(self, run, device=None):
+    def _run_model(
+        self, run: str | Path, device: str | torch.device | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Load a trained model + run it on this sample -> (input x [1,C,H,W], recon [1,C,H,W]), numpy."""
         run = Path(run)
         hp = HParams(**json.loads((run / "config.json").read_text()))
@@ -93,18 +118,20 @@ class Show:
             recon, _, _ = model(torch.from_numpy(x).to(dev))
         return x, recon.cpu().numpy()
 
-    def anomaly_map(self, run):
+    def anomaly_map(self, run: str | Path) -> np.ndarray:
         """Per-pixel reconstruction error from a trained model (run dir). Requires processed inputs."""
         x, recon = self._run_model(run)
         err = ((recon - x) ** 2).sum(1).squeeze(0)                    # H,W
         return err * self.valid
 
-    def recon_xyz(self, run):
+    def recon_xyz(self, run: str | Path) -> Float[np.ndarray, "h w 3"]:
         """The model's reconstructed xyz channels (H,W,3) — what it rebuilt the surface as."""
         _, recon = self._run_model(run)
         return recon[0, :3].transpose(1, 2, 0)                        # C,H,W -> H,W,3 (xyz channels)
 
-    def patchcore_map(self, cat, coreset=0.1, device=None):
+    def patchcore_map(
+        self, cat: str, coreset: float = 0.1, device: str | torch.device | None = None
+    ) -> Float[np.ndarray, "h w"]:
         """The WORKING detector's anomaly map: fit a PatchCore bank on this category's train-good (rgb),
         score this sample. The defect should glow (unlike the VAE's anti-localized residual)."""
         dev = device or Compute.pick_device()
@@ -113,7 +140,9 @@ class Show:
         x = torch.from_numpy(self.rgb.transpose(2, 0, 1)[None]).to(dev)
         return pc.score_maps(x)[0] * self.valid                       # H,W
 
-    def to_point_cloud(self, *, mask=False):
+    def to_point_cloud(
+        self, *, mask: bool = False
+    ) -> tuple[Float[np.ndarray, "n 3"], Float[np.ndarray, "n 3"]]:
         """Drop background, return (points Nx3, colors Nx3 in [0,1]).
 
         rgb may be uint8 (raw) or float [0,1] (processed) — normalized either way.
@@ -129,7 +158,7 @@ class Show:
             cols[gt[self.valid] > 0] = (1.0, 0.0, 0.0)
         return pts, cols
 
-    def _show_photo(self, args):
+    def _show_photo(self, args: argparse.Namespace) -> None:
         cols_n = 1 if self.gt is None else 2
         fig, axes = plt.subplots(1, cols_n, figsize=(5 * cols_n, 5))
         axes = np.atleast_1d(axes)
@@ -143,7 +172,9 @@ class Show:
         plt.tight_layout()
         plt.show()
 
-    def _colorize(self, pc, args):
+    def _colorize(
+        self, pc: o3d.geometry.PointCloud, args: argparse.Namespace
+    ) -> bool:
         """Recolor the cloud by the chosen mode (anomaly / curvature / normals); returns show_normals."""
         if args.anomaly is not None or args.patchcore:
             if not args.processed:
@@ -173,7 +204,7 @@ class Show:
         return False
 
     @staticmethod
-    def args(ap):
+    def args(ap: argparse.ArgumentParser) -> None:
         ap.add_argument("--data-root", default=None,
                         help="MVTec 3D-AD root (default: <paths.yaml data>/raw/mvtec_3d_anomaly_detection)")
         ap.add_argument("--cat", default="bagel")
@@ -205,7 +236,7 @@ class Show:
                              "original rgb. See what it actually rebuilds. Requires --processed.")
 
     @staticmethod
-    def run(args):
+    def run(args: argparse.Namespace) -> None:
         if args.processed:
             rgb, xyz, gt, valid = Show.load_processed(args.cat, args.split, args.defect, args.idx, args.size)
         else:

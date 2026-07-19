@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from typing import Any
 
 import mlflow
 
@@ -30,7 +31,7 @@ class Results:
     """Refresh the measured numbers in docs/RESULTS.json from MLflow — the canonical source in one place."""
 
     @staticmethod
-    def latest(run_name: str):  # pragma: no cover  mlflow run query (network/db)
+    def latest(run_name: str) -> dict[str, Any] | None:  # pragma: no cover  mlflow run query (network/db)
         df = mlflow.search_runs(
             experiment_names=["surfscan"],
             filter_string=f"tags.`mlflow.runName` = '{run_name}'",
@@ -39,19 +40,21 @@ class Results:
         return df.iloc[0].to_dict() if len(df) else None
 
     @staticmethod
-    def _get(row: dict, key: str):
+    def _get(row: dict[str, Any], key: str) -> float | None:
         v = row.get(f"metrics.{key}")
         return round(float(v), 3) if v is not None and not math.isnan(v) else None   # skip None / NaN
 
     @staticmethod
-    def _apply(obj: dict, row: dict, pairs) -> None:
+    def _apply(
+        obj: dict[str, Any], row: dict[str, Any], pairs: list[tuple[str, str]]
+    ) -> None:
         for metric, field in pairs:
             v = Results._get(row, metric)
             if v is not None:
                 obj[field] = v
 
     @staticmethod
-    def _table_mean(rows: list[dict]) -> dict:
+    def _table_mean(rows: list[dict[str, Any]]) -> dict[str, float]:
         """The per-category table's MEAN row, derived from its rows so it can never drift from them."""
         n = len(rows)
         return {k: round(sum(r[k] for r in rows) / n, 3) for k in ("img_auroc", "au_pro")}
@@ -59,7 +62,8 @@ class Results:
     @staticmethod
     def refresh() -> None:  # pragma: no cover  reads RESULTS.json + mlflow; _get/_apply are the pure core
         data = json.loads(RJSON.read_text(encoding="utf-8"))
-        done, skipped = [], []
+        done: list[Any] = []
+        skipped: list[Any] = []
         for m in data["methods"]:
             rn = m.get("mlflow_run")
             if not rn:

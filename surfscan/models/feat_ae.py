@@ -5,12 +5,16 @@ and tests without torchvision; the frozen backbone that produces the feature map
 """
 from __future__ import annotations
 
+from typing import override
+
+import torch
 import torch.nn as nn
+from jaxtyping import Float
 
 
 class FeatAE(nn.Module):
     """Small conv AE on a C×h×w feature map."""
-    def __init__(self, ch, hidden=128):
+    def __init__(self, ch: int, hidden: int = 128) -> None:
         super().__init__()
         self.enc = nn.Sequential(
             nn.Conv2d(ch, hidden, 3, 2, 1), nn.BatchNorm2d(hidden), nn.SiLU(),
@@ -19,5 +23,6 @@ class FeatAE(nn.Module):
             nn.ConvTranspose2d(hidden, hidden, 4, 2, 1), nn.BatchNorm2d(hidden), nn.SiLU(),
             nn.ConvTranspose2d(hidden, ch, 4, 2, 1))
 
-    def forward(self, x):
+    @override
+    def forward(self, x: Float[torch.Tensor, "b c h w"]) -> torch.Tensor:
         return self.dec(self.enc(x))

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, override
 
 import numpy as np
 import torch
@@ -64,6 +64,7 @@ class ChunkTransformer(nn.Module):
         self.decoder = nn.TransformerDecoder(layer, cfg.layers)
         self.head = nn.Linear(cfg.d_model, act_dim)
 
+    @override
     def forward(self, obs: Float[Tensor, "b obs"]) -> Float[Tensor, "b k act"]:
         memory = self.obs_embed(obs).unsqueeze(1)                    # (b, 1, d) — one observation token
         queries = self.queries.unsqueeze(0).expand(obs.shape[0], -1, -1)

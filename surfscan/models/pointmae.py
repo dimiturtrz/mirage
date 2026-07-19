@@ -18,6 +18,8 @@ import types
 from pathlib import Path
 
 import torch
+from jaxtyping import Float, Int
+from torch import Tensor, nn
 
 from surfscan.models.pointmae_group import PointmaeGroup
 
@@ -42,11 +44,11 @@ class Pointmae:
             knn = types.ModuleType("knn_cuda")
 
             class KNN:                                          # M3DM: KNN(k, transpose_mode)(ref, query)->(_, idx)
-                def __init__(self, k, transpose_mode=True):  # noqa: FBT002  (mirrors knn_cuda.KNN's signature)
+                def __init__(self, k: int, transpose_mode: bool = True) -> None:  # noqa: FBT002  (mirrors knn_cuda.KNN's signature)
                     self.k = k
                     self.transpose_mode = transpose_mode        # our output is the transpose_mode=True layout
 
-                def __call__(self, ref, query):                 # query's k-nearest in ref -> idx (B, Gq, k)
+                def __call__(self, ref: Float[Tensor, "b m 3"], query: Float[Tensor, "b n 3"]) -> tuple[Float[Tensor, "b n k"], Int[Tensor, "b n k"]]:
                     dist, idx = PointmaeGroup.square_distance(query, ref).topk(self.k, dim=-1, largest=False)
                     return dist, idx
 
@@ -54,7 +56,8 @@ class Pointmae:
             sys.modules["knn_cuda"] = knn
 
     @staticmethod
-    def load_pointmae(device, *, num_group=1024, group_size=128, encoder_dims=384, ckpt="pointmae_pretrain.pth"):
+    def load_pointmae(device: torch.device | str, *, num_group: int = 1024, group_size: int = 128,
+                      encoder_dims: int = 384, ckpt: str | None = "pointmae_pretrain.pth") -> nn.Module:
         """M3DM's `PointTransformer` on `device`, CUDA-free, eval mode. `ckpt` (relative to
         external/M3DM/checkpoints/, or absolute) loads ShapeNet weights; None = random init (for shape tests)."""
         Pointmae._install_op_shims()
@@ -72,7 +75,7 @@ class Pointmae:
 
     @staticmethod
     @torch.no_grad()
-    def pointmae_features(net, xyz):
+    def pointmae_features(net: nn.Module, xyz: Float[Tensor, "b n 3"]) -> tuple[Float[Tensor, "b g c"], Float[Tensor, "b g 3"]]:
         """xyz (B,N,3) -> (per-group features [B,G,C], centers [B,G,3]). Point-MAE forward wants (B,3,N)."""
         feats, centers, _, _ = net(xyz.transpose(1, 2).contiguous())
         return feats.transpose(1, 2).contiguous(), centers      # (B,G,C), (B,G,3)

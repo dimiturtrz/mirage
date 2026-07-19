@@ -18,6 +18,8 @@ correct dent direction (learning/2026-07-06_normals-and-curvature.md).
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 import torch
 
@@ -35,13 +37,19 @@ class Defects:
     -> held in __init__, so same seed -> same output. `device` is NOT state: it's the per-call data's own
     `x.device` (where this tensor lives), derived inside synthesize and threaded to the profile helpers."""
 
-    def __init__(self, rng):
+    def __init__(self, rng: np.random.RandomState) -> None:
         self.rng = rng
 
-    def _u(self, lo, hi, b, device):
-        return torch.as_tensor(self.rng.uniform(lo, hi, b), dtype=torch.float32, device=device)[:, None, None]
+    def _u(
+        self, lo: float, hi: float, b: int, device: torch.device
+    ) -> torch.Tensor:
+        return torch.as_tensor(
+            self.rng.uniform(lo, hi, b), dtype=torch.float32, device=device
+        )[:, None, None]
 
-    def _profiles(self, shape, device, is_scratch):
+    def _profiles(
+        self, shape: tuple[int, int, int], device: torch.device, is_scratch: torch.Tensor
+    ) -> torch.Tensor:
         """Batched smooth profiles (B,H,W): elliptical blob, or thin scratch where is_scratch."""
         b, h, w = shape
         yy, xx = torch.meshgrid(torch.arange(h, device=device), torch.arange(w, device=device), indexing="ij")
@@ -61,12 +69,19 @@ class Defects:
         return torch.where(is_scratch[:, None, None], scratch, blob)
 
     @torch.no_grad()
-    def synthesize(self, x, valid, channels=("rgb",), kinds=KINDS):
+    def synthesize(
+        self,
+        x: torch.Tensor,
+        valid: torch.Tensor,
+        channels: tuple[str, ...] = ("rgb",),
+        kinds: Sequence[str] = KINDS,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """x: (B,C,H,W), valid: (B,1,H,W) -> (aug, mask (B,1,H,W)). channels maps the stacked 3-wide slices:
         xyz -> geometric z-displacement, rgb -> appearance. Fully batched — no per-sample loop."""
         B, C, H, W = x.shape
         dev = x.device
-        sl, off = {}, 0
+        sl: dict[str, int] = {}
+        off = 0
         for c in channels:
             sl[c] = off; off += 3
 

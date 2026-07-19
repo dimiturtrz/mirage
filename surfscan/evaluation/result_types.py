@@ -4,6 +4,7 @@ that were repeated ad-hoc dicts across harness + run_all. One home for the key v
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from typing import Any
 
 import numpy as np
 
@@ -16,7 +17,7 @@ class Scores:
     au_pro: float
 
     @classmethod
-    def macro(cls, rows: list[dict]) -> Scores:
+    def macro(cls, rows: list[dict[str, Any]]) -> Scores:
         """Macro headline (mean over categories) from per-category rows carrying `img_auroc` / `au_pro`
         — the nanmean reduction shared by the live harness and the per-category run aggregator."""
         return cls(float(np.nanmean([r["img_auroc"] for r in rows])),

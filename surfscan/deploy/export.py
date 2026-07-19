@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+from typing import Any
 
 import torch
 
@@ -39,7 +40,7 @@ class Exporter:
     """Export each detector's neural graph to ONNX and inventory its ops — the measured op-class gate."""
 
     @staticmethod
-    def _op_types(mod, xin) -> list[str]:
+    def _op_types(mod: Any, xin: Any) -> list[str]:
         buf = io.BytesIO()
         with torch.no_grad():
             torch.onnx.export(mod, xin, buf, opset_version=_OPSET, dynamo=False)
@@ -48,7 +49,7 @@ class Exporter:
         return sorted({n.op_type for n in graph.graph.node})
 
     @staticmethod
-    def export_one(name: str, fn, x) -> dict:
+    def export_one(name: str, fn: Any, x: Any) -> dict[str, Any]:
         mod, xin = fn.export_spec(x) if hasattr(fn, "export_spec") else (fn, x)
         try:
             ops = Exporter._op_types(mod, xin)
@@ -60,7 +61,7 @@ class Exporter:
                 "has_bank_tail_op": bool(opset & _BANK_TAIL_OPS)}
 
     @staticmethod
-    def _detector_check(det: dict, by_name: dict[str, dict]) -> dict:
+    def _detector_check(det: dict[str, Any], by_name: dict[str, dict[str, Any]]) -> dict[str, Any]:
         """Does the exported op inventory of a detector's pieces corroborate its declared op-class?"""
         rows = [by_name[p] for p in det["pieces"] if p in by_name]
         exported = all(r.get("exported") for r in rows)
@@ -72,7 +73,7 @@ class Exporter:
                 "has_attention_op": has_attn, "corroborates_op_class": corroborated}
 
     @staticmethod
-    def document(size: int, dev: str) -> dict:
+    def document(size: int, dev: str) -> dict[str, Any]:
         rows = [Exporter.export_one(name, fn, x) for name, fn, x, _ in profile.Profiler.targets(size, dev)]
         by_name = {r["name"]: r for r in rows}
         models = json.loads((profile.MODELS_DOC).read_text(encoding="utf-8")) if profile.MODELS_DOC.exists() \
@@ -85,7 +86,7 @@ class Exporter:
         }
 
     @staticmethod
-    def _log(doc: dict) -> None:
+    def _log(doc: dict[str, Any]) -> None:
         for r in doc["components"]:
             if r["exported"]:
                 flags = [f for f, on in (("attention", r["has_attention_op"]),

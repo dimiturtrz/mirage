@@ -14,9 +14,11 @@ so one run yields `point [lo, hi]`; the paired delta cancels shared noise to ans
 """
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
+from jaxtyping import Bool, Float
 from skimage.measure import label
 from sklearn.metrics import roc_auc_score
 
@@ -47,12 +49,16 @@ class Metrics:
     the shared test-set noise cancels and the interval is on the delta (does B beat A, honestly?)."""
 
     @staticmethod
-    def _resample(arrays, idx):
+    def _resample(
+        arrays: Sequence[object], idx: np.ndarray
+    ) -> list[np.ndarray]:
         """Index the first axis (= image) of every metric-input array by one bootstrap draw."""
         return [np.asarray(a)[idx] for a in arrays]
 
     @staticmethod
-    def _interval(point, samples, alpha):
+    def _interval(
+        point: float, samples: Sequence[object], alpha: float
+    ) -> tuple[float, float, float]:
         """(point, lo, hi) — percentile interval over the finite bootstrap samples (NaNs dropped)."""
         s = np.asarray(samples, dtype=np.float64)
         s = s[np.isfinite(s)]
@@ -62,29 +68,37 @@ class Metrics:
         return (point, float(lo), float(hi))
 
     @staticmethod
-    def boot_ci(metric_fn, *arrays, cfg=_DEFAULT_BOOT):
+    def boot_ci(
+        metric_fn: Callable[..., object], *arrays: object, cfg: BootCfg = _DEFAULT_BOOT
+    ) -> tuple[float, float, float]:
         """(point, lo, hi) for `metric_fn(*arrays)` — percentile bootstrap over the test images.
 
         `metric_fn` takes the arrays in order (e.g. image_auroc over (scores, labels), au_pro over
         (amaps, masks, valids)); every array's first axis is the image, resampled by a shared index."""
-        arrays = [np.asarray(a) for a in arrays]
-        n = len(arrays[0])
-        point = float(metric_fn(*arrays))
+        arrays_list = [np.asarray(a) for a in arrays]
+        n = len(arrays_list[0])
+        point = float(metric_fn(*arrays_list))
         draws = cfg.gen().integers(0, n, size=(cfg.n_boot, n))
-        samples = [metric_fn(*Metrics._resample(arrays, idx)) for idx in draws]
+        samples = [metric_fn(*Metrics._resample(arrays_list, idx)) for idx in draws]
         return Metrics._interval(point, samples, cfg.alpha)
 
     @staticmethod
-    def boot_delta_ci(metric_fn, arrays_a, arrays_b, cfg=_DEFAULT_BOOT):
+    def boot_delta_ci(
+        metric_fn: Callable[..., object],
+        arrays_a: Sequence[object],
+        arrays_b: Sequence[object],
+        cfg: BootCfg = _DEFAULT_BOOT,
+    ) -> tuple[float, float, float]:
         """(delta, lo, hi) for metric(B) − metric(A), PAIRED bootstrap. Same resampled image indices
         hit both runs each draw, so shared test-set noise cancels — a CI that excludes 0 is an honest
         'B differs from A'. Requires A and B scored on the SAME test images in the SAME order."""
-        arrays_a = [np.asarray(a) for a in arrays_a]
-        arrays_b = [np.asarray(a) for a in arrays_b]
-        n = len(arrays_a[0])
-        delta = float(metric_fn(*arrays_b)) - float(metric_fn(*arrays_a))
+        arrays_a_list = [np.asarray(a) for a in arrays_a]
+        arrays_b_list = [np.asarray(a) for a in arrays_b]
+        n = len(arrays_a_list[0])
+        delta = float(metric_fn(*arrays_b_list)) - float(metric_fn(*arrays_a_list))
         draws = cfg.gen().integers(0, n, size=(cfg.n_boot, n))
-        samples = [metric_fn(*Metrics._resample(arrays_b, idx)) - metric_fn(*Metrics._resample(arrays_a, idx))
+        samples = [metric_fn(*Metrics._resample(arrays_b_list, idx))
+                   - metric_fn(*Metrics._resample(arrays_a_list, idx))
                    for idx in draws]
         return Metrics._interval(delta, samples, cfg.alpha)
 
@@ -93,33 +107,43 @@ class Metrics:
     # bootstrap resamples images WITHIN each category and averages per draw (stratified). ---
 
     @staticmethod
-    def _nanmean(values):
+    def _nanmean(values: Sequence[object]) -> float:
         """Mean over finite values -> NaN if none are finite (no 'empty slice' warning for a dead draw)."""
         finite = [value for value in values if not np.isnan(value)]
         return float(np.mean(finite)) if finite else float("nan")
 
     @staticmethod
-    def _macro_point(metric_fn, per_cat):
+    def _macro_point(metric_fn: Callable[..., object], per_cat: Sequence[object]) -> float:
         """mean-of-categories of `metric_fn` over each category's full arg-tuple (NaN categories dropped)."""
         return Metrics._nanmean([metric_fn(*args) for args in per_cat])
 
     @staticmethod
-    def _macro_draw(metric_fn, per_cat, idxs):
+    def _macro_draw(
+        metric_fn: Callable[..., object], per_cat: Sequence[object], idxs: Sequence[object]
+    ) -> float:
         """One stratified draw: resample within each category by its index array, then mean-of-categories."""
         return Metrics._nanmean([metric_fn(*Metrics._resample(a, ix)) for a, ix in zip(per_cat, idxs, strict=True)])
 
     @staticmethod
-    def boot_macro_ci(metric_fn, per_cat, cfg=_DEFAULT_BOOT):
+    def boot_macro_ci(
+        metric_fn: Callable[..., object], per_cat: Sequence[object], cfg: BootCfg = _DEFAULT_BOOT
+    ) -> tuple[float, float, float]:
         """(point, lo, hi) for the mean-of-categories metric — stratified bootstrap (resample images within
         each category, average). `per_cat` = one metric arg-tuple per category. The CI for a macro number."""
         rng = cfg.gen()
         point = Metrics._macro_point(metric_fn, per_cat)
-        samples = [Metrics._macro_draw(metric_fn, per_cat, [rng.integers(0, len(a[0]), len(a[0])) for a in per_cat])
+        samples = [Metrics._macro_draw(metric_fn, per_cat,
+                                       [rng.integers(0, len(a[0]), len(a[0])) for a in per_cat])
                    for _ in range(cfg.n_boot)]
         return Metrics._interval(point, samples, cfg.alpha)
 
     @staticmethod
-    def boot_macro_delta_ci(metric_fn, per_cat_a, per_cat_b, cfg=_DEFAULT_BOOT):
+    def boot_macro_delta_ci(
+        metric_fn: Callable[..., object],
+        per_cat_a: Sequence[object],
+        per_cat_b: Sequence[object],
+        cfg: BootCfg = _DEFAULT_BOOT,
+    ) -> tuple[float, float, float]:
         """(delta, lo, hi) for macro-metric(B) − macro-metric(A), PAIRED + stratified. Same within-category
         resample hits both arms each draw (shared eval images per category, same order), so the CI is on the
         mean-of-categories delta — the headline gap number, honestly bracketed."""
@@ -133,20 +157,28 @@ class Metrics:
         return Metrics._interval(delta, samples, cfg.alpha)
 
     @staticmethod
-    def image_auroc(scores, labels):
+    def image_auroc(
+        scores: Float[np.ndarray, "..."], labels: Float[np.ndarray, "..."]
+    ) -> float:
         labels = np.asarray(labels)
         if labels.min() == labels.max():          # one class only -> undefined
             return float("nan")
         return float(roc_auc_score(labels, scores))
 
     @staticmethod
-    def ece(probs, targets, valids, n_bins=15):
+    def ece(
+        probs: Float[np.ndarray, "n h w"],
+        targets: Bool[np.ndarray, "n h w"],
+        valids: Bool[np.ndarray, "n h w"],
+        n_bins: int = 15,
+    ) -> float:
         """Expected Calibration Error over valid object pixels. probs ∈ [0,1] (per-pixel defect
         probability), targets = binary defect mask, valids = object mask. Bins predictions and sums
         |accuracy − confidence| weighted by bin population. The measured 'is the score a probability?'
         number — under sim-to-real shift a synth-trained model is typically over-confident (ECE ↑).
         amaps/masks/valids: (N,H,W)."""
-        p, t = [], []
+        p: list[np.ndarray] = []
+        t: list[np.ndarray] = []
         for pr, tg, v in zip(probs, targets, valids, strict=True):
             vb = v.astype(bool)
             p.append(np.asarray(pr)[vb].ravel())
@@ -166,9 +198,16 @@ class Metrics:
         return float(e)
 
     @staticmethod
-    def au_pro(amaps, masks, valids, num_th=200, fpr_limit=0.3):
+    def au_pro(
+        amaps: Float[np.ndarray, "n h w"],
+        masks: Bool[np.ndarray, "n h w"],
+        valids: Bool[np.ndarray, "n h w"],
+        num_th: int = 200,
+        fpr_limit: float = 0.3,
+    ) -> float:
         """Per-region-overlap AUC up to fpr_limit. amaps/masks/valids: (N,H,W)."""
-        region_vals, normal_vals = [], []
+        region_vals: list[np.ndarray] = []
+        normal_vals: list[np.ndarray] = []
         gmin, gmax = np.inf, -np.inf
         for a, m, v in zip(amaps, masks, valids, strict=True):
             m = m.astype(bool); v = v.astype(bool)

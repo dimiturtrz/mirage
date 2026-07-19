@@ -7,10 +7,13 @@ local-surface descriptors to normal. See learning/2026-06-25_fpfh-and-neighborho
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import open3d as o3d
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 from core.compute import Compute
 
@@ -25,7 +28,7 @@ class FpfhCfg:
 
 class FpfhBank:
     @staticmethod
-    def _normals(pts, knn):
+    def _normals(pts: np.ndarray, knn: int) -> o3d.geometry.PointCloud:
         pc = o3d.geometry.PointCloud()
         pc.points = o3d.utility.Vector3dVector(pts)
         pc.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn))
@@ -33,7 +36,11 @@ class FpfhBank:
         return pc
 
     @staticmethod
-    def fpfh_for_sample(xyz, valid, cfg=None):
+    def fpfh_for_sample(
+        xyz: Float[np.ndarray, "h w 3"],
+        valid: Any,
+        cfg: FpfhCfg | None = None,
+    ) -> tuple[Float[np.ndarray, "n 33"], np.ndarray]:
         cfg = cfg or FpfhCfg()
         """-> (n,33) FPFH descriptors + (n,2) pixel (row,col) for each valid point.
 
@@ -53,21 +60,23 @@ class FpfhBank:
         return np.asarray(f.data).T.astype(np.float32), coords
 
     @staticmethod
-    def _fpfh_batch(samples, cfg=None):
+    def _fpfh_batch(
+        samples: Any, cfg: FpfhCfg | None = None,
+    ) -> list[tuple[Float[np.ndarray, "n 33"], np.ndarray]]:
         """fpfh_for_sample over samples. Serial by measurement: open3d's normals/FPFH hold the GIL, so a
         ThreadPool gave 1.0x (no speedup, benchmarked on real data); a ProcessPool's Windows-spawn +
         per-sample point-cloud pickle overhead doesn't pay for these small clouds. A real speedup needs a
         vectorized/GPU FPFH, not a pool — out of scope. Kept as a batch helper (fit + score_maps)."""
         return [FpfhBank.fpfh_for_sample(xyz, valid, cfg) for xyz, valid in samples]
 
-    def __init__(self, device="cuda", per_sample=2000, coreset=0.25, seed=0):
+    def __init__(self, device: str = "cuda", per_sample: int = 2000, coreset: float = 0.25, seed: int = 0):
         self.device = device
         self.per_sample = per_sample      # cap FPFH per training sample (keeps the bank tractable)
         self.coreset = coreset
         self.seed = seed
-        self.bank = None
+        self.bank: Tensor | None = None
 
-    def fit(self, samples):               # samples: list of (xyz, valid)
+    def fit(self, samples: Any) -> FpfhBank:               # samples: list of (xyz, valid)
         rng = np.random.RandomState(self.seed)
         feats = []
         for f, _ in FpfhBank._fpfh_batch(samples):
@@ -81,7 +90,7 @@ class FpfhBank:
         return self
 
     @torch.no_grad()
-    def _score_one(self, f, coords, valid, chunk):
+    def _score_one(self, f: np.ndarray, coords: np.ndarray, valid: np.ndarray, chunk: int) -> np.ndarray:
         ft = torch.from_numpy(f).to(self.device)
         d = Compute.batched_forward(
             lambda i0, i1: torch.cdist(ft[i0:i1], self.bank).min(1).values, len(ft), chunk)
@@ -89,11 +98,13 @@ class FpfhBank:
         amap[coords[:, 0], coords[:, 1]] = d.cpu().numpy()
         return amap
 
-    def score_map(self, xyz, valid, chunk=4096):
+    def score_map(
+        self, xyz: Float[np.ndarray, "h w 3"], valid: Any, chunk: int = 4096,
+    ) -> Float[np.ndarray, "h w"]:
         f, coords = FpfhBank.fpfh_for_sample(xyz, valid)
         return self._score_one(f, coords, valid, chunk)
 
-    def score_maps(self, samples, chunk=4096):
+    def score_maps(self, samples: Any, chunk: int = 4096) -> Float[np.ndarray, "n h w"]:
         """Batch score -> (N,H,W): FPFH per sample (see _fpfh_batch), then GPU nearest-bank distance.
         Identical to np.stack([score_map(x, v) for x, v in samples]) — a convenience, not a speedup."""
         return np.stack([self._score_one(f, coords, valid, chunk)

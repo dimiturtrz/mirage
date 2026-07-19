@@ -10,6 +10,8 @@ is exact, so `Harness` metrics on the reloaded arrays equal the live ones.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from core.method import ScoreArrays
@@ -28,7 +30,7 @@ class Predictions:
         return out
 
     @staticmethod
-    def unpack(d) -> tuple[list[str], list[ScoreArrays]]:
+    def unpack(d: dict[str, Any]) -> tuple[list[str], list[ScoreArrays]]:
         """A loaded npz dict (or np.load handle) -> (cats, by_cat), the exact input to Harness metrics."""
         cats = [str(c) for c in d["_cats"]]
         by_cat = [ScoreArrays(**{f: d[f"c{i}.{f}"] for f in ScoreArrays._fields}) for i in range(len(cats))]

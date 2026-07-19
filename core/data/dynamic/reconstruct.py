@@ -13,6 +13,7 @@ CLI:  uv run python -m core.data.dynamic.reconstruct            # all categories
       uv run python -m core.data.dynamic.reconstruct --cat bagel
 """
 import argparse
+from pathlib import Path
 
 import numpy as np
 import open3d as o3d
@@ -86,7 +87,7 @@ class CategoryReconstructor:
                       len(mesh.vertices), len(mesh.triangles), obj.name)
         return obj
 
-    def build_all(self) -> list:
+    def build_all(self) -> list[Path]:
         return [self.build(c) for c in self.categories()]
 
     @staticmethod

@@ -11,6 +11,9 @@ Browse with `mlflow ui`.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 
 from core import invariants, metrics
@@ -28,7 +31,9 @@ class Harness:
     """The single per-category eval spine — every method is a (fit_fn, score_fn) pair fed through it."""
 
     @staticmethod
-    def aggregate(method, fit_fn, score_fn, cats):
+    def aggregate(
+        method: str, fit_fn: Callable[[str], Any], score_fn: Callable[[Any, str], object], cats: list[str]
+    ) -> dict[str, Any]:
         """Run the method over categories (per-category fit+score, ETA-logged), then compute the metrics."""
         prog = Progress(len(cats), tag=method)
         by_cat = []
@@ -38,18 +43,18 @@ class Harness:
         return Harness.compute(method, by_cat, cats)
 
     @staticmethod
-    def from_artifact(npz):
+    def from_artifact(npz: dict[str, Any]) -> dict[str, Any]:
         """Recompute the full result OFFLINE from persisted per-image predictions (Predictions.pack npz) —
         no fit/score, no GPU. A new bootstrap / macro fix / ECE variant becomes a re-`compute`, not a re-run."""
         cats, by_cat = predictions.Predictions.unpack(npz)
         return Harness.compute(f"recompute[{len(cats)}cat]", by_cat, cats)
 
     @staticmethod
-    def compute(method, by_cat, cats):
+    def compute(method: str, by_cat: list[ScoreArrays], cats: list[str]) -> dict[str, Any]:
         """The pure metric/CI core over per-category ScoreArrays — shared by live eval (`aggregate`) and
         offline recompute (`from_artifact`). Every headline number is a function of these arrays alone."""
-        rows = []
-        pool: dict[str, list] = {f: [] for f in ScoreArrays._fields}
+        rows: list[dict[str, Any]] = []
+        pool: dict[str, list[Any]] = {f: [] for f in ScoreArrays._fields}
         for c, sa in zip(cats, by_cat, strict=True):
             rows.append({"category": c, "n": len(sa.scores),
                          "img_auroc": metrics.Metrics.image_auroc(sa.scores, sa.labels),
@@ -93,7 +98,7 @@ class Harness:
         return result
 
     @staticmethod
-    def log(result):  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
+    def log(result: dict[str, Any]) -> None:  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
         rows = result["per_category"]
         tracking.Tracker.metrics(Scores(**result["mean"]).tracker_means())
         brackets = result.get("ci", {})
@@ -112,7 +117,13 @@ class Harness:
         tracking.Tracker.artifact_npz("predictions.npz", predictions.Predictions.pack(result["by_cat"], cats))
 
     @staticmethod
-    def run(method, method_obj, cats=None, run_id=None, params=None):  # pragma: no cover  mlflow wrapper
+    def run(
+        method: str,
+        method_obj: object,
+        cats: list[str] | None = None,
+        run_id: str | None = None,
+        params: dict[str, str] | None = None,
+    ) -> dict[str, Any]:  # pragma: no cover  mlflow wrapper
         cats = cats or mvtec.Mvtec().categories()
         result = Harness.aggregate(method, method_obj.fit, method_obj.score, cats)
         if run_id:                                       # log into an existing run (e.g. the train run)

@@ -14,7 +14,7 @@ import argparse
 import time
 
 import torch
-from torch import optim
+from torch import Tensor, nn, optim
 
 from core.compute import Compute
 from core.data.static.dataset import GpuSplit
@@ -38,24 +38,27 @@ class TrainRun:
     def __init__(self, hp: HParams):
         self.hp = hp
 
-    def vae_model(self, in_ch):
+    def vae_model(self, in_ch: int) -> nn.Module:
         return ConvVAE(self.hp.model_cfg(in_ch))
 
-    def inpaint_model(self, in_ch):
+    def inpaint_model(self, in_ch: int) -> nn.Module:
         return InpaintAE(self.hp.model_cfg(in_ch))
 
-    def vae_step(self, run_model, x, m):
+    def vae_step(self, run_model: nn.Module, x: Tensor,
+                 m: Tensor) -> tuple[Tensor, dict[str, Tensor]]:
         recon, mu, logvar = run_model(x)
         rl = Losses.masked_recon_loss(recon, x, m)
         kl = Losses.kl_loss(mu, logvar)
         return rl + self.hp.beta * kl, {"recon": rl, "kl": kl}
 
-    def inpaint_step(self, run_model, x, m):
+    def inpaint_step(self, run_model: nn.Module, x: Tensor,
+                     m: Tensor) -> tuple[Tensor, dict[str, Tensor]]:
         hp = self.hp
         patch = hp.size // hp.grid
         keep = InpaintAE.random_mask(x.shape[0], hp.size, patch, hp.mask_ratio, x.device)
         recon = run_model(x * keep)                 # reconstruct FULL image from masked input
-        return Losses.masked_recon_loss(recon, x, m), {}
+        extras: dict[str, Tensor] = {}
+        return Losses.masked_recon_loss(recon, x, m), extras
 
     def train(self, run_name: str | None = None, device: str = "cuda") -> str:
         hp = self.hp
@@ -75,9 +78,10 @@ class TrainRun:
 
         # the SGD mechanics are the shared Trainer; the per-epoch metric aggregation + mlflow logging
         # (this method's observability, not the loop) live in the step/after_epoch closures.
-        ep = {"i": 0, "t0": 0.0, "tot": 0.0, "nb": 0, "extra": {}}
+        ep: dict[str, float | int | dict[str, Tensor]] = {"i": 0, "t0": 0.0, "tot": 0.0, "nb": 0,
+                                                           "extra": {}}
 
-        def step_fn(idx):
+        def step_fn(idx: Tensor) -> Tensor:
             x = data.x[idx].to(memory_format=torch.channels_last)
             with Compute.autocast(x, amp=amp):
                 loss, extra = step(self, run_model, x, data.valid[idx])

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, override
 
 import numpy as np
 import torch
@@ -43,6 +43,7 @@ class MLP(nn.Module):
             nn.Linear(hidden, out_dim),
         )
 
+    @override
     def forward(self, x: Float[Tensor, "b in"]) -> Float[Tensor, "b out"]:
         return self.net(x)
 

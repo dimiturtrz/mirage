@@ -6,6 +6,7 @@ so pointcloud-viewer/data/ is gitignored — run this to populate the viewer loc
 """
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -24,7 +25,7 @@ class ExportWeb:
     """Export samples to the web viewer's data/ — points + rgb + PatchCore anomaly + gt, downsampled."""
 
     @staticmethod
-    def export_one(sample, n=15000, seed=0):
+    def export_one(sample: tuple[str, str, str, int], n: int = 15000, seed: int = 0) -> str:
         cat, split, defect, idx = sample
         rgb, xyz, gt, valid = Show.load_processed(cat, split, defect, idx)
         v = valid.astype(bool)
@@ -48,11 +49,11 @@ class ExportWeb:
         return sid
 
     @staticmethod
-    def args(ap):
+    def args(ap: argparse.ArgumentParser) -> None:
         ap.add_argument("--samples", nargs="+", required=True, help="cat:split:defect:idx ...")
 
     @staticmethod
-    def run(args):
+    def run(args: argparse.Namespace) -> None:
         ids = []
         for spec in args.samples:
             cat, split, defect, idx = spec.split(":")

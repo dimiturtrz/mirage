@@ -83,7 +83,7 @@ class TwinRenderQC:
 
         self._save(annots)
 
-    def _save(self, annots: dict) -> None:
+    def _save(self, annots: dict[str, object]) -> None:
         os.makedirs(self._out, exist_ok=True)
         for n, a in annots.items():
             d = a.get_data()

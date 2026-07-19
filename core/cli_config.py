@@ -20,14 +20,15 @@ from __future__ import annotations
 import argparse
 import types
 import typing
-from dataclasses import MISSING, fields
+from dataclasses import MISSING, Field, fields
+from typing import Any
 
 
 class CliConfig:
     """Argparse surface derived from a typed config dataclass (helpers as staticmethods, public names kept)."""
 
     @staticmethod
-    def _resolve(t):
+    def _resolve(t: Any) -> tuple[Any, bool]:
         """(base_type, is_list) — unwrap Optional[T]/`T | None` and list[T] to the scalar leaf type."""
         origin = typing.get_origin(t)
         if origin in (typing.Union, types.UnionType):
@@ -38,7 +39,7 @@ class CliConfig:
         return t, False
 
     @staticmethod
-    def _default(f):
+    def _default(f: Field[Any]) -> Any:
         if f.default is not MISSING:
             return f.default
         if f.default_factory is not MISSING:   # list/tuple defaults
@@ -46,7 +47,9 @@ class CliConfig:
         return None
 
     @staticmethod
-    def add_config_args(ap: argparse.ArgumentParser, cfg_cls) -> argparse.ArgumentParser:
+    def add_config_args(
+        ap: argparse.ArgumentParser, cfg_cls: type[Any]
+    ) -> argparse.ArgumentParser:
         """Add one `--kebab-name` argument per dataclass field, typed + defaulted from the schema."""
         hints = typing.get_type_hints(cfg_cls)
         for f in fields(cfg_cls):
@@ -62,6 +65,6 @@ class CliConfig:
         return ap
 
     @staticmethod
-    def build_config(cfg_cls, args: argparse.Namespace):
+    def build_config(cfg_cls: type[Any], args: argparse.Namespace) -> Any:
         """Reconstruct the config instance from a parsed namespace (the inverse of add_config_args)."""
         return cfg_cls(**{f.name: getattr(args, f.name) for f in fields(cfg_cls)})

@@ -16,6 +16,7 @@ import argparse
 import json
 from dataclasses import dataclass, field
 from functools import cache
+from typing import Any
 
 from core.obs import Obs
 from surfscan.deploy import ACCEL_DIR
@@ -56,11 +57,13 @@ class Accelerators:
     """Load the typed, cited accelerator specs from deploy/accelerators/ — the source-of-truth JSON."""
 
     @staticmethod
-    def _support_map(raw: dict) -> dict[OpClass, OpSupport]:
+    def _support_map(raw: dict[str, Any]) -> dict[OpClass, OpSupport]:
         return {OpClass(k): OpSupport(v) for k, v in raw.items()}
 
     @staticmethod
-    def _instance(raw: dict, atype: AccelType, support: dict[OpClass, OpSupport]) -> Accelerator:
+    def _instance(
+        raw: dict[str, Any], atype: AccelType, support: dict[OpClass, OpSupport]
+    ) -> Accelerator:
         return Accelerator(
             name=raw["name"], label=raw["label"], type=atype, op_support=support,
             precisions=raw["precisions"], memory_model=MemoryModel(raw["memory_model"]),

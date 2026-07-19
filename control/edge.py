@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import io
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, override
 
 import mlflow
 import numpy as np
@@ -70,6 +70,7 @@ class OneStepNet(nn.Module):
             nn.Linear(hidden, chunk_flat),
         )
 
+    @override
     def forward(self, obs: Float[Tensor, "b obs"]) -> Float[Tensor, "b flat"]:
         return self.net(obs)
 

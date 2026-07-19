@@ -11,6 +11,8 @@ right tool once the grid is gone. Different data shape, different tool; both com
 from __future__ import annotations
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 _ON = 0.5              # valid-mask cutoff (0/1 float -> on-object bool)
 _H_AXIS, _W_AXIS = 2, 3   # grid axes of a (B,C,H,W) position map
@@ -21,7 +23,8 @@ class Geometry:
 
     @staticmethod
     @torch.no_grad()
-    def grid_normals(xyz, valid, eps: float = 1e-8):
+    def grid_normals(xyz: Float[Tensor, "b 3 h w"], valid: Float[Tensor, "b 1 h w"],
+                     eps: float = 1e-8) -> Float[Tensor, "b 3 h w"]:
         """Per-pixel unit surface normals from an organized point cloud.
 
         xyz:   (B,3,H,W) position map (metres). valid: (B,1,H,W) object mask (1=surface).
@@ -37,7 +40,7 @@ class Geometry:
         """
         v = valid[:, 0] > _ON                                             # (B,H,W) bool
 
-        def tangent(axis):
+        def tangent(axis: int) -> tuple[Float[Tensor, "b 3 h w"], Tensor]:
             """central where both sides valid, else one-sided; returns (tangent (B,3,H,W), has (B,H,W))."""
             a = axis
             step = (slice(None), slice(None)) + ((slice(1, None), slice(None)) if a == _H_AXIS

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from typing import Any
 
 import numpy as np
 
@@ -46,7 +47,7 @@ class IsaacGap:
             return self._reach.configure(seed, phys)
         return make
 
-    def _success(self, policy, state, phys: Phys, episodes: int, seed0: int) -> float:
+    def _success(self, policy: Any, state: Any, phys: Phys, episodes: int, seed0: int) -> float:
         make = self._factory(phys)
         trajs = [Rollout.roll(policy, state, make(seed0 + i), self._task.horizon) for i in range(episodes)]
         return Rollout.success_rate(trajs)

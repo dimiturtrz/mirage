@@ -27,6 +27,7 @@ import argparse
 import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
+from typing import Any
 
 from core.obs import Obs
 from surfscan.deploy import FIT_DOC, MODELS_DOC, accelerators
@@ -86,7 +87,7 @@ class Fit:
     """Cross detectors x typed accelerators x options into a prescriptive per-cell deployability matrix."""
 
     @staticmethod
-    def _weight_mib(c: dict, precision: str) -> float:
+    def _weight_mib(c: dict[str, Any], precision: str) -> float:
         """Component weights at a precision: int8 uses the dedicated (PQ-aware) column; fp16/fp32 scale the
         fp32 store by their byte width (fp16 = half fp32). A bank is a component, so this covers banks too."""
         if precision == _INT8:
@@ -94,7 +95,7 @@ class Fit:
         return c["disk_fp32_mb"] * (_PRECISION_BYTES[precision] / 4) * _MB_PER_MIB
 
     @staticmethod
-    def _work_mib(det: dict, comp: dict[str, dict], precision: str) -> tuple[float, float]:
+    def _work_mib(det: dict[str, Any], comp: dict[str, dict[str, Any]], precision: str) -> tuple[float, float]:
         """(summed GFLOPs, working-set MiB) over a detector's pieces — conv stages AND banks alike, since a
         bank is a normal component (its disk is the store, its gflops the distance matmul). `pieces` is empty
         only for a detector with no on-device compute; a pure geometry-bank detector (BTF) lists its bank."""
@@ -117,7 +118,7 @@ class Fit:
         return round(ms_lo, 2), round(ms_hi, 2), round(1e3 / ms_hi, 1), round(1e3 / ms_lo, 1)
 
     @staticmethod
-    def _blocking_reason(det: dict, acc: Accelerator, opt: Options, support: OpSupport) -> str | None:
+    def _blocking_reason(det: dict[str, Any], acc: Accelerator, opt: Options, support: OpSupport) -> str | None:
         """The first gate that rejects the cell outright, as a prescriptive sentence — or None if it deploys."""
         if support == OpSupport.UNSUPPORTED:
             return f"{det['op_class']} is not in the {acc.type} op-set — runs only on CPU/GPU"
@@ -138,7 +139,7 @@ class Fit:
                                  f"streamed from host at a latency penalty")
 
     @staticmethod
-    def _resolve(det: dict, acc: Accelerator, work_mib: float, opt: Options) -> tuple[Verdict, str]:
+    def _resolve(det: dict[str, Any], acc: Accelerator, work_mib: float, opt: Options) -> tuple[Verdict, str]:
         """Run the gates in order; the first failure decides, else op-support + memory decide together."""
         support = acc.op_support[OpClass(det["op_class"])]
         blocked = Fit._blocking_reason(det, acc, opt, support)
@@ -152,7 +153,7 @@ class Fit:
         return Fit._memory_verdict(work_mib, acc)
 
     @staticmethod
-    def _cell(det: dict, acc: Accelerator, comp: dict, opt: Options) -> FitCell:
+    def _cell(det: dict[str, Any], acc: Accelerator, comp: dict[str, dict[str, Any]], opt: Options) -> FitCell:
         op_class = OpClass(det["op_class"])
         gflops, work_mib = Fit._work_mib(det, comp, opt.precision)
         verdict, reason = Fit._resolve(det, acc, work_mib, opt)
@@ -165,7 +166,7 @@ class Fit:
             verdict=verdict, reason=reason)
 
     @staticmethod
-    def matrix(models: dict) -> list[FitCell]:
+    def matrix(models: dict[str, Any]) -> list[FitCell]:
         """Cross every detector with every accelerator, over THAT accelerator's own precisions (an int8-only
         NPU yields int8 cells only; a GPU/CPU yields its float + int8) x the export toggle."""
         comp = {c["name"]: c for c in models["components"]}
@@ -205,7 +206,7 @@ class Fit:
         log.info(f"wrote {FIT_DOC.name}  ({len(cells)} cells)")
 
     @staticmethod
-    def _models() -> dict:
+    def _models() -> dict[str, Any]:
         """The committed model footprint (deploy/models_params.json). `fit` is a pure CPU join — it does not
         import the profiler (torch), so it stays runnable in CI without the heavy features extra."""
         if not MODELS_DOC.exists():

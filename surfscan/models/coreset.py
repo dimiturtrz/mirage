@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import torch
+from jaxtyping import Float
+from torch import Tensor
 
 
 @dataclass(frozen=True)
@@ -28,7 +30,7 @@ class Coreset:
 
     @staticmethod
     @torch.no_grad()
-    def greedy_coreset(feats, n, seed):
+    def greedy_coreset(feats: Float[Tensor, "m d"], n: int, seed: int) -> Tensor:
         """k-center greedy: iteratively pick the point farthest from the current selection (no host
         syncs in the loop)."""
         g = torch.Generator(device=feats.device).manual_seed(seed)
@@ -41,7 +43,7 @@ class Coreset:
         return feats[sel]
 
     @staticmethod
-    def bank_linear(bank):
+    def bank_linear(bank: Float[Tensor, "m d"]) -> tuple[Tensor, Tensor]:
         """The frozen linear layer that computes the distance field `‖b‖² − 2·x·b` for a fixed bank:
         -> (weight [M,D] = −2·B, bias [M] = ‖b‖²). Load into an nn.Linear(D, M) / Conv1×1 for export —
         this is the accelerator-native half of the nearest-neighbour lookup."""
@@ -51,7 +53,7 @@ class Coreset:
 
     @staticmethod
     @torch.no_grad()
-    def bank_nn_dist(feats, bank):
+    def bank_nn_dist(feats: Float[Tensor, "n d"], bank: Float[Tensor, "m d"]) -> Tensor:
         """Nearest-neighbour distance of each feat to the bank via the matmul form — identical to
         `torch.cdist(feats, bank).min(1).values`, but as `Linear(x) + ‖x‖²` then a min-reduce, so the
         heavy part is the accelerator-native frozen linear and only the min stays host-side."""

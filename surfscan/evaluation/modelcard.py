@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 from core.obs import Obs
 from surfscan.dispatch import Spec
@@ -20,7 +21,7 @@ class ModelCard:
     """Auto-generate docs/MODEL_CARD.md from an MLflow run — so the card always matches the shipped model."""
 
     @staticmethod
-    def _render(run_name: str, row: dict) -> str:
+    def _render(run_name: str, row: dict[str, Any]) -> str:
         params = {key[len("params."):]: value for key, value in row.items() if key.startswith("params.")}
         au_pro, img_auroc = row.get("metrics.au_pro_mean"), row.get("metrics.img_auroc_mean")
         categories = sorted({key.split("/")[1] for key in row if key.startswith("metrics.au_pro/")})
@@ -63,11 +64,11 @@ class ModelCard:
         log.info(f"wrote {CARD.relative_to(ROOT)}")
 
     @staticmethod
-    def args(ap):
+    def args(ap: object) -> None:
         ap.add_argument("--run-name", default="patchcore_rgb_greedy")
 
     @staticmethod
-    def run(args):  # pragma: no cover  CLI glue; _render is the pure tested core
+    def run(args: object) -> None:  # pragma: no cover  CLI glue; _render is the pure tested core
         ModelCard.build(args.run_name)
 
 

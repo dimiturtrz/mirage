@@ -46,6 +46,7 @@ class Dispatch:
         return {s.name: s for s in specs}[args.cmd]
 
     @staticmethod
-    def dispatch(prog: str, specs: Sequence[Spec], argv=None) -> None:  # pragma: no cover  argv/exec boundary
+    def dispatch(prog: str, specs: Sequence[Spec],
+                 argv: Sequence[str] | None = None) -> None:  # pragma: no cover  argv/exec boundary
         args = Dispatch.build_parser(prog, specs).parse_args(argv)
         Dispatch.route(specs, args).run(args)

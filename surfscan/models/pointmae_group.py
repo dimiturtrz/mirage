@@ -16,27 +16,30 @@ Consuming the backbone weights (checked out, never vendored — CLAUDE.md):
 from __future__ import annotations
 
 import torch
+from jaxtyping import Float, Int
+from torch import Tensor
 
 
 class PointmaeGroup:
     """Pure-torch FPS + grouping primitives — the CUDA-free front-end the pointmae op-shims install."""
 
     @staticmethod
-    def square_distance(a, b):
+    def square_distance(a: Float[Tensor, "b n 3"], b: Float[Tensor, "b m 3"]) -> Float[Tensor, "b n m"]:
         """Pairwise squared Euclidean distance, (B,N,3) x (B,M,3) -> (B,N,M), via the -2·a·bᵀ identity."""
         return (a.pow(2).sum(-1, keepdim=True)
                 - 2 * a @ b.transpose(1, 2)
                 + b.pow(2).sum(-1).unsqueeze(1))
 
     @staticmethod
-    def index_points(points, idx):
+    def index_points(points: Float[Tensor, "b n c"], idx: Int[Tensor, "b k"]) -> Float[Tensor, "b k c"]:
         """Gather points by index: (B,N,C) + (B,...) long -> (B,...,C), batch-aware."""
         b = points.shape[0]
         batch = torch.arange(b, device=points.device).view([b] + [1] * (idx.dim() - 1)).expand_as(idx)
         return points[batch, idx]
 
     @staticmethod
-    def farthest_point_sample(xyz, n, *, seed_first=True):
+    def farthest_point_sample(xyz: Float[Tensor, "b npts 3"], n: int, *,
+                              seed_first: bool = True) -> Int[Tensor, "b n"]:
         """FPS: iteratively pick the point farthest from the current selection -> (B,n) indices. Seeding on
         point 0 (not random) keeps fit/score deterministic — the seed only shifts which equally-spread set
         is returned, and downstream features are order-invariant."""

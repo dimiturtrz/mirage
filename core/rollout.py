@@ -53,7 +53,11 @@ class Rollout:
         """Roll a policy already trained to `state` (call `policy.train(task)` once, then roll many episodes —
         the control analog of fit-once-score-many; training inside the loop would re-fit per episode)."""
         obs = env.reset()
-        obs_log, act_log, rew_log, done_log, ok_log = [], [], [], [], []
+        obs_log: list[Any] = []
+        act_log: list[Any] = []
+        rew_log: list[float] = []
+        done_log: list[bool] = []
+        ok_log: list[bool] = []
         for _ in range(max_steps):
             action = policy.act(state, obs)
             step = env.step(action)

@@ -22,9 +22,12 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass
+from typing import Any
 
 import torch
 import torchvision
+from jaxtyping import Float
+from torch import Tensor
 from torch.utils.flop_counter import FlopCounterMode
 
 from core.obs import Obs
@@ -80,12 +83,12 @@ class TruncatedResnet:
         self.mods = [getattr(net, m) for m in self.used_names(upto)]
 
     @torch.no_grad()
-    def __call__(self, x):
+    def __call__(self, x: Float[Tensor, "b c h w"]) -> Float[Tensor, "b c h w"]:
         for m in self.mods:
             x = m(x)
         return x
 
-    def export_spec(self, x):
+    def export_spec(self, x: Float[Tensor, "b c h w"]) -> tuple[torch.nn.Module, Float[Tensor, "b c h w"]]:
         """The exportable nn.Module + its input — the truncated stages as a Sequential (ONNX gate)."""
         return torch.nn.Sequential(*self.mods), x
 
@@ -107,10 +110,10 @@ class PointmaeBackbone:
         self.net = Pointmae.load_pointmae(dev, ckpt=None)
 
     @torch.no_grad()
-    def __call__(self, x):
+    def __call__(self, x: Float[Tensor, "b n c"]) -> Tensor:
         return Pointmae.pointmae_features(self.net, x)
 
-    def export_spec(self, x):
+    def export_spec(self, x: Float[Tensor, "b n c"]) -> tuple[Any, Float[Tensor, "b c n"]]:
         """The transformer module + its (B,3,N) input — the Point-MAE forward wants channels-first."""
         return self.net, x.transpose(1, 2).contiguous()
 
@@ -133,19 +136,19 @@ class Profiler:
     )
 
     @staticmethod
-    def _params(fn) -> int:
+    def _params(fn: Any) -> int:
         own = getattr(fn, "params", None)   # profile wrappers expose .params; a bare nn.Module does not
         return own if own is not None else sum(p.numel() for p in fn.parameters())
 
     @staticmethod
-    def _flops(fn, x) -> int:
+    def _flops(fn: Any, x: Tensor) -> int:
         fc = FlopCounterMode(display=False)
         with torch.no_grad(), fc:
             fn(x)
         return fc.get_total_flops()
 
     @staticmethod
-    def _peak_act_mb(fn, x, dev: str) -> float:
+    def _peak_act_mb(fn: Any, x: Tensor, dev: str) -> float:
         if dev != _CUDA:
             return float("nan")
         torch.cuda.synchronize()
@@ -158,7 +161,7 @@ class Profiler:
         return (torch.cuda.max_memory_allocated() - base) / _MB
 
     @staticmethod
-    def profile_one(name: str, fn, x, note: str, dev: str) -> CostRow:
+    def profile_one(name: str, fn: Any, x: Tensor, note: str, dev: str) -> CostRow:
         params = Profiler._params(fn)
         flops = Profiler._flops(fn, x)
         return CostRow(
@@ -214,7 +217,7 @@ class Profiler:
                 for name, fn, x, note in Profiler.targets(size, dev)]
 
     @staticmethod
-    def document(size: int, dev: str) -> dict:
+    def document(size: int, dev: str) -> dict[str, Any]:
         """The deploy/models_params.json payload: components (neural forwards AND banks, one list) + detectors.
 
         A bank is a normal component — computed analytically (N x C), not FlopCounterMode-measured — so it

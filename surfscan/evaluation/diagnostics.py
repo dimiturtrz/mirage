@@ -12,13 +12,14 @@ from __future__ import annotations
 import numpy as np
 
 from core import metrics
+from core.method import ScoreArrays
 
 
 class Diagnostics:
     """Per-condition (defect-type) stratified diagnostics — the eval-rigor breakdown."""
 
     @staticmethod
-    def by_defect(sa):
+    def by_defect(sa: ScoreArrays):
         amaps, valids, masks, scores, labels, defects = sa
         labels = np.asarray(labels)
         defects = np.asarray(defects)

@@ -5,13 +5,21 @@ helpers live in TwinGeom (pxr-free).
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from jaxtyping import Float, Int
+
+if TYPE_CHECKING:
+    from pxr import UsdGeom
+    from pxr import Usd
 
 
 class TwinObj:
     @staticmethod
-    def build_mesh(stage, verts: Float[np.ndarray, "v 3"], faces: Int[np.ndarray, "f 3"]):
+    def build_mesh(
+        stage: Usd.Stage, verts: Float[np.ndarray, "v 3"], faces: Int[np.ndarray, "f 3"]
+    ) -> UsdGeom.Mesh:
         from pxr import Gf, UsdGeom, Vt  # noqa: PLC0415
 
         mesh = UsdGeom.Mesh.Define(stage, "/World/Object")

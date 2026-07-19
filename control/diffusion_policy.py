@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, override
 
 import numpy as np
 import torch
@@ -58,6 +58,7 @@ class EpsMLP(nn.Module):
             nn.Linear(hidden, chunk_flat),
         )
 
+    @override
     def forward(self, obs: Float[Tensor, "b obs"], x_t: Float[Tensor, "b flat"],
                 t_norm: Float[Tensor, "b 1"]) -> Float[Tensor, "b flat"]:
         return self.net(torch.cat([obs, x_t, t_norm], dim=1))

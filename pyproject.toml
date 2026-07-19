@@ -234,13 +234,21 @@ ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer"
 #   score_map               method dispatched through the (fit, score) method contract, not by name
 #   DataclassInstance       _typeshed protocol used ONLY as a string TypeVar bound (cli_config.py:29),
 #                           which vulture's static name-match cannot follow into
-#   tot                     EpochAcc field, read/written train.py:104,110 the same way
-# NOT silenced: metrics.boot_ci / boot_delta_ci — tested but no prod caller (genuine, tracked separately).
+#   tot                     EpochAcc field, read/written train.py by string subscript (`ep["tot"]`)
+#   ext_memory, sources, accel_type, latency_ms_lo, latency_ms_hi
+#                           deploy dataclass fields serialized via asdict() into deploy/*.json and read
+#                           by deploy/index.html (latency_ms_lo in 3 places) — consumed by JS, so no
+#                           Python name-match can see them. Verified present in the emitted JSON.
+# NOT silenced (genuine findings, tracked as beads — silencing them would destroy the signal):
+#   metrics.boot_ci / boot_delta_ci      tested, no prod caller (bd 6n3)
+#   DiffusionSchedule.q_sample           tested, no prod caller — DiffusionPolicy does the forward
+#                                        diffusion inline in torch (diffusion_policy.py:91-92) instead
 #   control-leg contract types (ControlPolicy/Policy/Trajectory) are NOT listed — they are consumed by
 #   the rollout spine (core/rollout.py), so real use clears them; abstract-stub params are `_`-prefixed.
 ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "fig", "C",
                 "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map",
-                "DataclassInstance", "tot"]
+                "DataclassInstance", "tot", "ext_memory", "sources", "accel_type",
+                "latency_ms_lo", "latency_ms_hi"]
 # <<< LOCAL-SLOT: vulture-ignore-names
 # >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
 paths = ["core", "surfscan", "control"]

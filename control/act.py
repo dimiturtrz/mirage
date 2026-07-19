@@ -57,7 +57,6 @@ class ChunkTransformer(nn.Module):
 
     def __init__(self, obs_dim: int, act_dim: int, cfg: ACTConfig):
         super().__init__()
-        self._chunk = cfg.chunk
         self.obs_embed = nn.Linear(obs_dim, cfg.d_model)
         self.queries = nn.Parameter(torch.randn(cfg.chunk, cfg.d_model))
         layer = nn.TransformerDecoderLayer(cfg.d_model, cfg.nhead, dim_feedforward=cfg.d_model * 4,

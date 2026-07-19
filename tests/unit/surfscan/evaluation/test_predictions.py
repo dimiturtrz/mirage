@@ -45,9 +45,9 @@ def test_roundtrip_through_npz_file_gives_identical_metrics(tmp_path):
     with np.load(p, allow_pickle=False) as d:
         recomputed = Harness.from_artifact(d)
 
-    assert recomputed["mean"] == live["mean"]              # points identical
-    assert recomputed["ci"] == live["ci"]                  # bootstrap CIs identical (fixed default seed)
-    assert recomputed["ece"] == live["ece"]
+    assert recomputed.mean == live.mean              # points identical
+    assert recomputed.ci == live.ci                  # bootstrap CIs identical (fixed default seed)
+    assert recomputed.ece == live.ece
 
 
 def test_recompute_matches_for_random_arm(tmp_path):
@@ -56,4 +56,4 @@ def test_recompute_matches_for_random_arm(tmp_path):
     p = tmp_path / "p.npz"
     np.savez_compressed(p, **Predictions.pack(by_cat, cats))
     with np.load(p, allow_pickle=False) as d:
-        assert Harness.from_artifact(d)["ci"] == live["ci"]
+        assert Harness.from_artifact(d).ci == live.ci

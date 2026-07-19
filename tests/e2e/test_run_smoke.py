@@ -20,8 +20,8 @@ CAT = os.getenv("E2E_CAT", "bagel")
 
 
 def _assert_sane(res):
-    assert len(res["per_category"]) == 1
-    au, img = res["mean"]["au_pro"], res["mean"]["img_auroc"]
+    assert len(res.per_category) == 1
+    au, img = res.mean.au_pro, res.mean.img_auroc
     assert 0.0 < au <= 1.0 and not np.isnan(au)        # real signal localizes (not just non-NaN)
     assert not np.isnan(img)
 
@@ -67,6 +67,6 @@ def test_train_then_evaluate_smoke():
     run_id = TrainRun(HParams(cats=[CAT], epochs=2, compile=False)).train(run_name="e2e_vae", device=dev)
     for image_score in ("residual", "mahalanobis"):
         res = Evaluate.evaluate(run_id, cats=[CAT], device=dev, image_score=image_score)
-        assert len(res["per_category"]) == 1
-        au = res["mean"]["au_pro"]
+        assert len(res.per_category) == 1
+        au = res.mean.au_pro
         assert 0.0 <= au <= 1.0 and not np.isnan(au)

@@ -21,7 +21,11 @@ import mlflow
 from core.obs import Obs
 from surfscan import tracking  # noqa: F401  — importing sets the mlflow tracking uri
 from surfscan.dispatch import Spec
-from surfscan.evaluation.result_types import ResultsRecord
+
+# One record of docs/RESULTS.json (a method entry, a per-category row, a triad/twin arm): a flat JSON
+# object whose values are the measured scalars, the curated strings/flags, and `cost_ref`'s name list.
+ResultsField: TypeAlias = float | str | bool | list[str] | None
+ResultsRecord: TypeAlias = dict[str, ResultsField]
 
 if TYPE_CHECKING:
     import pandas as pd

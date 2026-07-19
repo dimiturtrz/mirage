@@ -22,7 +22,7 @@ from core.method import Method, ScoreArrays
 from surfscan import tracking
 from surfscan.dispatch import Spec
 from surfscan.evaluation import harness, scoring
-from surfscan.evaluation.result_types import EvalResult
+from surfscan.evaluation.harness import EvalResult
 from surfscan.training.hparams import HParams
 
 

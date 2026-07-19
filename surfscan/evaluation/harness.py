@@ -12,7 +12,8 @@ Browse with `mlflow ui`.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import cast
+from dataclasses import asdict, dataclass
+from typing import TypeAlias, TypedDict, cast
 
 import numpy as np
 
@@ -22,9 +23,72 @@ from core.method import AnomalyMethod, FitFn, Method, ScoreArrays, ScoreFn, Stat
 from core.obs import Obs, Progress
 from surfscan import tracking
 from surfscan.evaluation import diagnostics, predictions
-from surfscan.evaluation.result_types import Bracket, CategoryRow, DefectRow, EvalResult, RunParams, Scores
+from surfscan.tracking import RunParams
 
 log = Obs.get()
+
+Bracket: TypeAlias = tuple[float, float, float]   # (point, lo, hi) — one bootstrap interval
+
+
+class CategoryRow(TypedDict):
+    """One per-category row of the eval table (`Metrics.image_auroc` / `Metrics.au_pro` over that split)."""
+
+    category: str
+    n: int
+    img_auroc: float
+    au_pro: float
+
+
+class DefectRow(TypedDict):
+    """One per-defect-type diagnostic row (that type's anomalies scored against ALL normals)."""
+
+    defect: str
+    n: int
+    img_auroc: float
+    au_pro: float
+
+
+@dataclass(frozen=True)
+class Scores:
+    """The two headline metrics that always travel together (mean over categories / defects)."""
+
+    img_auroc: float
+    au_pro: float
+
+    @classmethod
+    def macro(cls, rows: list[CategoryRow]) -> Scores:
+        """Macro headline (mean over categories) from per-category rows carrying `img_auroc` / `au_pro`
+        — the nanmean reduction shared by the live harness and the per-category run aggregator."""
+        return cls(float(np.nanmean([r["img_auroc"] for r in rows])),
+                   float(np.nanmean([r["au_pro"] for r in rows])))
+
+    def as_dict(self) -> dict[str, float]:
+        """Plain-dict form for the result payload + JSON artifact (stays serializable downstream)."""
+        return asdict(self)
+
+    def tracker_means(self) -> dict[str, float]:
+        """The MLflow metric names for the aggregate (mean-over-categories) point estimates."""
+        return {"img_auroc_mean": self.img_auroc, "au_pro_mean": self.au_pro}
+
+
+@dataclass(frozen=True)
+class EvalResult:
+    """The eval result payload — what `Harness.aggregate`/`compute`/`run` return and every consumer
+    (the report commands, the triad's gap report) reads. `ece` is `None` rather than absent when
+    calibration didn't apply: the harness always sets it, so consumers can rely on it."""
+
+    method: str
+    per_category: list[CategoryRow]
+    mean: Scores
+    ci: dict[str, Bracket]
+    ece: float | None
+    per_defect: list[DefectRow]
+    by_cat: list[ScoreArrays]
+
+    def as_artifact(self) -> dict[str, object]:
+        """JSON-artifact form: every field except `by_cat` (raw arrays go to the npz, not the json)."""
+        return {"method": self.method, "per_category": self.per_category, "mean": self.mean.as_dict(),
+                "ci": self.ci, "ece": self.ece, "per_defect": self.per_defect}
 
 
 class Harness:
@@ -93,30 +157,29 @@ class Harness:
             calib = metrics.Metrics.ece(amaps_all, np.concatenate(pool["masks"]), np.concatenate(pool["valids"]))
             log.info(f"  ECE (calibration under shift) {calib:.4f}")
 
-        result: EvalResult = {"method": method, "per_category": rows, "mean": mean.as_dict(),
-               "ci": brackets, "ece": calib, "per_defect": defect_rows, "by_cat": by_cat}
-        invariants.Invariants.check(result)                       # loud at run end if a number is inconsistent
+        result = EvalResult(method=method, per_category=rows, mean=mean, ci=brackets, ece=calib,
+                            per_defect=defect_rows, by_cat=by_cat)
+        invariants.Invariants.check(result.mean.as_dict(), result.ci, result.ece,
+                                    result.by_cat)                # loud at run end if a number is inconsistent
         return result
 
     @staticmethod
     def log(result: EvalResult) -> None:  # pragma: no cover  mlflow IO; aggregate is the pure core
-        rows = result["per_category"]
-        tracking.Tracker.metrics(Scores(**result["mean"]).tracker_means())
-        brackets = result.get("ci", {})
-        for metric, (_point, low, high) in brackets.items():   # bootstrap brackets next to the point metric
+        rows = result.per_category
+        tracking.Tracker.metrics(result.mean.tracker_means())
+        for metric, (_point, low, high) in result.ci.items():   # bootstrap brackets next to the point metric
             if not np.isnan(low):                               # skip NaN (metric undefined on the run)
                 tracking.Tracker.metrics({f"{metric}_lo": low, f"{metric}_hi": high})
-        if result.get("ece") is not None:
-            tracking.Tracker.metrics({"ece": result["ece"]})
+        if result.ece is not None:
+            tracking.Tracker.metrics({"ece": result.ece})
         tracking.Tracker.per_group("au_pro", {row["category"]: row["au_pro"] for row in rows})
         tracking.Tracker.per_group("img_auroc", {row["category"]: row["img_auroc"] for row in rows})
         tracking.Tracker.per_group("au_pro_defect",
-                                   {row["defect"]: row["au_pro"] for row in result["per_defect"]})
-        tracking.Tracker.artifact_json(                     # every EvalResult key but `by_cat` is JSON-native
-            "aggregate.json",
-            cast("dict[str, tracking.JsonValue]", {key: value for key, value in result.items() if key != "by_cat"}))
+                                   {row["defect"]: row["au_pro"] for row in result.per_defect})
+        tracking.Tracker.artifact_json(                     # every EvalResult field but `by_cat` is JSON-native
+            "aggregate.json", cast("dict[str, tracking.JsonValue]", result.as_artifact()))
         cats = [row["category"] for row in rows]                # persist per-image predictions -> offline recompute
-        tracking.Tracker.artifact_npz("predictions.npz", predictions.Predictions.pack(result["by_cat"], cats))
+        tracking.Tracker.artifact_npz("predictions.npz", predictions.Predictions.pack(result.by_cat, cats))
 
     @staticmethod
     def run(

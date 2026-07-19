@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass, field
-from typing import TypedDict
 
 import numpy as np
 import torch
@@ -51,14 +50,6 @@ log = Obs.get()
 BATCH = 16
 VAL_FRAC = 5             # 1/VAL_FRAC of the good scans held out for the synth val signal
 PATIENCE = 8             # epochs of no val-au_pro improvement before stopping (best weights restored)
-
-
-class ArmResult(TypedDict):
-    """The slice of a `Harness.run` result the triad's gap math reads — the macro point metrics and the
-    per-category ScoreArrays the paired bootstrap resamples."""
-
-    mean: dict[str, float]
-    by_cat: list[ScoreArrays]
 
 
 @dataclass(frozen=True)
@@ -252,7 +243,7 @@ class TriadRun:
 
         fits = {"real": run.fit_real, "synth": run.fit_synth, "synth_da": run.fit_synth_da,
                 "twin_grid": run.fit_twin_grid, "twin_phys": run.fit_twin_phys}
-        res: dict[str, ArmResult] = {}
+        res: dict[str, harness.EvalResult] = {}
         for arm in cfg.arms:
             tag = f"triad_{arm}" + ("_curric" if cfg.curriculum and arm != "real" else "")
             log.info(f"\n===== {tag} (seed {cfg.seed}) =====")
@@ -263,45 +254,45 @@ class TriadRun:
 
     @staticmethod
     def _pro_delta_ci(
-        res_a: ArmResult, res_b: ArmResult
+        res_a: harness.EvalResult, res_b: harness.EvalResult
     ) -> tuple[float, float, float]:
         """Paired MACRO bootstrap CI for au_pro(B) − au_pro(A) — mean-of-categories, matching the headline
         arm numbers. Arms score the same deterministic eval half per category in the same order, so the
         within-category paired resample cancels shared image noise (a CI clearing 0 = an honest gap)."""
-        pc_a = [(sa.amaps, sa.masks, sa.valids) for sa in res_a["by_cat"]]
-        pc_b = [(sa.amaps, sa.masks, sa.valids) for sa in res_b["by_cat"]]
+        pc_a = [(sa.amaps, sa.masks, sa.valids) for sa in res_a.by_cat]
+        pc_b = [(sa.amaps, sa.masks, sa.valids) for sa in res_b.by_cat]
         return Metrics.boot_macro_delta_ci(Metrics.au_pro, pc_a, pc_b)
 
     @staticmethod
-    def _report_gap(res: dict[str, ArmResult]) -> None:
+    def _report_gap(res: dict[str, harness.EvalResult]) -> None:
         """The headline: sim-to-real GAP and DA CLOSURE, each as a point with a PAIRED bootstrap CI —
         one deterministic run, uncertainty from the shared eval set (no seed scatter)."""
         if "real" not in res or "synth" not in res:
             return
-        real_ap, synth_ap = res["real"]["mean"]["au_pro"], res["synth"]["mean"]["au_pro"]
+        real_ap, synth_ap = res["real"].mean.au_pro, res["synth"].mean.au_pro
         gap, glo, ghi = TriadRun._pro_delta_ci(res["synth"], res["real"])   # real − synth (the gap)
         Invariants.reconciles(gap, synth_ap, real_ap, "gap")               # macro delta must == mean diff
         log.info(f"\n>>> SIM-TO-REAL GAP (au_pro): real {real_ap:.3f} "
                  f"- synth {synth_ap:.3f} = {gap:+.3f} pp  [{glo:+.3f}, {ghi:+.3f}]")
         if "synth_da" in res:
-            da_ap = res["synth_da"]["mean"]["au_pro"]
+            da_ap = res["synth_da"].mean.au_pro
             clo_pt, clo_lo, clo_hi = TriadRun._pro_delta_ci(res["synth"], res["synth_da"])  # DA − synth
             Invariants.reconciles(clo_pt, synth_ap, da_ap, "da_closure")
             log.info(f">>> DA CLOSURE (AdaBN): synth+DA {da_ap:.3f} "
                      f"(+{clo_pt:.3f} vs synth)  [{clo_lo:+.3f}, {clo_hi:+.3f}]")
         for arm in ("twin_grid", "twin_phys"):                              # digital-twin synth sources
             if arm in res:
-                ap = res[arm]["mean"]["au_pro"]
+                ap = res[arm].mean.au_pro
                 pt, ci = TriadRun._delta_or_point(res[arm], res["real"], real_ap - ap)  # real − twin
                 log.info(f">>> {arm.upper()}->real gap: real {real_ap:.3f} - {arm} {ap:.3f} = {pt:+.3f} pp{ci}")
         if "twin_grid" in res:                                             # shape-source effect (same defect)
-            tg_ap = res["twin_grid"]["mean"]["au_pro"]
+            tg_ap = res["twin_grid"].mean.au_pro
             pt, ci = TriadRun._delta_or_point(res["synth"], res["twin_grid"], tg_ap - synth_ap)
             log.info(f">>> SHAPE-SOURCE (twin_grid - synth, same defect): {pt:+.3f} pp{ci}")
 
     @staticmethod
     def _delta_or_point(
-        res_a: ArmResult, res_b: ArmResult, point: float
+        res_a: harness.EvalResult, res_b: harness.EvalResult, point: float
     ) -> tuple[float, str]:
         """(delta, ci-suffix) for a twin-arm bootstrap CI — a per-arm CI is optional decoration on the
         headline POINT gap, so a degenerate bootstrap draw (mismatched paired resample / empty interval)

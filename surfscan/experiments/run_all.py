@@ -16,7 +16,8 @@ from core.obs import Obs
 from surfscan import tracking
 from surfscan.dispatch import Dispatch, Spec
 from surfscan.evaluation.evaluate import Evaluate
-from surfscan.evaluation.result_types import RunParams, Scores
+from surfscan.evaluation.harness import Scores
+from surfscan.tracking import RunParams
 from surfscan.training.hparams import HParams
 from surfscan.training.train import TrainRun
 
@@ -40,7 +41,7 @@ class VaeRun:
             log.info(f"\n===== {c} =====")
             hp = HParams(cats=[c], epochs=args.epochs, compile=False)
             run_id = TrainRun(hp).train(run_name=f"vae_{c}", device=dev)
-            rows.append(Evaluate.evaluate(run_id, cats=[c], device=dev)["per_category"][0])
+            rows.append(Evaluate.evaluate(run_id, cats=[c], device=dev).per_category[0])
 
         mean = Scores.macro(rows)
         log.info("\n===== AGGREGATE (per-category models) =====")

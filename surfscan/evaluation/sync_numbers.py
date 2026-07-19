@@ -24,7 +24,7 @@ from typing import cast
 from core.obs import Obs
 from surfscan.deploy import MODELS_DOC
 from surfscan.dispatch import Spec
-from surfscan.evaluation.result_types import ResultsRecord
+from surfscan.evaluation.results import ResultsRecord
 
 log = Obs.get()
 

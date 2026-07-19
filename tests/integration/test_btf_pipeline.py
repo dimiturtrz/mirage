@@ -4,6 +4,8 @@ qfm speedup seam (parallel FPFH must land in a valid aggregate). Structural asse
 a 16x16 grid is not a reliable detector, so we check the chain is wired + values are sane, not a
 performance threshold (that's the e2e tier's job, on real data).
 """
+from dataclasses import fields
+
 import numpy as np
 
 from surfscan.evaluation import scoring
@@ -39,7 +41,8 @@ def test_btf_pipeline_produces_valid_aggregate():
         return amaps, valids, masks, scores, labels, defects
 
     res = Harness.aggregate("btf_fpfh", fit, score, ["a"])
-    assert set(res) == {"method", "per_category", "mean", "ci", "ece", "per_defect", "by_cat"}
-    assert 0.0 <= res["mean"]["au_pro"] <= 1.0
-    assert not np.isnan(res["mean"]["img_auroc"])                       # chain wired, values sane
+    assert {f.name for f in fields(res)} == {"method", "per_category", "mean", "ci", "ece",
+                                        "per_defect", "by_cat"}
+    assert 0.0 <= res.mean.au_pro <= 1.0
+    assert not np.isnan(res.mean.img_auroc)                       # chain wired, values sane
     assert (amaps >= 0).all()                                          # NN distance is non-negative

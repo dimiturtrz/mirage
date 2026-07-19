@@ -234,15 +234,13 @@ ignore_decorators = ["@model_validator", "@field_validator", "@field_serializer"
 #   score_map               method dispatched through the (fit, score) method contract, not by name
 #   DataclassInstance       _typeshed protocol used ONLY as a string TypeVar bound (cli_config.py:29),
 #                           which vulture's static name-match cannot follow into
-#   per_defect              EvalResult field, written harness.py:97 and read harness.py:114 by string
-#                           subscript (`result["per_defect"]`) — a TypedDict key is never a named ref
 #   tot                     EpochAcc field, read/written train.py:104,110 the same way
 # NOT silenced: metrics.boot_ci / boot_delta_ci — tested but no prod caller (genuine, tracked separately).
 #   control-leg contract types (ControlPolicy/Policy/Trajectory) are NOT listed — they are consumed by
 #   the rollout spine (core/rollout.py), so real use clears them; abstract-stub params are `_`-prefixed.
 ignore_names = ["model_config", "VALIDATION", "forward", "momentum", "colors", "fig", "C",
                 "furthest_point_sample", "gather_operation", "pointnet2_utils", "AnomalyMethod", "score_map",
-                "DataclassInstance", "per_defect", "tot"]
+                "DataclassInstance", "tot"]
 # <<< LOCAL-SLOT: vulture-ignore-names
 # >>> LOCAL-SLOT: vulture-scan — edit freely, the template will not overwrite intent here
 paths = ["core", "surfscan", "control"]

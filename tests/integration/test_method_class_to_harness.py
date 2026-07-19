@@ -6,7 +6,7 @@ that seam end-to-end without a backbone: a fake method class, constructed the wa
 aggregate. Synthetic maps, no dataset, no GPU, no torchvision.
 """
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 import numpy as np
 
@@ -50,8 +50,9 @@ def test_method_class_flows_through_harness():
     assert run_name == "fake_class" and method.dev == "cpu"
 
     res = Harness.aggregate(run_name, method.fit, method.score, ["a", "b"])
-    assert set(res) == {"method", "per_category", "mean", "ci", "ece", "per_defect", "by_cat"}
-    assert len(res["per_category"]) == 2
-    assert res["mean"]["au_pro"] > 0.9                  # class-form method integrates + localizes
-    hole = next(d for d in res["per_defect"] if d["defect"] == "hole")
+    assert {f.name for f in fields(res)} == {"method", "per_category", "mean", "ci", "ece",
+                                        "per_defect", "by_cat"}
+    assert len(res.per_category) == 2
+    assert res.mean.au_pro > 0.9                  # class-form method integrates + localizes
+    hole = next(d for d in res.per_defect if d["defect"] == "hole")
     assert hole["au_pro"] > 0.9

@@ -8,8 +8,6 @@ Loud by default (WARNING per violation); `strict=True` raises for tests / CI.
 """
 from __future__ import annotations
 
-from typing import TypedDict
-
 import numpy as np
 
 from core.method import ScoreArrays
@@ -20,26 +18,17 @@ log = Obs.get()
 _TOL = 1e-6
 
 
-class ResultView(TypedDict):
-    """The slice of the eval result payload these checks read — declared here so `core` stays an
-    independent kernel (it must not import `surfscan`, where the full `EvalResult` lives). Structural
-    TypedDict compatibility makes `EvalResult` an accepted argument: it carries these keys with these
-    types, plus the reporting-only ones (`method`, `per_category`, `per_defect`) invariants ignore."""
-
-    mean: dict[str, float]
-    ci: dict[str, tuple[float, float, float]]
-    ece: float | None
-    by_cat: list[ScoreArrays]
-
-
 class Invariants:
     """Assert a run's reported numbers are internally consistent (the guardrail against silent-wrong)."""
 
     @staticmethod
-    def check(result: ResultView, *, strict: bool = False) -> list[str]:
-        """-> list of violation messages (empty = clean). Logs each loudly; raises if `strict`."""
-        violations = (Invariants._brackets(result) + Invariants._ci_matches_mean(result)
-                      + Invariants._ece_bounded(result))
+    def check(mean: dict[str, float], ci: dict[str, tuple[float, float, float]], ece: float | None,
+              by_cat: list[ScoreArrays], *, strict: bool = False) -> list[str]:
+        """-> list of violation messages (empty = clean). Logs each loudly; raises if `strict`. Takes the
+        NUMBERS rather than the eval payload object, so `core` stays an independent kernel (the payload
+        type lives beside its producer in `surfscan`, which `core` must not import)."""
+        violations = (Invariants._brackets(ci) + Invariants._ci_matches_mean(mean, ci)
+                      + Invariants._ece_bounded(ece, by_cat))
         for msg in violations:
             log.warning(f"INVARIANT VIOLATION: {msg}")
         if strict and violations:
@@ -51,31 +40,30 @@ class Invariants:
         return all(not np.isnan(value) for value in values)   # skip undefined (NaN) metrics
 
     @staticmethod
-    def _brackets(result: ResultView) -> list[str]:
+    def _brackets(ci: dict[str, tuple[float, float, float]]) -> list[str]:
         """Every bootstrap bracket must contain its own point estimate."""
         out: list[str] = []
-        for metric, (point, low, high) in result.get("ci", {}).items():
+        for metric, (point, low, high) in ci.items():
             if Invariants._finite(point, low, high) and not low <= point <= high:
                 out.append(f"{metric} bracket [{low:.4f}, {high:.4f}] excludes point {point:.4f}")
         return out
 
     @staticmethod
-    def _ci_matches_mean(result: ResultView) -> list[str]:
+    def _ci_matches_mean(mean: dict[str, float], ci: dict[str, tuple[float, float, float]]) -> list[str]:
         """The CI point and the reported mean are the SAME statistic (macro) — they must agree. This is
         the check that catches a pooled-vs-macro mix-up (the historical bug)."""
         out: list[str] = []
-        mean = result.get("mean", {})
-        for metric, (point, _low, _high) in result.get("ci", {}).items():
+        for metric, (point, _low, _high) in ci.items():
             if metric in mean and Invariants._finite(point, mean[metric]) and abs(point - mean[metric]) > _TOL:
                 out.append(f"{metric} ci-point {point:.4f} != reported mean {mean[metric]:.4f} (aggregate mismatch)")
         return out
 
     @staticmethod
-    def _ece_bounded(result: ResultView) -> list[str]:
+    def _ece_bounded(ece: float | None, by_cat: list[ScoreArrays]) -> list[str]:
         """ECE is only meaningful for probability maps; if it was computed, the amaps must lie in [0,1]."""
-        if result.get("ece") is None or not result.get("by_cat"):
+        if ece is None or not by_cat:
             return []
-        amaps = np.concatenate([np.asarray(sa.amaps).ravel() for sa in result["by_cat"]])
+        amaps = np.concatenate([np.asarray(sa.amaps).ravel() for sa in by_cat])
         if amaps.size and (np.nanmin(amaps) < 0.0 or np.nanmax(amaps) > 1.0):
             return [f"ECE computed but amaps out of [0,1] ({np.nanmin(amaps):.3f}..{np.nanmax(amaps):.3f})"]
         return []

@@ -19,6 +19,7 @@ import json
 import tempfile
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeAlias
 
@@ -35,6 +36,17 @@ _TRACKING_URI = f"sqlite:///{(_ROOT / 'mlflow.db').as_posix()}"
 ParamScalar: TypeAlias = str | int | float | bool | None
 ParamTree: TypeAlias = "ParamScalar | dict[str, ParamTree]"
 JsonValue: TypeAlias = "ParamScalar | Sequence[JsonValue] | Mapping[str, JsonValue]"
+
+
+@dataclass(frozen=True)
+class RunParams:
+    """Identity of one tracked run — the method name and the categories it covered."""
+
+    method: str
+    cats: list[str]
+
+    def as_dict(self) -> dict[str, str]:
+        return {"method": self.method, "cats": ",".join(self.cats)}
 
 
 class Tracker:

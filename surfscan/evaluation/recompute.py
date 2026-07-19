@@ -14,7 +14,7 @@ import argparse
 from surfscan import tracking
 from surfscan.dispatch import Spec
 from surfscan.evaluation import harness
-from surfscan.evaluation.result_types import EvalResult
+from surfscan.evaluation.harness import EvalResult
 
 
 class Recompute:

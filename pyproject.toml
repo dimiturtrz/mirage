@@ -183,12 +183,16 @@ search-path = ["."]
 # install it, so these never resolve in a gate run. Ships no py.typed either way.
 #   pxr, omni*, carb, isaacsim*   the engine dependency (uv sync --extra sim)
 #   models.models                 M3DM upstream, checked out under external/ (not a package on the path)
+#   onnx, torchvision             the `export` / `features` extras — CI syncs only dev+devtools, so a gate
+#                                 run never has them (they ARE present in a dev env; see ci.yml install step)
 ignore-missing-imports = [
     "pxr", "pxr.*",
     "omni", "omni.*",
     "carb", "carb.*",
     "isaacsim", "isaacsim.*",
     "models.models",
+    "onnx", "onnx.*",
+    "torchvision", "torchvision.*",
 ]
 # <<< LOCAL-SLOT: pyrefly-ignore-imports
 

@@ -76,7 +76,7 @@ class TriadRun:
         self.dev = dev
 
     @staticmethod
-    def _split_idx(labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _split_idx(labels: Int[np.ndarray, "n"]) -> tuple[Int[np.ndarray, "n_calib"], Int[np.ndarray, "n_eval"]]:
         """Deterministic per-label alternating split of the test set -> (calib_idx, eval_idx).
         Stratified by label so both halves carry good + defective samples. Same split in fit and score."""
         idx = np.arange(len(labels))
@@ -94,7 +94,8 @@ class TriadRun:
     @staticmethod
     @torch.no_grad()
     def _synth_val_au_pro(
-        model: nn.Module, x: Tensor, v: Tensor, ch: tuple[str, ...], seed: int
+        model: nn.Module, x: Float[Tensor, "n c h w"], v: Float[Tensor, "n 1 h w"],
+        ch: tuple[str, ...], seed: int
     ) -> float:
         """Val signal for early stopping: au_pro on a FIXED held-out synth set (same seed each call ->
         identical val defects -> a stable plateau to detect). Synthetic, from the arm's own train
@@ -180,7 +181,8 @@ class TriadRun:
 
     @staticmethod
     @torch.no_grad()
-    def _adabn(model: nn.Module, x: Tensor, passes: int = 2, batch: int = BATCH) -> nn.Module:
+    def _adabn(model: nn.Module, x: Float[Tensor, "n c h w"], passes: int = 2,
+               batch: int = BATCH) -> nn.Module:
         """AdaBN (Li 2017): reset BN running stats, recompute them on the target (real) images via
         forward passes in train mode (momentum=None -> cumulative average). No labels, no backward.
         Transductive — it adapts on the eval images it will then score (standard test-time adaptation;

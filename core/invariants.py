@@ -61,11 +61,11 @@ class Invariants:
     def _ece_bounded(result: Any) -> list[str]:
         """ECE is only meaningful for probability maps; if it was computed, the amaps must lie in [0,1]."""
         if result.get("ece") is None or not result.get("by_cat"):
-            return []  # type: list[str]
+            return []
         amaps = np.concatenate([np.asarray(sa.amaps).ravel() for sa in result["by_cat"]])
         if amaps.size and (np.nanmin(amaps) < 0.0 or np.nanmax(amaps) > 1.0):
             return [f"ECE computed but amaps out of [0,1] ({np.nanmin(amaps):.3f}..{np.nanmax(amaps):.3f})"]
-        return []  # type: list[str]
+        return []
 
     @staticmethod
     def reconciles(delta: Any, point_a: Any, point_b: Any, label: str = "delta") -> bool:

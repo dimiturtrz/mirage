@@ -110,7 +110,7 @@ class PointmaeBackbone:
         self.net = Pointmae.load_pointmae(dev, ckpt=None)
 
     @torch.no_grad()
-    def __call__(self, x: Float[Tensor, "b n c"]) -> Tensor:
+    def __call__(self, x: Float[Tensor, "b n c"]) -> tuple[Float[Tensor, "b g c"], Float[Tensor, "b g 3"]]:
         return Pointmae.pointmae_features(self.net, x)
 
     def export_spec(self, x: Float[Tensor, "b n c"]) -> tuple[Any, Float[Tensor, "b c n"]]:
@@ -141,14 +141,14 @@ class Profiler:
         return own if own is not None else sum(p.numel() for p in fn.parameters())
 
     @staticmethod
-    def _flops(fn: Any, x: Tensor) -> int:
+    def _flops(fn: Any, x: Float[Tensor, "b *shape"]) -> int:
         fc = FlopCounterMode(display=False)
         with torch.no_grad(), fc:
             fn(x)
         return fc.get_total_flops()
 
     @staticmethod
-    def _peak_act_mb(fn: Any, x: Tensor, dev: str) -> float:
+    def _peak_act_mb(fn: Any, x: Float[Tensor, "b *shape"], dev: str) -> float:
         if dev != _CUDA:
             return float("nan")
         torch.cuda.synchronize()
@@ -161,7 +161,7 @@ class Profiler:
         return (torch.cuda.max_memory_allocated() - base) / _MB
 
     @staticmethod
-    def profile_one(name: str, fn: Any, x: Tensor, note: str, dev: str) -> CostRow:
+    def profile_one(name: str, fn: Any, x: Float[Tensor, "b *shape"], note: str, dev: str) -> CostRow:
         params = Profiler._params(fn)
         flops = Profiler._flops(fn, x)
         return CostRow(

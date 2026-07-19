@@ -118,7 +118,7 @@ class Show:
             recon, _, _ = model(torch.from_numpy(x).to(dev))
         return x, recon.cpu().numpy()
 
-    def anomaly_map(self, run: str | Path) -> np.ndarray:
+    def anomaly_map(self, run: str | Path) -> Float[np.ndarray, "h w"]:
         """Per-pixel reconstruction error from a trained model (run dir). Requires processed inputs."""
         x, recon = self._run_model(run)
         err = ((recon - x) ** 2).sum(1).squeeze(0)                    # H,W

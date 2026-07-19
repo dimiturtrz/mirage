@@ -37,7 +37,7 @@ class MethodCli:
             Dispatch.add_cats(ap)
             CliConfig.add_config_args(ap, cfg_cls)
 
-        def run(args: argparse.Namespace) -> None:  # pragma: no cover  device pick + mlflow harness boundary; build_method is the core
+        def run(args: argparse.Namespace) -> None:  # pragma: no cover  mlflow boundary; build_method is core
             Compute.enable_tf32()
             run_name, method = MethodCli.build_method(method_cls, cfg_cls, args, Compute.pick_device())
             harness.Harness.run(run_name or name, method, cats=args.cats)

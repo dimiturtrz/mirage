@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import torch
 import torchvision
+from jaxtyping import Float
 
-from surfscan.models.feat_ae import FeatAE  # noqa: F401  — re-export; the pure AE core lives there
+from surfscan.models.feat_ae import FeatAE
 
-__all__ = ["FeatExtractor", "FeatAE"]
+__all__ = ["FeatAE", "FeatExtractor"]
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
@@ -31,6 +32,6 @@ class FeatExtractor:
         self.mean, self.std = _MEAN.to(device), _STD.to(device)
 
     @torch.no_grad()
-    def __call__(self, x: torch.Tensor) -> torch.Tensor:  # x: N,3,H,W in [0,1] -> N,C,h,w features
+    def __call__(self, x: Float[torch.Tensor, "n 3 h w"]) -> Float[torch.Tensor, "n c fh fw"]:
         self.net((x - self.mean) / self.std)
         return self._feat

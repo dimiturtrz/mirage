@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import argparse
 import time
+from typing import TypedDict
 
 import torch
+from jaxtyping import Float
 from torch import Tensor, nn, optim
 
 from core.compute import Compute
@@ -30,6 +32,17 @@ from surfscan.training.trainer import Trainer
 log = Obs.get()
 
 
+class EpochAcc(TypedDict):
+    """Per-epoch accumulator for the train loop's metric aggregation: epoch index, epoch start time,
+    running loss total, batch count, and the per-key extra-metric totals (already `.item()`-ed floats)."""
+
+    i: int
+    t0: float
+    tot: float
+    nb: int
+    extra: dict[str, float]
+
+
 class TrainRun:
     """The reconstruction-model train spine + the per-model (build, step) registry helpers. `hp` (the
     run's hyperparameters) is fixed for the run's life and threaded by every method -> held in __init__;
@@ -44,15 +57,15 @@ class TrainRun:
     def inpaint_model(self, in_ch: int) -> nn.Module:
         return InpaintAE(self.hp.model_cfg(in_ch))
 
-    def vae_step(self, run_model: nn.Module, x: Tensor,
-                 m: Tensor) -> tuple[Tensor, dict[str, Tensor]]:
+    def vae_step(self, run_model: nn.Module, x: Float[Tensor, "b c h w"],
+                 m: Float[Tensor, "b 1 h w"]) -> tuple[Float[Tensor, ""], dict[str, Tensor]]:
         recon, mu, logvar = run_model(x)
         rl = Losses.masked_recon_loss(recon, x, m)
         kl = Losses.kl_loss(mu, logvar)
         return rl + self.hp.beta * kl, {"recon": rl, "kl": kl}
 
-    def inpaint_step(self, run_model: nn.Module, x: Tensor,
-                     m: Tensor) -> tuple[Tensor, dict[str, Tensor]]:
+    def inpaint_step(self, run_model: nn.Module, x: Float[Tensor, "b c h w"],
+                     m: Float[Tensor, "b 1 h w"]) -> tuple[Float[Tensor, ""], dict[str, Tensor]]:
         hp = self.hp
         patch = hp.size // hp.grid
         keep = InpaintAE.random_mask(x.shape[0], hp.size, patch, hp.mask_ratio, x.device)
@@ -78,8 +91,7 @@ class TrainRun:
 
         # the SGD mechanics are the shared Trainer; the per-epoch metric aggregation + mlflow logging
         # (this method's observability, not the loop) live in the step/after_epoch closures.
-        ep: dict[str, float | int | dict[str, Tensor]] = {"i": 0, "t0": 0.0, "tot": 0.0, "nb": 0,
-                                                           "extra": {}}
+        ep: EpochAcc = {"i": 0, "t0": 0.0, "tot": 0.0, "nb": 0, "extra": {}}
 
         def step_fn(idx: Tensor) -> Tensor:
             x = data.x[idx].to(memory_format=torch.channels_last)

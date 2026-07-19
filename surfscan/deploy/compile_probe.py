@@ -29,8 +29,7 @@ from typing import Any, override
 
 import torch
 from jaxtyping import Float
-from torch import nn
-from torch import Tensor
+from torch import Tensor, nn
 
 from core.obs import Obs
 from surfscan.deploy import DEPLOY_DIR
@@ -80,7 +79,7 @@ class AttnRep(nn.Module):
         self.qkv = nn.Linear(d, d * 3)
 
     @override
-    def forward(self, x: Float[Tensor, "b n d"]) -> Tensor:
+    def forward(self, x: Float[Tensor, "b n d"]) -> Float[Tensor, "b n d"]:
         q, k, v = self.qkv(x).chunk(3, dim=-1)
         return torch.softmax(q @ k.transpose(-1, -2) / 8.0, dim=-1) @ v
 

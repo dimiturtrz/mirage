@@ -24,5 +24,5 @@ class FeatAE(nn.Module):
             nn.ConvTranspose2d(hidden, ch, 4, 2, 1))
 
     @override
-    def forward(self, x: Float[torch.Tensor, "b c h w"]) -> torch.Tensor:
+    def forward(self, x: Float[torch.Tensor, "b c h w"]) -> Float[torch.Tensor, "b c h w"]:
         return self.dec(self.enc(x))

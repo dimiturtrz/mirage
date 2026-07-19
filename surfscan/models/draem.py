@@ -37,7 +37,7 @@ class UNet(nn.Module):
         self.out = nn.Conv2d(base, out_ch, 1)
 
     @override
-    def forward(self, x: Float[torch.Tensor, "b c h w"]) -> torch.Tensor:
+    def forward(self, x: Float[torch.Tensor, "b c h w"]) -> Float[torch.Tensor, "b co h w"]:
         e1 = self.e1(x); e2 = self.e2(self.pool(e1)); e3 = self.e3(self.pool(e2)); e4 = self.e4(self.pool(e3))
         b = self.bott(self.pool(e4))
         d4 = self.d4(torch.cat([self.u4(b), e4], 1))
@@ -69,7 +69,7 @@ class DraemSynth:
     def __init__(self, rng: np.random.Generator) -> None:
         self.rng = rng
 
-    def _perlin_mask(self, h: int, w: int, res: int = 16) -> np.ndarray:
+    def _perlin_mask(self, h: int, w: int, res: int = 16) -> Float[np.ndarray, "h w"]:
         low = self.rng.rand(res, res).astype(np.float32)
         m = sk_resize(low, (h, w), order=1, preserve_range=True)
         return (m > self.rng.uniform(0.6, 0.8)).astype(np.float32)

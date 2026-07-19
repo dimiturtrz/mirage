@@ -60,12 +60,12 @@ class GpuSplit:  # pragma: no cover  reads the processed store from disk; _stack
         )
 
     @staticmethod
-    def load_split(
+    def load_split(  # noqa: PLR0913  # pragma: no cover
         split: str | None = None,
         label: str | None = None,
         cats: list[str] | None = None,
-        channels: tuple[str, ...] = ("xyz",),  # noqa: PLR0913  # pragma: no cover
-        device: str = "cuda",  # store query + GpuSplit (disk)
+        channels: tuple[str, ...] = ("xyz",),
+        device: str = "cuda",
         size: int | None = None,
         source: store.Source | None = None,
     ) -> "GpuSplit":

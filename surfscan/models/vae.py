@@ -60,14 +60,14 @@ class ConvVAE(nn.Module):
         return self.fc_mu(x), self.fc_logvar(x)
 
     def reparameterize(
-        self, mu: torch.Tensor, logvar: torch.Tensor
-    ) -> torch.Tensor:
+        self, mu: Float[torch.Tensor, "b latent"], logvar: Float[torch.Tensor, "b latent"]
+    ) -> Float[torch.Tensor, "b latent"]:
         if not self.training:
             return mu
         std = (0.5 * logvar).exp()
         return mu + std * torch.randn_like(std)
 
-    def decode(self, z: torch.Tensor) -> torch.Tensor:
+    def decode(self, z: Float[torch.Tensor, "b latent"]) -> Float[torch.Tensor, "b c h w"]:
         x = self.fc_dec(self.z_drop(z)).view(-1, self.bottleneck_ch, self.feat, self.feat)
         for b in self.dec:
             x = b(x)

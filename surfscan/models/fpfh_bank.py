@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import open3d as o3d
 import torch
-from jaxtyping import Float
+from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from core.compute import Compute
@@ -28,7 +28,7 @@ class FpfhCfg:
 
 class FpfhBank:
     @staticmethod
-    def _normals(pts: np.ndarray, knn: int) -> o3d.geometry.PointCloud:
+    def _normals(pts: Float[np.ndarray, "n 3"], knn: int) -> o3d.geometry.PointCloud:
         pc = o3d.geometry.PointCloud()
         pc.points = o3d.utility.Vector3dVector(pts)
         pc.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn))
@@ -38,9 +38,9 @@ class FpfhBank:
     @staticmethod
     def fpfh_for_sample(
         xyz: Float[np.ndarray, "h w 3"],
-        valid: Any,
+        valid: Bool[np.ndarray, "h w"],
         cfg: FpfhCfg | None = None,
-    ) -> tuple[Float[np.ndarray, "n 33"], np.ndarray]:
+    ) -> tuple[Float[np.ndarray, "n 33"], Int[np.ndarray, "n 2"]]:
         cfg = cfg or FpfhCfg()
         """-> (n,33) FPFH descriptors + (n,2) pixel (row,col) for each valid point.
 
@@ -62,7 +62,7 @@ class FpfhBank:
     @staticmethod
     def _fpfh_batch(
         samples: Any, cfg: FpfhCfg | None = None,
-    ) -> list[tuple[Float[np.ndarray, "n 33"], np.ndarray]]:
+    ) -> list[tuple[Float[np.ndarray, "n 33"], Int[np.ndarray, "n 2"]]]:
         """fpfh_for_sample over samples. Serial by measurement: open3d's normals/FPFH hold the GIL, so a
         ThreadPool gave 1.0x (no speedup, benchmarked on real data); a ProcessPool's Windows-spawn +
         per-sample point-cloud pickle overhead doesn't pay for these small clouds. A real speedup needs a
@@ -90,7 +90,10 @@ class FpfhBank:
         return self
 
     @torch.no_grad()
-    def _score_one(self, f: np.ndarray, coords: np.ndarray, valid: np.ndarray, chunk: int) -> np.ndarray:
+    def _score_one(
+        self, f: Float[np.ndarray, "n 33"], coords: Int[np.ndarray, "n 2"], valid: Bool[np.ndarray, "h w"],
+        chunk: int,
+    ) -> Float[np.ndarray, "h w"]:
         ft = torch.from_numpy(f).to(self.device)
         d = Compute.batched_forward(
             lambda i0, i1: torch.cdist(ft[i0:i1], self.bank).min(1).values, len(ft), chunk)
@@ -99,7 +102,7 @@ class FpfhBank:
         return amap
 
     def score_map(
-        self, xyz: Float[np.ndarray, "h w 3"], valid: Any, chunk: int = 4096,
+        self, xyz: Float[np.ndarray, "h w 3"], valid: Bool[np.ndarray, "h w"], chunk: int = 4096,
     ) -> Float[np.ndarray, "h w"]:
         f, coords = FpfhBank.fpfh_for_sample(xyz, valid)
         return self._score_one(f, coords, valid, chunk)

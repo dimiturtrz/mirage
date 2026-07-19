@@ -40,11 +40,11 @@ class Preprocess:
 
     @staticmethod
     def _remove_flying_pixels(
-        xyz: np.ndarray,
-        valid: np.ndarray,
+        xyz: Float[np.ndarray, "h w 3"],
+        valid: Bool[np.ndarray, "h w"],
         nb: int = SO_NB,
         std: float = SO_STD,
-    ) -> np.ndarray:
+    ) -> Bool[np.ndarray, "h w"]:
         """Drop structured-light flying pixels (non-zero outliers at depth edges)."""
         pts = xyz[valid]
         if len(pts) < nb + 1:
@@ -58,7 +58,7 @@ class Preprocess:
         return out
 
     @staticmethod
-    def _bbox(valid: np.ndarray) -> tuple[np.intp, np.intp, np.intp, np.intp]:
+    def _bbox(valid: Bool[np.ndarray, "h w"]) -> tuple[np.intp, np.intp, np.intp, np.intp]:
         ys, xs = np.where(valid)
         return ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
 

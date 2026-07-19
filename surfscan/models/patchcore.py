@@ -56,7 +56,7 @@ class PatchCore:
         return hook
 
     @torch.no_grad()
-    def _embed(self, x: Tensor) -> tuple[Tensor, tuple[int, int]]:
+    def _embed(self, x: Float[Tensor, "n 3 h w"]) -> tuple[Tensor, tuple[int, int]]:
         """x: N,3,H,W in [0,1] -> patch features (N, h*w, C) and (h, w)."""
         x = (x - self.mean) / self.std
         self._feats = {}
@@ -71,7 +71,7 @@ class PatchCore:
         return f.permute(0, 2, 3, 1).reshape(n, h * w, c), (h, w)
 
     @torch.no_grad()
-    def fit(self, x: Tensor, cfg: FitCfg | None = None) -> PatchCore:
+    def fit(self, x: Float[Tensor, "n 3 h w"], cfg: FitCfg | None = None) -> PatchCore:
         cfg = cfg or FitCfg()
         feats = []
         for i in range(0, len(x), cfg.batch):
@@ -90,7 +90,9 @@ class PatchCore:
         return self
 
     @torch.no_grad()
-    def score_maps(self, x: Tensor, batch: int = 8, qchunk: int = 8192) -> Float[np.ndarray, "n h w"]:
+    def score_maps(
+        self, x: Float[Tensor, "n 3 h w"], batch: int = 8, qchunk: int = 8192
+    ) -> Float[np.ndarray, "n h w"]:
         """-> (N,H,W) anomaly maps = nearest-neighbor distance to the bank, upsampled to input size.
         Scored via bank_nn_dist (the matmul-offload form) in qchunk-row blocks so the (n*h*w, M) field
         never materializes in full — at high resolution that matrix is what spills VRAM."""

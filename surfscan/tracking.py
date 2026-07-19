@@ -53,7 +53,7 @@ class Tracker:
     @staticmethod
     @contextmanager
     def run(experiment: str, name: str,
-            params: dict[str, Any] | None = None):  # pragma: no cover  mlflow run context (network/db); _flat is the pure core
+            params: dict[str, Any] | None = None):  # pragma: no cover  mlflow run ctx; _flat is the pure core
         Tracker._ensure_backend()
         mlflow.set_experiment(experiment)
         with mlflow.start_run(run_name=name) as r:

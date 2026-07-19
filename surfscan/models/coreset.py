@@ -30,7 +30,7 @@ class Coreset:
 
     @staticmethod
     @torch.no_grad()
-    def greedy_coreset(feats: Float[Tensor, "m d"], n: int, seed: int) -> Tensor:
+    def greedy_coreset(feats: Float[Tensor, "m d"], n: int, seed: int) -> Float[Tensor, "n d"]:
         """k-center greedy: iteratively pick the point farthest from the current selection (no host
         syncs in the loop)."""
         g = torch.Generator(device=feats.device).manual_seed(seed)
@@ -53,7 +53,7 @@ class Coreset:
 
     @staticmethod
     @torch.no_grad()
-    def bank_nn_dist(feats: Float[Tensor, "n d"], bank: Float[Tensor, "m d"]) -> Tensor:
+    def bank_nn_dist(feats: Float[Tensor, "n d"], bank: Float[Tensor, "m d"]) -> Float[Tensor, "n"]:
         """Nearest-neighbour distance of each feat to the bank via the matmul form — identical to
         `torch.cdist(feats, bank).min(1).values`, but as `Linear(x) + ‖x‖²` then a min-reduce, so the
         heavy part is the accelerator-native frozen linear and only the min stays host-side."""

@@ -20,6 +20,7 @@ from typing import Callable
 
 import numpy as np
 import tifffile
+from jaxtyping import Float
 from PIL import Image
 
 from core.data.dynamic.twin_geom import TwinGeom
@@ -128,7 +129,7 @@ class TwinSynth:
     def _good_views(
         self,
         cat: str,
-        vc: np.ndarray,
+        vc: Float[np.ndarray, "v 3"],
         set_points: Callable[[np.ndarray], None],
         randomize: Callable[[], None],
         render: Callable[["omni.replicator.core.Annotator", "omni.replicator.core.Annotator"],
@@ -154,7 +155,7 @@ class TwinSynth:
     def _defect_views(
         self,
         cat: str,
-        vc: np.ndarray,
+        vc: Float[np.ndarray, "v 3"],
         set_points: Callable[[np.ndarray], None],
         randomize: Callable[[], None],
         render: Callable[["omni.replicator.core.Annotator", "omni.replicator.core.Annotator"],

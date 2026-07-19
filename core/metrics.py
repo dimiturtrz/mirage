@@ -18,7 +18,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
-from jaxtyping import Bool, Float
+from jaxtyping import Bool, Float, Int
 from skimage.measure import label
 from sklearn.metrics import roc_auc_score
 
@@ -50,7 +50,7 @@ class Metrics:
 
     @staticmethod
     def _resample(
-        arrays: Sequence[object], idx: np.ndarray
+        arrays: Sequence[object], idx: Int[np.ndarray, "n"]
     ) -> list[np.ndarray]:
         """Index the first axis (= image) of every metric-input array by one bootstrap draw."""
         return [np.asarray(a)[idx] for a in arrays]

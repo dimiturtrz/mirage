@@ -11,8 +11,7 @@ import numpy as np
 from jaxtyping import Float, Int
 
 if TYPE_CHECKING:
-    from pxr import UsdGeom
-    from pxr import Usd
+    from pxr import Usd, UsdGeom
 
 
 class TwinObj:

@@ -98,7 +98,7 @@ class Harness:
         return result
 
     @staticmethod
-    def log(result: dict[str, Any]) -> None:  # pragma: no cover  mlflow metric/artifact logging; aggregate is the pure core
+    def log(result: dict[str, Any]) -> None:  # pragma: no cover  mlflow IO; aggregate is the pure core
         rows = result["per_category"]
         tracking.Tracker.metrics(Scores(**result["mean"]).tracker_means())
         brackets = result.get("ci", {})

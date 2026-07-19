@@ -22,6 +22,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import torch
+from jaxtyping import Bool, Float
 
 from core.geometry import Geometry
 
@@ -42,14 +43,14 @@ class Defects:
 
     def _u(
         self, lo: float, hi: float, b: int, device: torch.device
-    ) -> torch.Tensor:
+    ) -> Float[torch.Tensor, "b 1 1"]:
         return torch.as_tensor(
             self.rng.uniform(lo, hi, b), dtype=torch.float32, device=device
         )[:, None, None]
 
     def _profiles(
-        self, shape: tuple[int, int, int], device: torch.device, is_scratch: torch.Tensor
-    ) -> torch.Tensor:
+        self, shape: tuple[int, int, int], device: torch.device, is_scratch: Bool[torch.Tensor, "b"]
+    ) -> Float[torch.Tensor, "b h w"]:
         """Batched smooth profiles (B,H,W): elliptical blob, or thin scratch where is_scratch."""
         b, h, w = shape
         yy, xx = torch.meshgrid(torch.arange(h, device=device), torch.arange(w, device=device), indexing="ij")
@@ -71,11 +72,11 @@ class Defects:
     @torch.no_grad()
     def synthesize(
         self,
-        x: torch.Tensor,
-        valid: torch.Tensor,
+        x: Float[torch.Tensor, "b c h w"],
+        valid: Float[torch.Tensor, "b 1 h w"],
         channels: tuple[str, ...] = ("rgb",),
         kinds: Sequence[str] = KINDS,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[Float[torch.Tensor, "b c h w"], Float[torch.Tensor, "b 1 h w"]]:
         """x: (B,C,H,W), valid: (B,1,H,W) -> (aug, mask (B,1,H,W)). channels maps the stacked 3-wide slices:
         xyz -> geometric z-displacement, rgb -> appearance. Fully batched — no per-sample loop."""
         B, C, H, W = x.shape
